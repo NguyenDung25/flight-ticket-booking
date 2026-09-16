@@ -1,0 +1,87 @@
+{
+  "Metadata": {
+    "title": "Đặt vé máy bay",
+    "description": "Tìm kiếm và đặt vé máy bay trực tuyến"
+  },
+  "Nav": {
+    "search": "Tìm chuyến bay",
+    "myBookings": "Vé của tôi",
+    "checkIn": "Check-in",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "logout": "Đăng xuất",
+    "language": "Ngôn ngữ"
+  },
+  "Common": {
+    "loading": "Đang tải...",
+    "error": "Đã có lỗi xảy ra",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "back": "Quay lại",
+    "next": "Tiếp tục",
+    "submit": "Gửi",
+    "close": "Đóng"
+  },
+  "Auth": {
+    "loginTitle": "Đăng nhập",
+    "registerTitle": "Đăng ký tài khoản",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "fullName": "Họ và tên",
+    "loginButton": "Đăng nhập",
+    "registerButton": "Đăng ký",
+    "noAccount": "Chưa có tài khoản?",
+    "hasAccount": "Đã có tài khoản?",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng.",
+    "accountBlocked": "Tài khoản đã bị khóa.",
+    "emailInUse": "Email đã được sử dụng."
+  },
+  "Home": {
+    "title": "Tìm chuyến bay phù hợp với bạn",
+    "tripTypeOneWay": "Một chiều",
+    "tripTypeRoundTrip": "Khứ hồi",
+    "from": "Điểm đi",
+    "to": "Điểm đến",
+    "departureDate": "Ngày đi",
+    "returnDate": "Ngày về",
+    "passengers": "Số hành khách",
+    "searchButton": "Tìm chuyến bay"
+  },
+  "FlightDetail": {
+    "title": "Chi tiết chuyến bay",
+    "duration": "Thời gian bay",
+    "seatClass": "Hạng ghế",
+    "price": "Giá vé",
+    "selectButton": "Chọn chuyến này"
+  },
+  "Booking": {
+    "passengerInfoTitle": "Thông tin hành khách",
+    "seatSelectionTitle": "Chọn ghế",
+    "addPassenger": "Thêm hành khách",
+    "idDocument": "CCCD/Hộ chiếu",
+    "dateOfBirth": "Ngày sinh",
+    "continueToPayment": "Tiếp tục thanh toán"
+  },
+  "Payment": {
+    "title": "Thanh toán",
+    "totalAmount": "Tổng tiền",
+    "payWithMomo": "Thanh toán qua Momo"
+  },
+  "MyBookings": {
+    "title": "Vé của tôi",
+    "statusPendingPayment": "Chờ thanh toán",
+    "statusConfirmed": "Đã xác nhận",
+    "statusCancelled": "Đã hủy",
+    "statusRefunded": "Đã hoàn tiền",
+    "cancelBooking": "Hủy vé",
+    "cancelSuccess": "Hủy vé thành công"
+  },
+  "CheckIn": {
+    "title": "Check-in online",
+    "flightId": "Mã chuyến bay",
+    "seatNumber": "Số ghế",
+    "checkInButton": "Check-in",
+    "boardingPassCode": "Mã lên máy bay"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "Metadata": {
+    "title": "Flight Booking",
+    "description": "Search and book flights online"
+  },
+  "Nav": {
+    "search": "Search flights",
+    "myBookings": "My bookings",
+    "checkIn": "Check-in",
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "language": "Language"
+  },
+  "Common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "close": "Close"
+  },
+  "Auth": {
+    "loginTitle": "Log in",
+    "registerTitle": "Create an account",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "loginButton": "Log in",
+    "registerButton": "Sign up",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "invalidCredentials": "Incorrect email or password.",
+    "accountBlocked": "This account has been blocked.",
+    "emailInUse": "This email is already in use."
+  },
+  "Home": {
+    "title": "Find the right flight for you",
+    "tripTypeOneWay": "One-way",
+    "tripTypeRoundTrip": "Round-trip",
+    "from": "From",
+    "to": "To",
+    "departureDate": "Departure date",
+    "returnDate": "Return date",
+    "passengers": "Passengers",
+    "searchButton": "Search flights"
+  },
+  "FlightDetail": {
+    "title": "Flight details",
+    "duration": "Flight duration",
+    "seatClass": "Seat class",
+    "price": "Price",
+    "selectButton": "Select this flight"
+  },
+  "Booking": {
+    "passengerInfoTitle": "Passenger information",
+    "seatSelectionTitle": "Seat selection",
+    "addPassenger": "Add passenger",
+    "idDocument": "ID card / Passport",
+    "dateOfBirth": "Date of birth",
+    "continueToPayment": "Continue to payment"
+  },
+  "Payment": {
+    "title": "Payment",
+    "totalAmount": "Total amount",
+    "payWithMomo": "Pay with Momo"
+  },
+  "MyBookings": {
+    "title": "My bookings",
+    "statusPendingPayment": "Pending payment",
+    "statusConfirmed": "Confirmed",
+    "statusCancelled": "Cancelled",
+    "statusRefunded": "Refunded",
+    "cancelBooking": "Cancel booking",
+    "cancelSuccess": "Booking cancelled successfully"
+  },
+  "CheckIn": {
+    "title": "Online check-in",
+    "flightId": "Flight ID",
+    "seatNumber": "Seat number",
+    "checkInButton": "Check in",
+    "boardingPassCode": "Boarding pass code"
+  }
+}

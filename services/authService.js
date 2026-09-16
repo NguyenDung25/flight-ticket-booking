@@ -9,6 +9,7 @@
 
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const dbConnect = require("../lib/mongodb");
 const { BCRYPT_SALT_ROUNDS } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
@@ -53,6 +54,8 @@ async function registerUser({ email, password, full_name, preferred_language }) 
     throw new AuthError("email, password, full_name đều là bắt buộc.");
   }
 
+  await dbConnect();
+
   const normalizedEmail = email.trim().toLowerCase();
 
   // Check tường minh TRƯỚC insert để trả lỗi 409 rõ ràng — index unique ở
@@ -92,6 +95,8 @@ async function verifyCredentials({ email, password }) {
   if (!email || !password) {
     throw new AuthError("email và password đều là bắt buộc.", 401);
   }
+
+  await dbConnect();
 
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ email: normalizedEmail });
