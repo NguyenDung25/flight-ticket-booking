@@ -5,9 +5,13 @@
 // /register — giữ 2 việc tách bạch, dễ debug khi có lỗi).
 
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
 import { registerUser, AuthError } from "@/services/authService";
 
 export async function POST(request) {
+  // registerUser() query + ghi vào User model — phải mở kết nối trước.
+  await dbConnect();
+
   let body;
   try {
     body = await request.json();

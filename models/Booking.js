@@ -110,7 +110,10 @@ BookingSchema.index({ "flights.flight_id": 1, status: 1 }); // giữ compound, x
 // vẫn pass (2 = 2) dù thiếu chặng — phải so khớp từng flight_id.
 // Validate SÂU HƠN (đối chiếu seat_class thật, tuổi/giấy tờ, transit time...) đặt
 // ở services/bookingValidationService.js vì cần dữ liệu từ collection Flight khác.
-BookingSchema.pre("validate", function (next) {
+BookingSchema.pre("validate", function () {
+  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng
+  // throw, giống cách đã sửa ở models/Flight.js (xem comment ở đó, tham khảo
+  // mongoosejs.com/docs/migrating_to_9.html).
   const expectedFlightIds = this.flights.map((f) => String(f.flight_id)).sort();
   for (const p of this.passengers) {
     const actualFlightIds = p.seats.map((s) => String(s.flight_id)).sort();
@@ -118,14 +121,11 @@ BookingSchema.pre("validate", function (next) {
       actualFlightIds.length === expectedFlightIds.length &&
       expectedFlightIds.every((id, i) => id === actualFlightIds[i]);
     if (!matches) {
-      return next(
-        new Error(
-          `Hành khách "${p.full_name}" có ghế không khớp đúng các chặng bay của booking.`
-        )
+      throw new Error(
+        `Hành khách "${p.full_name}" có ghế không khớp đúng các chặng bay của booking.`
       );
     }
   }
-  next();
 });
 
 module.exports = mongoose.models.Booking || mongoose.model("Booking", BookingSchema);

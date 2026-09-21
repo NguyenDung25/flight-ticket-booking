@@ -54,18 +54,20 @@ FlightSchema.index({ origin_code: 1, dest_code: 1, departure_time: 1 });
 // Các validate PHỤ THUỘC dữ liệu khác (VD có booking hiệu lực hay không) phải
 // nằm ở tầng service (services/flightService.js), KHÔNG đặt ở đây vì Mongoose
 // pre-save hook không có sẵn quyền truy vấn collection Booking một cách sạch sẽ.
-FlightSchema.pre("validate", function (next) {
+FlightSchema.pre("validate", function () {
+  // Mongoose 9 đã bỏ tham số next khỏi pre-hook (callback-style middleware
+  // không còn được hỗ trợ) — báo lỗi bằng throw, KHÔNG dùng next(err) như
+  // các bản Mongoose cũ (xem mongoosejs.com/docs/migrating_to_9.html).
   if (this.origin_code === this.dest_code) {
-    return next(new Error("origin_code không được trùng dest_code."));
+    throw new Error("origin_code không được trùng dest_code.");
   }
   if (this.arrival_time <= this.departure_time) {
-    return next(new Error("arrival_time phải sau departure_time."));
+    throw new Error("arrival_time phải sau departure_time.");
   }
   const hasBusinessSeat = this.seats.some((s) => s.seat_class === "business");
   if (hasBusinessSeat && (this.base_price.business === undefined || this.base_price.business === null)) {
-    return next(new Error("Chuyến bay có ghế business thì base_price.business là bắt buộc."));
+    throw new Error("Chuyến bay có ghế business thì base_price.business là bắt buộc.");
   }
-  next();
 });
 
 module.exports = mongoose.models.Flight || mongoose.model("Flight", FlightSchema);

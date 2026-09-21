@@ -11,9 +11,11 @@
 
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import { routing } from "@/i18n/routing";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -32,9 +34,12 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const { locale } = await params;
+  // Dùng namespace "Metadata" đã dịch sẵn trong messages/*.json thay vì
+  // hard-code tiếng Việt — title/description đổi theo locale, đúng C11.
+  const t = await getTranslations({ locale, namespace: "Metadata" });
   return {
-    title: "Flight Ticket Booking",
-    description: "Đặt vé máy bay trực tuyến",
+    title: t("title"),
+    description: t("description"),
   };
 }
 
@@ -58,7 +63,13 @@ export default async function LocaleLayout({ children, params }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <Header />
+          {/* flex-1 để Footer luôn bị đẩy xuống đáy màn hình kể cả khi trang
+              ngắn (VD trang lỗi, trang trống) — không dùng position: fixed. */}
+          <div className="flex flex-1 flex-col">{children}</div>
+          <Footer />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

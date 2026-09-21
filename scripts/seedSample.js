@@ -1,0 +1,200 @@
+// scripts/seedSample.js
+//
+// Seed dữ liệu MẪU để test nhanh toàn bộ luồng mà KHÔNG cần tạo tay qua
+// Postman/Compass — 1 lệnh là có đủ:
+//   - 1 tài khoản admin + 1 tài khoản customer (email/password in ra console)
+//   - 2 Airline (VN, VJ), 1 Aircraft (Airbus A321 demo, 12 ghế business + 48
+//     ghế economy), 2 Flight (HAN↔SGN, khởi hành "ngày mai" tính từ lúc chạy
+//     — KHÔNG hardcode ngày cố định, tránh script hết hạn nếu chạy muộn hơn
+//     lúc viết).
+//
+// AN TOÀN CHẠY LẠI NHIỀU LẦN (idempotent) — dùng upsert theo
+// email/code/name, bỏ qua Flight nếu đã tồn tại đúng flight_number +
+// departure_time, KHÔNG tạo trùng dữ liệu nếu chạy lại.
+//
+// Chạy: node scripts/seedSample.js
+
+const fs = require("fs");
+const path = require("path");
+
+/**
+ * Nạp .env.local thủ công — script này chạy độc lập bằng `node`, KHÔNG qua
+ * `next dev`/`next build` (vốn tự động nạp .env.local), nên không có sẵn
+ * biến môi trường nào nếu thiếu bước này. Viết tay thay vì thêm package
+ * `dotenv` — chỉ cần parser rất đơn giản, không đáng thêm 1 dependency mới
+ * cho đúng 1 file dùng 1 lần.
+ */
+function loadEnvLocal() {
+  const envPath = path.resolve(__dirname, "../.env.local");
+  if (!fs.existsSync(envPath)) {
+    throw new Error("Không tìm thấy .env.local ở gốc project.");
+  }
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+loadEnvLocal();
+
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+
+const User = require("../models/User");
+const Airline = require("../models/Airline");
+const Aircraft = require("../models/Aircraft");
+const Flight = require("../models/Flight");
+const { BCRYPT_SALT_ROUNDS } = require("../config/constants");
+
+const ADMIN_EMAIL = "admin@example.com";
+const ADMIN_PASSWORD = "Admin@123";
+const CUSTOMER_EMAIL = "customer@example.com";
+const CUSTOMER_PASSWORD = "Customer@123";
+
+async function seedUsers() {
+  const adminHash = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_SALT_ROUNDS);
+  await User.findOneAndUpdate(
+    { email: ADMIN_EMAIL },
+    { email: ADMIN_EMAIL, password_hash: adminHash, full_name: "Admin Demo", role: "admin" },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  const customerHash = await bcrypt.hash(CUSTOMER_PASSWORD, BCRYPT_SALT_ROUNDS);
+  await User.findOneAndUpdate(
+    { email: CUSTOMER_EMAIL },
+    { email: CUSTOMER_EMAIL, password_hash: customerHash, full_name: "Customer Demo", role: "customer" },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  console.log(`✅ Admin:    ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  console.log(`✅ Customer: ${CUSTOMER_EMAIL} / ${CUSTOMER_PASSWORD}`);
+}
+
+async function seedAirlines() {
+  const vietnamAirlines = await Airline.findOneAndUpdate(
+    { code: "VN" },
+    { code: "VN", name: { vi: "Vietnam Airlines", en: "Vietnam Airlines" } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  const vietjet = await Airline.findOneAndUpdate(
+    { code: "VJ" },
+    { code: "VJ", name: { vi: "Vietjet Air", en: "Vietjet Air" } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  console.log("✅ Airline: VN, VJ");
+  return { vietnamAirlines, vietjet };
+}
+
+async function seedAircraft() {
+  const seatMap = [];
+  // Hàng 1-2: business (2 hàng x 4 cột = 8 ghế)
+  for (const row of [1, 2]) {
+    for (const col of ["A", "B", "C", "D"]) {
+      seatMap.push({ seat_number: `${row}${col}`, seat_class: "business" });
+    }
+  }
+  // Hàng 3-10: economy (8 hàng x 6 cột = 48 ghế)
+  for (let row = 3; row <= 10; row++) {
+    for (const col of ["A", "B", "C", "D", "E", "F"]) {
+      seatMap.push({ seat_number: `${row}${col}`, seat_class: "economy" });
+    }
+  }
+
+  const aircraft = await Aircraft.findOneAndUpdate(
+    { name: "Airbus A321 (Demo)" },
+    { name: "Airbus A321 (Demo)", total_seats: seatMap.length, seat_map_template: seatMap },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  console.log(`✅ Aircraft: ${aircraft.name} (${seatMap.length} ghế: 8 business, 48 economy)`);
+  return aircraft;
+}
+
+/**
+ * Mốc giờ demo luôn tính từ "ngày mai" lúc CHẠY script — KHÔNG hardcode 1
+ * ngày cụ thể trong code, tránh chuyến bay demo bị lùi vào quá khứ (và do đó
+ * biến mất khỏi kết quả C1, vì flightService chỉ trả `status: scheduled` và
+ * bất kỳ ngày nào — kể cả quá khứ — về mặt kỹ thuật vẫn "scheduled" trừ khi
+ * admin tự tay đổi, nhưng khách sẽ KHÔNG BAO GIỜ tìm thấy được chuyến trong
+ * quá khứ vì luôn tìm theo ngày hiện tại/tương lai) nếu script chạy muộn hơn
+ * nhiều so với lúc viết.
+ */
+function tomorrowAt(hour) {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+}
+
+async function seedFlights({ airlines, aircraft }) {
+  const toSeed = [
+    {
+      flight_number: "VN200",
+      airline_id: airlines.vietnamAirlines._id,
+      aircraft_id: aircraft._id,
+      origin_code: "HAN",
+      dest_code: "SGN",
+      departure_time: tomorrowAt(8),
+      arrival_time: tomorrowAt(10),
+      base_price: { economy: 1500000, business: 4000000 },
+    },
+    {
+      flight_number: "VJ300",
+      airline_id: airlines.vietjet._id,
+      aircraft_id: aircraft._id,
+      origin_code: "SGN",
+      dest_code: "HAN",
+      departure_time: tomorrowAt(14),
+      arrival_time: tomorrowAt(16),
+      base_price: { economy: 1200000, business: 3500000 },
+    },
+  ];
+
+  for (const data of toSeed) {
+    const existing = await Flight.findOne({
+      flight_number: data.flight_number,
+      departure_time: data.departure_time,
+    });
+    if (existing) {
+      console.log(`↷ Bỏ qua (đã tồn tại): ${data.flight_number}`);
+      continue;
+    }
+
+    // Nguồn ghế DUY NHẤT — giống hệt cách app/api/admin/flights/route.js
+    // sinh ghế, KHÔNG tự bịa mảng seats[] ở đây.
+    const seats = aircraft.cloneSeatMapForFlight();
+    const flight = await Flight.create({ ...data, seats });
+    console.log(
+      `✅ Flight: ${flight.flight_number} (${flight.origin_code}→${flight.dest_code}, ` +
+        `khởi hành ${flight.departure_time.toLocaleString("vi-VN")}, ${flight.seats.length} ghế)`
+    );
+  }
+}
+
+async function main() {
+  if (!process.env.MONGO_URI) {
+    throw new Error("Thiếu MONGO_URI trong .env.local.");
+  }
+
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log("Đã kết nối MongoDB\n");
+
+  await seedUsers();
+  const airlines = await seedAirlines();
+  const aircraft = await seedAircraft();
+  await seedFlights({ airlines, aircraft });
+
+  console.log("\n=== SEED HOÀN TẤT ===");
+  console.log("Thử ngay: /search?origin=HAN&destination=SGN&departureDate=<ngày mai>&tripType=one_way");
+
+  await mongoose.disconnect();
+}
+
+main().catch((err) => {
+  console.error("SEED LỖI:", err);
+  process.exit(1);
+});

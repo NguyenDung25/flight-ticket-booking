@@ -1,4 +1,8 @@
 {
+  "Brand": {
+    "name": "Sun Phu Quoc Airways",
+    "tagline": "Fly direct to the pearl island"
+  },
   "Metadata": {
     "title": "Flight Booking",
     "description": "Search and book flights online"
@@ -46,14 +50,35 @@
     "departureDate": "Departure date",
     "returnDate": "Return date",
     "passengers": "Passengers",
-    "searchButton": "Search flights"
+    "searchButton": "Search flights",
+    "errorMissingRoute": "Please select a departure and destination airport.",
+    "errorSameAirport": "Departure and destination can't be the same.",
+    "errorMissingReturnDate": "Please select a return date."
   },
   "FlightDetail": {
     "title": "Flight details",
     "duration": "Flight duration",
     "seatClass": "Seat class",
     "price": "Price",
+    "economyLabel": "Economy",
+    "businessLabel": "Business",
+    "notOffered": "This class isn't offered on this flight",
+    "availableSeatsLabel": "Available",
     "selectButton": "Select this flight"
+  },
+  "SearchResults": {
+    "title": "Search results",
+    "backToSearch": "Search again",
+    "noResults": "No matching flights found.",
+    "outboundLabel": "Outbound flight",
+    "returnLabel": "Return flight",
+    "viewDetails": "View details",
+    "seatsSoldOut": "Sold out",
+    "seatsAvailable": "{count} seats left",
+    "stepOutboundTitle": "Step 1/3 · Choose outbound flight",
+    "stepReturnTitle": "Step 2/3 · Choose return flight",
+    "selectedOutboundLabel": "Selected outbound flight",
+    "sameAirlineNote": "Showing only {airline} flights to keep your round trip on the same airline."
   },
   "Booking": {
     "passengerInfoTitle": "Passenger information",
@@ -61,12 +86,45 @@
     "addPassenger": "Add passenger",
     "idDocument": "ID card / Passport",
     "dateOfBirth": "Date of birth",
-    "continueToPayment": "Continue to payment"
+    "dateOfBirthLabel": "Date of birth",
+    "continueToPayment": "Continue to payment",
+    "stepLabel": "Enter passenger details & pick seats",
+    "passengerLabel": "Passenger {index}",
+    "removePassenger": "Remove",
+    "fullNameLabel": "Full name",
+    "documentTypeLabel": "Document type",
+    "documentTypeCccd": "National ID",
+    "documentTypePassport": "Passport",
+    "documentTypeBirthCertificate": "Birth certificate (under 14)",
+    "documentIdLabel": "Document number",
+    "seatLegOutbound": "Outbound seat",
+    "seatLegReturn": "Return seat",
+    "seatStatusAvailable": "Available",
+    "seatStatusHeld": "Held by someone else",
+    "seatStatusBooked": "Already booked",
+    "seatStatusYours": "You're holding this",
+    "seatStatusTakenByOtherPassenger": "Assigned to another passenger",
+    "noSeatSelected": "No seat selected",
+    "holdingSeat": "Holding seat...",
+    "totalAmountLabel": "Total amount",
+    "backButton": "Back",
+    "submitError": "Something went wrong, please try again.",
+    "errorMissingSeats": "Please select a seat for every passenger on every leg.",
+    "errorMissingFields": "Please fill in all passenger details.",
+    "errorMinPassengers": "At least 1 passenger is required.",
+    "processing": "Processing..."
   },
   "Payment": {
     "title": "Payment",
     "totalAmount": "Total amount",
-    "payWithMomo": "Pay with Momo"
+    "payWithMomo": "Pay with Momo",
+    "processing": "Processing your payment, please don't close this page.",
+    "statusPendingPayment": "Your booking is awaiting payment. If you already paid on Momo, please wait a moment and reload.",
+    "statusConfirmed": "Payment successful! Your e-ticket has been sent to your email.",
+    "statusCancelled": "This booking was cancelled (payment failed or the seat hold expired).",
+    "statusPaymentError": "There was an issue confirming your seats after payment. Please contact support for a refund.",
+    "statusNotFound": "Booking not found.",
+    "backToHome": "Back to home"
   },
   "MyBookings": {
     "title": "My bookings",
@@ -75,13 +133,64 @@
     "statusCancelled": "Cancelled",
     "statusRefunded": "Refunded",
     "cancelBooking": "Cancel booking",
-    "cancelSuccess": "Booking cancelled successfully"
+    "cancelSuccess": "Booking cancelled successfully",
+    "statusPaymentErrorManualRefund": "Processing error, manual refund pending",
+    "bookingCodeLabel": "Booking code",
+    "noBookingCode": "Not issued yet (payment incomplete)",
+    "passengerCountLabel": "Passengers",
+    "outboundLabel": "Outbound",
+    "returnLabel": "Return",
+    "flightUnavailable": "Flight no longer available",
+    "totalAmountLabel": "Total amount",
+    "refundAmountLabel": "Refunded",
+    "noBookings": "You have no bookings yet.",
+    "confirmCancelPrompt": "Cancel this booking?",
+    "cancelling": "Cancelling...",
+    "cancelError": "Could not cancel the booking, please try again.",
+    "viewTicket": "View e-ticket"
   },
   "CheckIn": {
     "title": "Online check-in",
     "flightId": "Flight ID",
     "seatNumber": "Seat number",
     "checkInButton": "Check in",
-    "boardingPassCode": "Boarding pass code"
+    "boardingPassCode": "Boarding pass code",
+    "windowNote": "Online check-in is only available from 24 hours to 2 hours before departure.",
+    "noItems": "You have no seats eligible for check-in yet.",
+    "alreadyCheckedIn": "Checked in",
+    "notYetOpen": "Check-in not open yet",
+    "windowClosed": "Check-in closed",
+    "checkingIn": "Checking in...",
+    "checkInError": "Could not check in, please try again.",
+    "checkedInAtLabel": "Checked in at",
+    "passengerLabel": "Passenger"
+  },
+  "BookingSummary": {
+    "stepLabel": "Step 3/3 · Confirm itinerary",
+    "title": "Itinerary summary",
+    "outboundLabel": "Outbound flight",
+    "returnLabel": "Return flight",
+    "estimatedTotalLabel": "Estimated total",
+    "estimatedTotalNote": "Estimated at economy price — the final price is set once you pick seats for each passenger.",
+    "passengerCountLabel": "Passengers",
+    "continueButton": "Continue to passenger details",
+    "backButton": "Back",
+    "errorNotFound": "Selected flight not found, please search again.",
+    "errorMissingParams": "Missing itinerary information, please search again."
+  },
+  "Ticket": {
+    "notFound": "Booking not found.",
+    "notOwner": "You do not have permission to view this ticket.",
+    "genericError": "Something went wrong, please try again.",
+    "backToMyBookings": "Back to my bookings",
+    "bookingCodeLabel": "Booking code",
+    "outboundLabel": "Outbound",
+    "returnLabel": "Return",
+    "passengersTitle": "Passengers",
+    "totalAmountLabel": "Total amount",
+    "resendButton": "Resend by email",
+    "resending": "Sending...",
+    "resendSuccess": "The ticket was resent by email.",
+    "resendError": "Could not send the email, please try again later."
   }
 }

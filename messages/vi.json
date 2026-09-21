@@ -1,4 +1,8 @@
 {
+  "Brand": {
+    "name": "Sun Phú Quốc Airways",
+    "tagline": "Bay thẳng tới thiên đường đảo ngọc"
+  },
   "Metadata": {
     "title": "Đặt vé máy bay",
     "description": "Tìm kiếm và đặt vé máy bay trực tuyến"
@@ -46,14 +50,35 @@
     "departureDate": "Ngày đi",
     "returnDate": "Ngày về",
     "passengers": "Số hành khách",
-    "searchButton": "Tìm chuyến bay"
+    "searchButton": "Tìm chuyến bay",
+    "errorMissingRoute": "Vui lòng chọn điểm đi và điểm đến.",
+    "errorSameAirport": "Điểm đi và điểm đến không được trùng nhau.",
+    "errorMissingReturnDate": "Vui lòng chọn ngày về."
   },
   "FlightDetail": {
     "title": "Chi tiết chuyến bay",
     "duration": "Thời gian bay",
     "seatClass": "Hạng ghế",
     "price": "Giá vé",
+    "economyLabel": "Phổ thông",
+    "businessLabel": "Thương gia",
+    "notOffered": "Chuyến này không có hạng ghế này",
+    "availableSeatsLabel": "Còn trống",
     "selectButton": "Chọn chuyến này"
+  },
+  "SearchResults": {
+    "title": "Kết quả tìm kiếm",
+    "backToSearch": "Tìm kiếm lại",
+    "noResults": "Không tìm thấy chuyến bay phù hợp.",
+    "outboundLabel": "Chuyến đi",
+    "returnLabel": "Chuyến về",
+    "viewDetails": "Xem chi tiết",
+    "seatsSoldOut": "Đã hết vé",
+    "seatsAvailable": "Còn {count} chỗ trống",
+    "stepOutboundTitle": "Bước 1/3 · Chọn chuyến đi",
+    "stepReturnTitle": "Bước 2/3 · Chọn chuyến về",
+    "selectedOutboundLabel": "Chuyến đi đã chọn",
+    "sameAirlineNote": "Chỉ hiện chuyến của {airline} để giữ khứ hồi cùng 1 hãng bay."
   },
   "Booking": {
     "passengerInfoTitle": "Thông tin hành khách",
@@ -61,12 +86,45 @@
     "addPassenger": "Thêm hành khách",
     "idDocument": "CCCD/Hộ chiếu",
     "dateOfBirth": "Ngày sinh",
-    "continueToPayment": "Tiếp tục thanh toán"
+    "dateOfBirthLabel": "Ngày sinh",
+    "continueToPayment": "Tiếp tục thanh toán",
+    "stepLabel": "Nhập thông tin hành khách & chọn ghế",
+    "passengerLabel": "Hành khách {index}",
+    "removePassenger": "Xóa",
+    "fullNameLabel": "Họ và tên",
+    "documentTypeLabel": "Loại giấy tờ",
+    "documentTypeCccd": "Căn cước công dân",
+    "documentTypePassport": "Hộ chiếu",
+    "documentTypeBirthCertificate": "Giấy khai sinh (dưới 14 tuổi)",
+    "documentIdLabel": "Số giấy tờ tùy thân",
+    "seatLegOutbound": "Ghế chặng đi",
+    "seatLegReturn": "Ghế chặng về",
+    "seatStatusAvailable": "Còn trống",
+    "seatStatusHeld": "Đang được giữ",
+    "seatStatusBooked": "Đã có người đặt",
+    "seatStatusYours": "Bạn đang giữ",
+    "seatStatusTakenByOtherPassenger": "Đã chọn cho hành khách khác",
+    "noSeatSelected": "Chưa chọn ghế",
+    "holdingSeat": "Đang giữ ghế...",
+    "totalAmountLabel": "Tổng tiền",
+    "backButton": "Quay lại",
+    "submitError": "Đã có lỗi xảy ra, vui lòng thử lại.",
+    "errorMissingSeats": "Vui lòng chọn đủ ghế cho mọi hành khách trên tất cả các chặng.",
+    "errorMissingFields": "Vui lòng nhập đầy đủ thông tin cho mọi hành khách.",
+    "errorMinPassengers": "Cần ít nhất 1 hành khách.",
+    "processing": "Đang xử lý..."
   },
   "Payment": {
     "title": "Thanh toán",
     "totalAmount": "Tổng tiền",
-    "payWithMomo": "Thanh toán qua Momo"
+    "payWithMomo": "Thanh toán qua Momo",
+    "processing": "Đang xử lý thanh toán, vui lòng không đóng trang này.",
+    "statusPendingPayment": "Booking đang chờ thanh toán. Nếu bạn đã thanh toán trên Momo, vui lòng đợi giây lát rồi tải lại trang.",
+    "statusConfirmed": "Thanh toán thành công! Vé điện tử đã được gửi tới email của bạn.",
+    "statusCancelled": "Booking đã bị hủy (thanh toán thất bại hoặc hết hạn giữ ghế).",
+    "statusPaymentError": "Có sự cố khi xác nhận ghế sau khi thanh toán. Vui lòng liên hệ hỗ trợ để được xử lý hoàn tiền.",
+    "statusNotFound": "Không tìm thấy booking này.",
+    "backToHome": "Về trang chủ"
   },
   "MyBookings": {
     "title": "Vé của tôi",
@@ -75,13 +133,64 @@
     "statusCancelled": "Đã hủy",
     "statusRefunded": "Đã hoàn tiền",
     "cancelBooking": "Hủy vé",
-    "cancelSuccess": "Hủy vé thành công"
+    "cancelSuccess": "Hủy vé thành công",
+    "statusPaymentErrorManualRefund": "Lỗi xử lý, đang chờ hoàn tiền thủ công",
+    "bookingCodeLabel": "Mã đặt chỗ",
+    "noBookingCode": "Chưa có (chưa thanh toán xong)",
+    "passengerCountLabel": "Số hành khách",
+    "outboundLabel": "Chặng đi",
+    "returnLabel": "Chặng về",
+    "flightUnavailable": "Chuyến bay không còn khả dụng",
+    "totalAmountLabel": "Tổng tiền",
+    "refundAmountLabel": "Đã hoàn",
+    "noBookings": "Bạn chưa có vé nào.",
+    "confirmCancelPrompt": "Xác nhận hủy vé này?",
+    "cancelling": "Đang hủy...",
+    "cancelError": "Không thể hủy vé, vui lòng thử lại.",
+    "viewTicket": "Xem vé điện tử"
   },
   "CheckIn": {
     "title": "Check-in online",
     "flightId": "Mã chuyến bay",
     "seatNumber": "Số ghế",
     "checkInButton": "Check-in",
-    "boardingPassCode": "Mã lên máy bay"
+    "boardingPassCode": "Mã lên máy bay",
+    "windowNote": "Chỉ có thể check-in trong khoảng từ 24 tiếng đến 2 tiếng trước giờ khởi hành.",
+    "noItems": "Bạn chưa có vé nào đủ điều kiện check-in.",
+    "alreadyCheckedIn": "Đã check-in",
+    "notYetOpen": "Chưa mở check-in",
+    "windowClosed": "Đã đóng check-in",
+    "checkingIn": "Đang check-in...",
+    "checkInError": "Không thể check-in, vui lòng thử lại.",
+    "checkedInAtLabel": "Thời điểm check-in",
+    "passengerLabel": "Hành khách"
+  },
+  "BookingSummary": {
+    "stepLabel": "Bước 3/3 · Xác nhận hành trình",
+    "title": "Tóm tắt hành trình",
+    "outboundLabel": "Chuyến đi",
+    "returnLabel": "Chuyến về",
+    "estimatedTotalLabel": "Tổng tiền tạm tính",
+    "estimatedTotalNote": "Tính theo giá hạng phổ thông — giá thật sẽ chốt sau khi bạn chọn ghế cho từng hành khách.",
+    "passengerCountLabel": "Số hành khách",
+    "continueButton": "Tiếp tục nhập thông tin hành khách",
+    "backButton": "Quay lại",
+    "errorNotFound": "Không tìm thấy chuyến bay đã chọn, vui lòng tìm kiếm lại.",
+    "errorMissingParams": "Thiếu thông tin hành trình, vui lòng tìm kiếm lại."
+  },
+  "Ticket": {
+    "notFound": "Không tìm thấy booking.",
+    "notOwner": "Bạn không có quyền xem vé này.",
+    "genericError": "Đã có lỗi xảy ra, vui lòng thử lại.",
+    "backToMyBookings": "Về danh sách vé của tôi",
+    "bookingCodeLabel": "Mã đặt chỗ",
+    "outboundLabel": "Chặng đi",
+    "returnLabel": "Chặng về",
+    "passengersTitle": "Hành khách",
+    "totalAmountLabel": "Tổng tiền",
+    "resendButton": "Gửi lại qua email",
+    "resending": "Đang gửi...",
+    "resendSuccess": "Đã gửi lại vé qua email.",
+    "resendError": "Không gửi được email, vui lòng thử lại sau."
   }
 }

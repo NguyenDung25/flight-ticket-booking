@@ -63,8 +63,8 @@ async function queryFlightsByLeg({ origin, destination, date }) {
   return Flight.aggregate([
     {
       $match: {
-        origin_code: origin,
-        dest_code: destination,
+        origin_code: origin.toUpperCase(),
+        dest_code: destination.toUpperCase(),
         departure_time: { $gte: start, $lt: end },
         status: "scheduled",
       },

@@ -13,6 +13,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import authConfig from "./auth.config";
+import dbConnect from "./lib/mongodb";
 import { verifyCredentials, AuthError } from "./services/authService";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -31,6 +32,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // (sẽ nối khi làm trang /login) — KHÔNG lộ message chi tiết nếu chưa
       // làm bước đó, tạm thời để Auth.js tự map về lỗi chung.
       async authorize(credentials) {
+        // BẮT BUỘC: verifyCredentials() query User model — không mở kết nối
+        // trước thì mongoose treo (bufferCommands: false -> ném lỗi luôn).
+        await dbConnect();
         try {
           const user = await verifyCredentials({
             email: credentials?.email,

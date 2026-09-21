@@ -1,23 +1,41 @@
 // app/[locale]/page.js — C1: trang tìm kiếm chuyến bay.
-// Hiện tại chỉ là khung đã nối i18n; form tìm kiếm thật sẽ làm ở bước sau.
+//
+// Fetch Airport TRỰC TIẾP ở đây (KHÔNG qua /api/airports) — page.js đã chạy
+// server-side sẵn, gọi thẳng model tiết kiệm 1 vòng HTTP (giống cách
+// register/actions.js gọi thẳng service thay vì tự fetch route của chính
+// mình). /api/airports vẫn giữ lại cho client khác cần fetch lại (VD nếu
+// sau này thêm nút "đổi chiều" fetch động, hoặc app di động).
+//
+// Map về mảng thuần TRƯỚC khi truyền cho SearchForm (Client Component) —
+// .lean() vẫn có thể lẫn field không cần thiết, và Next.js RSC serialization
+// yêu cầu prop truyền qua boundary phải là JSON-serializable thuần túy.
 
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import dbConnect from "@/lib/mongodb";
+import Airport from "@/models/Airport";
+import SearchForm from "./SearchForm";
 
 export default async function HomePage({ params }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("Home");
 
+  await dbConnect();
+  const airportDocs = await Airport.find({}, "code name city country")
+    .sort({ city: 1 })
+    .lean();
+  const airports = airportDocs.map((a) => ({
+    code: a.code,
+    name: { vi: a.name.vi, en: a.name.en },
+    city: a.city,
+  }));
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-center gap-6 py-32 px-16 bg-white dark:bg-black">
-        <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          {t("title")}
-        </h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          {t("searchButton")} — form tìm chuyến bay sẽ được thêm ở bước sau.
-        </p>
-      </main>
+    <div className="flex flex-col flex-1 items-center gap-8 bg-sand-50 px-4 py-16 sm:px-16">
+      <h1 className="font-display text-center text-3xl font-semibold tracking-tight text-sea-900">
+        {t("title")}
+      </h1>
+      <SearchForm airports={airports} locale={locale} />
     </div>
   );
 }

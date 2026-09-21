@@ -27,11 +27,12 @@ const PromotionSchema = new Schema(
 
 PromotionSchema.index({ code: 1 }, { unique: true });
 
-PromotionSchema.pre("validate", function (next) {
+PromotionSchema.pre("validate", function () {
+  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng
+  // throw, giống cách đã sửa ở models/Flight.js.
   if (this.valid_until <= this.valid_from) {
-    return next(new Error("valid_until phải sau valid_from."));
+    throw new Error("valid_until phải sau valid_from.");
   }
-  next();
 });
 
 /**

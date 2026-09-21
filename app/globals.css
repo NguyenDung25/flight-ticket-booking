@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ---------------------------------------------------------------------------
+   Bảng màu dự án — chủ đề biển đảo Phú Quốc:
+   - sea   : xanh biển sâu, dùng cho chữ chính + hành động phụ
+   - sand  : be cát, dùng cho nền + đường viền nhạt
+   - coral : cam san hô, CHỈ dùng cho CTA chính (tìm chuyến, thanh toán)
+   - ink   : màu chữ trung tính
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+   Mọi component trong components/ đã dùng sẵn các token này (sea-900,
+   sand-50, coral-500, text-ink...) — KHÔNG đổi tên token nếu chưa sửa đồng
+   loạt bên đó.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-sea-50: #eff8fb;
+  --color-sea-100: #d6edf4;
+  --color-sea-500: #1c7f9e;
+  --color-sea-700: #125872;
+  --color-sea-900: #0b3550;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-sand-50: #fdfaf5;
+  --color-sand-100: #f2e9dc;
+  --color-sand-200: #e4d5c0;
+
+  --color-coral-500: #e4633f;
+  --color-coral-600: #c74d2c;
+
+  --color-ink: #1d2430;
+
+  /* Lỗi form (login/register C8, validate chọn ghế/thông tin hành khách sau
+     này) — đỏ gạch, KHÁC hẳn coral-500 (CTA) để không bị nhầm là nút bấm. */
+  --color-danger: #c0392b;
+
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-sand-50);
+  color: var(--color-ink);
 }
