@@ -12,7 +12,8 @@
 // gọi ngay release-seat cho MỌI ghế người đó đang giữ, không chỉ xóa khỏi
 // state — xem removePassenger().
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MIN_AGE_REQUIRE_ID_DOCUMENT } from "@/config/constants";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";
@@ -22,6 +23,31 @@ import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
+
+/**
+ * Bản client-side của lib/timezone.js ageInYears() — KHÔNG import trực tiếp
+ * file đó (server-only, kéo theo các hằng số C10 không liên quan tới form
+ * này). Tuổi chỉ cần chính xác tới NGÀY — input type="date" cho sẵn
+ * "YYYY-MM-DD" nên không có rủi ro lệch múi giờ như khi so departure_time.
+ */
+function ageInYearsLocal(dateOfBirth) {
+  const birth = new Date(dateOfBirth);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const hasHadBirthdayThisYear =
+    now.getMonth() > birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
+
+// Ngày hôm nay theo giờ MÁY KHÁCH (dạng YYYY-MM-DD) làm `max` cho ô ngày sinh —
+// không dùng toISOString() vì nó ra ngày UTC, sáng sớm giờ VN sẽ lùi 1 ngày.
+function todayLocalISO() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function emptyPassenger() {
   return {
@@ -70,7 +96,21 @@ export default function PassengersForm({
   const [seatBusy, setSeatBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng, nhưng khách
+  // vừa bấm ghế ở sơ đồ phía trên -> thường không thấy. Tự cuộn tới lỗi mỗi
+  // khi có lỗi mới để không bị bỏ sót.
+  const errorRef = useRef(null);
+  useEffect(() => {
+    if (errorMessage && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [errorMessage]);
   const [createdBookingId, setCreatedBookingId] = useState(null);
+  // A5 — mã khuyến mãi (tùy chọn). KHÔNG tự gọi API kiểm tra mã lúc gõ (đồ
+  // án không cần UX preview realtime) — chỉ gửi kèm khi tạo booking, server
+  // (applyPromotion) validate và trả lỗi rõ ràng nếu sai/hết hạn/hết lượt,
+  // hiện qua chung errorMessage như mọi lỗi submit khác.
+  const [promotionCode, setPromotionCode] = useState("");
 
   function setSeatLocal(leg, seatNumber, patch) {
     const setter = leg === "outbound" ? setOutboundSeats : setReturnSeats;
@@ -154,13 +194,17 @@ export default function PassengersForm({
         setSeatLocal(leg, currentSeatForActive, { status: "available", held_by_me: false });
       }
 
-      if (status === "available") {
-        await callHoldSeat(leg, seatNumber);
-        setSeatLocal(leg, seatNumber, { status: "held", held_by_me: true });
-      }
-      // status === "mineUnassigned": ghế này mình đã giữ từ trước (VD tải
-      // lại trang giữa chừng) — chỉ cần gán cho khách hiện tại, KHÔNG gọi
-      // hold-seat lại (ghế đã held bởi đúng mình, gọi lại sẽ dư thừa).
+      // LUÔN gọi hold-seat (kể cả khi state cục bộ nghĩ ghế này "đã là của
+      // mình" — status "mineUnassigned") — KHÔNG tự đoán trạng thái cũ trên
+      // client rồi bỏ qua gọi API. Lý do: state "mineUnassigned" tính từ
+      // dữ liệu tải lúc vào trang, có thể đã CŨ (VD ghế đã bị server tự nhả
+      // vì hết hạn 30 phút trong lúc người dùng còn đang ở trên trang) —
+      // hold-seat() phía server giờ đã idempotent (xem services/seatService.js),
+      // gọi lại luôn an toàn: nếu ghế thật sự vẫn đang là của mình thì chỉ
+      // refresh held_until; nếu đã bị nhả thì giữ lại như hold mới, không
+      // silently coi là "đã giữ" trong khi thực ra không còn giữ gì cả.
+      await callHoldSeat(leg, seatNumber);
+      setSeatLocal(leg, seatNumber, { status: "held", held_by_me: true });
 
       setPassengerSeat(activeIndex, leg, seatNumber);
     } catch (err) {
@@ -201,10 +245,40 @@ export default function PassengersForm({
 
   function validate() {
     if (passengers.length === 0) return t("errorMinPassengers");
+
+    const seenDocumentIds = new Map(); // document_id (trim) -> full_name người đầu tiên khai số đó
+
     for (const p of passengers) {
-      if (!p.full_name.trim() || !p.document_type || !p.document_id.trim() || !p.date_of_birth) {
+      if (!p.full_name.trim() || !p.document_type || !p.date_of_birth) {
         return t("errorMissingFields");
       }
+
+      // Khớp ĐÚNG luật server (services/bookingValidationService.js
+      // validatePassengerDocument): document_id CHỈ bắt buộc từ
+      // MIN_AGE_REQUIRE_ID_DOCUMENT tuổi trở lên — dưới tuổi đó, khai sinh
+      // hợp lệ dù không có document_id.
+      const age = ageInYearsLocal(p.date_of_birth);
+      if (age >= MIN_AGE_REQUIRE_ID_DOCUMENT) {
+        if (!p.document_id.trim() || !["cccd", "passport"].includes(p.document_type)) {
+          return t("errorDocumentTypeForAge");
+        }
+      } else if (p.document_type === "cccd") {
+        return t("errorDocumentTypeForAge");
+      }
+
+      // MỚI THÊM: chặn 2 hành khách trong cùng booking khai TRÙNG số giấy
+      // tờ — bỏ qua document_id rỗng (trẻ dưới tuổi bắt buộc, hợp lệ không
+      // điền), KHÔNG coi 2 ô rỗng là "trùng nhau". Server
+      // (validateNoDuplicateDocumentIds) validate lại y hệt, đây chỉ để báo
+      // lỗi sớm ngay trên form.
+      const trimmedId = p.document_id.trim();
+      if (trimmedId) {
+        if (seenDocumentIds.has(trimmedId)) {
+          return t("errorDuplicateDocumentId");
+        }
+        seenDocumentIds.set(trimmedId, p.full_name);
+      }
+
       if (!p.seatByLeg.outbound || (returnFlight && !p.seatByLeg.return)) {
         return t("errorMissingSeats");
       }
@@ -258,6 +332,11 @@ export default function PassengersForm({
           trip_type: tripType,
           flights,
           passengers: passengersPayload,
+          // "" -> undefined: KHÔNG gửi field rỗng lên server (route coi
+          // promotion_code falsy là "không áp mã", nhưng gửi chuỗi rỗng vẫn
+          // falsy nên thực ra vô hại — chỉ để tránh key rác không cần thiết
+          // trong request body).
+          promotion_code: promotionCode.trim() || undefined,
         });
         bookingId = booking._id;
         setCreatedBookingId(bookingId);
@@ -358,6 +437,7 @@ export default function PassengersForm({
               />
               <Input
                 type="date"
+                max={todayLocalISO()}
                 label={t("dateOfBirthLabel")}
                 value={p.date_of_birth}
                 onChange={(e) => updatePassengerField(index, "date_of_birth", e.target.value)}
@@ -385,6 +465,17 @@ export default function PassengersForm({
         </Button>
       </div>
 
+      {/* Cho biết ghế đang chọn sẽ gán cho ai — trên điện thoại, khung nhập
+          hành khách nằm xa sơ đồ ghế nên khách dễ không biết mình đang chọn
+          cho hành khách nào. */}
+      <p className="w-full max-w-3xl text-sm text-ink/70">
+        {t("selectingSeatFor")}:{" "}
+        <strong className="text-coral-600">
+          {passengers[activeIndex]?.full_name.trim() || t("passengerLabel", { index: activeIndex + 1 })}
+        </strong>
+        {seatBusy && <span className="ml-2 text-xs text-ink/50">{t("processing")}</span>}
+      </p>
+
       <div className="grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="p-5">
           <p className="mb-3 text-sm font-semibold text-ink">{t("seatLegOutbound")}</p>
@@ -410,16 +501,31 @@ export default function PassengersForm({
 
       <Card className="w-full max-w-3xl p-5">
         {errorMessage && (
-          <p role="alert" className="mb-3 text-sm text-danger">
+          <p ref={errorRef} role="alert" className="mb-3 text-sm text-danger">
             {errorMessage}
           </p>
         )}
+        <div className="mb-4">
+          <Input
+            label={t("promotionCodeLabel")}
+            placeholder={t("promotionCodePlaceholder")}
+            value={promotionCode}
+            onChange={(e) => setPromotionCode(e.target.value.toUpperCase())}
+            disabled={disabled}
+          />
+        </div>
+        <p className="mb-4 rounded-lg bg-sand-100 px-3.5 py-2.5 text-xs text-ink/70">
+          {t("paymentMethodNote")}
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs text-ink/60">{t("totalAmountLabel")}</p>
             <p className="text-xl font-semibold text-coral-600">
               {CURRENCY_FORMATTER.format(totalAmount)}đ
             </p>
+            {promotionCode.trim() && (
+              <p className="mt-1 text-xs text-ink/50">{t("promotionAppliedNote")}</p>
+            )}
           </div>
           <Button onClick={handleSubmit} disabled={disabled}>
             {submitting ? t("processing") : t("continueToPayment")}

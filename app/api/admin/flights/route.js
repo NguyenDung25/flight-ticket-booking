@@ -10,6 +10,12 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Aircraft from "@/models/Aircraft";
+// Side-effect import — GET bên dưới populate("airline_id") nhưng model
+// "Airline" chưa từng được require ở file này (chỉ dùng Aircraft trực tiếp
+// để tạo Flight) -> MissingSchemaError nếu route này bundle riêng, không
+// tình cờ đi kèm file khác đã nạp Airline model (cùng lớp bug với
+// services/flightService.js, xem comment đầy đủ ở đó).
+import "@/models/Airline";
 
 export async function GET(request) {
   try {

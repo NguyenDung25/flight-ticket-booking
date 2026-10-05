@@ -44,6 +44,7 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
         <LegendDot className="border-coral-500 bg-coral-500" label={legendT("seatStatusYours")} />
         <LegendDot className="border-sand-200 bg-sand-100" label={legendT("seatStatusHeld")} />
         <LegendDot className="border-sand-200 bg-sand-200" label={legendT("seatStatusBooked")} />
+        <LegendDot className="border-sand-200 bg-white ring-1 ring-sea-500/40" label={legendT("seatStatusBusinessClass")} />
       </div>
 
       <div className="flex flex-col gap-1.5">

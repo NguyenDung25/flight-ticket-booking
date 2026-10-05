@@ -41,12 +41,18 @@ export default function FlightCard({ flight, locale, leg, searchContext, t }) {
     <Card
       stub={
         <>
-          <p className="text-lg font-semibold text-sea-900">
-            {CURRENCY_FORMATTER.format(priceEconomy)}đ
-          </p>
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="text-xs text-ink/50">{t("fromPrice")}</p>
+            <p className="text-lg font-semibold text-sea-900">
+              {CURRENCY_FORMATTER.format(priceEconomy)}đ
+            </p>
+            {Boolean(flight.base_price.business) && (
+              <p className="text-xs text-ink/40">{t("hasBusinessClass")}</p>
+            )}
+          </div>
           {soldOut ? (
-            <span className="inline-flex items-center justify-center rounded-lg bg-sand-200 px-5 py-2.5 text-sm font-medium text-ink/40">
-              {t("viewDetails")}
+            <span className="inline-flex items-center justify-center rounded-lg bg-sand-100 px-5 py-2.5 text-sm font-medium text-danger/70">
+              {t("seatsSoldOut")}
             </span>
           ) : (
             <Link

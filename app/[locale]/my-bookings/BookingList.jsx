@@ -12,7 +12,7 @@
 // suy đoán các field đó ở client, vì công thức tính nằm hoàn toàn ở
 // services/cancellationService.js (mốc 24h/3h, 3 trường hợp khứ hồi...).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";
@@ -36,6 +36,37 @@ const STATUS_LABEL_KEY = {
 // (VD đã 'refunded' hoặc 'cancelled' từ trước) để đỡ 1 lượt gọi API vô ích.
 const CANCELLABLE_STATUSES = new Set(["pending_payment", "confirmed"]);
 
+/**
+ * Đếm ngược thời gian còn lại tới `expiresAt` (ISO string) — chỉ tính KHOẢNG
+ * CÁCH thời gian (mili-giây), không so ngày theo lịch, nên KHÔNG cần quy đổi
+ * qua lib/timezone.js (Date.parse() luôn ra epoch UTC tuyệt đối bất kể chuỗi
+ * input viết theo giờ nào, hiệu số 2 epoch luôn đúng, không lệch múi giờ).
+ * Cập nhật mỗi giây bằng setInterval — expiresAt CỐ ĐỊNH (không đổi sau khi
+ * mount) nên đưa thẳng vào dependency array là đủ, không cần ref.
+ */
+function useCountdown(expiresAt) {
+  const [remainingMs, setRemainingMs] = useState(() =>
+    expiresAt ? new Date(expiresAt).getTime() - Date.now() : null
+  );
+
+  useEffect(() => {
+    if (!expiresAt) return undefined;
+    const id = setInterval(() => {
+      setRemainingMs(new Date(expiresAt).getTime() - Date.now());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  return remainingMs;
+}
+
+function formatCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function legLabel(flightId) {
   // flights.flight_id có thể chưa populate được (chuyến bay đã bị admin xóa
   // hẳn khỏi DB — hiếm nhưng không phải không thể) -> flight_id lúc đó vẫn
@@ -58,6 +89,54 @@ function FlightLegRow({ leg, label, t }) {
     <p className="text-sm text-ink/70">
       {label}: {flight.origin_code} → {flight.dest_code} · {departure.format("HH:mm DD/MM/YYYY")}
     </p>
+  );
+}
+
+function PaymentCountdown({ expiresAt, t }) {
+  const remainingMs = useCountdown(expiresAt);
+  if (remainingMs == null) return null;
+
+  if (remainingMs <= 0) {
+    return <p className="mt-1 text-xs font-medium text-danger">{t("paymentExpired")}</p>;
+  }
+  return (
+    <p className="mt-1 text-xs font-medium text-coral-600">
+      {t("paymentExpiresIn")} {formatCountdown(remainingMs)} {t("paymentExpiresInSuffix")}
+    </p>
+  );
+}
+
+function PayNowButton({ bookingId, t }) {
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Y HỆT logic app/[locale]/booking/passengers/PassengersForm.jsx khi khởi
+  // tạo thanh toán lần đầu (POST /api/payments/[bookingId] rồi redirect
+  // sang payUrl) — booking ĐÃ tồn tại rồi (khách thoát ra trước khi thanh
+  // toán xong), nên chỉ cần gọi lại đúng API đó, KHÔNG tạo booking mới.
+  async function handlePayNow() {
+    setPaying(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/payments/${bookingId}`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.message || t("payNowError"));
+      }
+      window.location.href = data.payUrl;
+    } catch (err) {
+      setError(err.message);
+      setPaying(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button variant="primary" onClick={handlePayNow} disabled={paying}>
+        {paying ? t("payingRedirecting") : t("payNow")}
+      </Button>
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </div>
   );
 }
 
@@ -102,6 +181,9 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
           <p className="mt-1 text-xs text-ink/50">
             {t("passengerCountLabel")}: {booking.passengers.length}
           </p>
+          {booking.status === "pending_payment" && (
+            <PaymentCountdown expiresAt={booking.payment?.payment_expires_at} t={t} />
+          )}
         </div>
         <StatusBadge status={booking.status} label={t(STATUS_LABEL_KEY[booking.status] ?? "statusPendingPayment")} />
       </div>
@@ -134,7 +216,14 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
         </div>
 
         {CANCELLABLE_STATUSES.has(booking.status) && (
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+            {/* "Thanh toán ngay" CHỈ cho pending_payment (confirmed thì đã
+                thanh toán xong, không có gì để trả tiếp) — đặt TRƯỚC nút Hủy
+                theo thứ tự ưu tiên hành động (khách bấm nhầm Hủy khi ý định
+                thật là thanh toán tiếp sẽ tốn công xác nhận lại hơn). */}
+            {booking.status === "pending_payment" && !confirming && (
+              <PayNowButton bookingId={booking._id} t={t} />
+            )}
             {!confirming ? (
               <Button variant="secondary" onClick={() => setConfirming(true)}>
                 {t("cancelBooking")}

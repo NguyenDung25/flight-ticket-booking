@@ -64,7 +64,8 @@
     "businessLabel": "Business",
     "notOffered": "This class isn't offered on this flight",
     "availableSeatsLabel": "Available",
-    "selectButton": "Select this flight"
+    "selectButton": "Select this flight",
+    "soldOutLabel": "Sold out"
   },
   "SearchResults": {
     "title": "Search results",
@@ -78,7 +79,18 @@
     "stepOutboundTitle": "Step 1/3 · Choose outbound flight",
     "stepReturnTitle": "Step 2/3 · Choose return flight",
     "selectedOutboundLabel": "Selected outbound flight",
-    "sameAirlineNote": "Showing only {airline} flights to keep your round trip on the same airline."
+    "sameAirlineNote": "Showing only {airline} flights to keep your round trip on the same airline.",
+    "filterPriceLabel": "Max price: {price}đ",
+    "filterTimeLabel": "Time of day",
+    "filterAirlineLabel": "Airline",
+    "timeSlotEarly": "Late night (12am-6am)",
+    "timeSlotMorning": "Morning (6am-12pm)",
+    "timeSlotAfternoon": "Afternoon (12pm-6pm)",
+    "timeSlotEvening": "Evening (6pm-12am)",
+    "filterResetButton": "Clear filters",
+    "noResultsAfterFilter": "No flights match your filters — try widening your selection.",
+    "fromPrice": "From",
+    "hasBusinessClass": "Business class available"
   },
   "Booking": {
     "passengerInfoTitle": "Passenger information",
@@ -107,12 +119,20 @@
     "noSeatSelected": "No seat selected",
     "holdingSeat": "Holding seat...",
     "totalAmountLabel": "Total amount",
+    "promotionCodeLabel": "Promotion code (optional)",
+    "promotionCodePlaceholder": "E.g. SUMMER26",
+    "promotionAppliedNote": "The final amount will be recalculated (with discount if the code is valid) at the next step.",
+    "paymentMethodNote": "Pay with a domestic ATM card via the Momo gateway: you'll be redirected to Momo's payment page to enter your card — no Momo app needed.",
     "backButton": "Back",
     "submitError": "Something went wrong, please try again.",
     "errorMissingSeats": "Please select a seat for every passenger on every leg.",
     "errorMissingFields": "Please fill in all passenger details.",
+    "errorDocumentTypeForAge": "Passengers 14+ must use a national ID/passport with a document number; under 14 can't use national ID.",
+    "errorDuplicateDocumentId": "Duplicate document number between 2 passengers — each passenger must have a different document number.",
     "errorMinPassengers": "At least 1 passenger is required.",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "selectingSeatFor": "Selecting seat for",
+    "seatStatusBusinessClass": "Business class (blue outline)"
   },
   "Payment": {
     "title": "Payment",
@@ -124,7 +144,9 @@
     "statusCancelled": "This booking was cancelled (payment failed or the seat hold expired).",
     "statusPaymentError": "There was an issue confirming your seats after payment. Please contact support for a refund.",
     "statusNotFound": "Booking not found.",
-    "backToHome": "Back to home"
+    "backToHome": "Back to home",
+    "viewTicket": "View e-ticket",
+    "myBookings": "My bookings"
   },
   "MyBookings": {
     "title": "My bookings",
@@ -147,7 +169,13 @@
     "confirmCancelPrompt": "Cancel this booking?",
     "cancelling": "Cancelling...",
     "cancelError": "Could not cancel the booking, please try again.",
-    "viewTicket": "View e-ticket"
+    "viewTicket": "View e-ticket",
+    "payNow": "Pay now",
+    "paymentExpiresIn": "Expires in",
+    "paymentExpired": "Payment expired",
+    "paymentExpiresInSuffix": "left to pay",
+    "payingRedirecting": "Redirecting to Momo...",
+    "payNowError": "Could not open the payment page, please try again."
   },
   "CheckIn": {
     "title": "Online check-in",

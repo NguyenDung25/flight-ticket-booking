@@ -16,6 +16,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
+import { syncPaymentStatus } from "@/services/paymentService";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";
 
@@ -57,6 +58,15 @@ export default async function PaymentResultPage({ params, searchParams }) {
     }
   }
 
+  // Đường dự phòng khi IPN của Momo không về được (VD ngrok tắt): booking còn
+  // pending_payment thì hỏi thẳng Momo kết quả giao dịch gần nhất. Chỉ chạy SAU khi đã
+  // xác nhận booking đúng của người đang xem. Lỗi gì cũng nuốt — trang vẫn hiển thị
+  // trạng thái hiện tại. Đọc lại booking sau đó để lấy booking_code mới sinh (C7).
+  if (booking?.status === "pending_payment") {
+    await syncPaymentStatus(String(booking._id)).catch(() => null);
+    booking = await Booking.findById(booking._id).catch(() => booking);
+  }
+
   const statusKey = booking ? STATUS_MESSAGE_KEY[booking.status] ?? "statusNotFound" : "statusNotFound";
   const tone = booking ? STATUS_TONE[booking.status] ?? "text-ink" : "text-danger";
 
@@ -72,12 +82,36 @@ export default async function PaymentResultPage({ params, searchParams }) {
           </p>
         )}
 
-        <Link
-          href="/"
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-coral-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-600"
-        >
-          {t("backToHome")}
-        </Link>
+        <div className="mt-6 flex flex-col gap-2">
+          {/* Chỉ hiện "Xem vé" khi ĐÃ confirmed (mới có booking_code, xem
+              services/ticketService.js issueTicket — booking_code sinh lúc
+              xem vé lần đầu). "Đặt chỗ của tôi" hiện cho MỌI trạng thái —
+              kể cả pending_payment (webhook chưa xử lý xong) hay lỗi, khách
+              đều cần 1 đường quay lại xem danh sách vé của mình, không chỉ
+              có mỗi "Về trang chủ". */}
+          {booking?.status === "confirmed" && (
+            <Link
+              href={`/my-bookings/${booking._id}/ticket`}
+              className="inline-flex items-center justify-center rounded-lg bg-coral-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-600"
+            >
+              {t("viewTicket")}
+            </Link>
+          )}
+          {booking && (
+            <Link
+              href="/my-bookings"
+              className="inline-flex items-center justify-center rounded-lg border border-sea-700 px-5 py-2.5 text-sm font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
+            >
+              {t("myBookings")}
+            </Link>
+          )}
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-ink/60 transition-colors hover:text-ink"
+          >
+            {t("backToHome")}
+          </Link>
+        </div>
       </Card>
     </div>
   );

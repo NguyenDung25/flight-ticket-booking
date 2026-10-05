@@ -12,6 +12,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
+// Side-effect import — populate({path:"flights.flight_id"}) bên dưới cần
+// model "Flight" đã được đăng ký, nhưng file này chỉ dùng Booking trực
+// tiếp. Cùng lớp bug MissingSchemaError đã gặp ở services/flightService.js
+// (comment đầy đủ ở đó) — Next.js/Turbopack bundle route riêng ở dev có thể
+// không tình cờ nạp models/Flight.js qua đường nào khác.
+import "@/models/Flight";
 import BookingList from "./BookingList";
 
 export default async function MyBookingsPage({ params }) {

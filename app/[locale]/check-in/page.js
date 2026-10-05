@@ -16,6 +16,10 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
+// Side-effect import — populate("passengers.seats.flight_id") (bên dưới)
+// cần model "Flight" đã đăng ký. Cùng lớp bug MissingSchemaError đã gặp ở
+// services/flightService.js (xem comment đầy đủ ở đó).
+import "@/models/Flight";
 import { isCheckInWindowOpen } from "@/lib/timezone";
 import CheckInList from "./CheckInList";
 

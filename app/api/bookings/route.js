@@ -18,6 +18,7 @@ import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
 import { validateBookingCreation } from "@/services/bookingValidationService";
+import { applyPromotion, computeDiscountAmount } from "@/services/promotionService";
 import { PAYMENT_EXPIRY_BUFFER_MS } from "@/config/constants";
 
 /**
@@ -53,7 +54,7 @@ export async function POST(request) {
     const user = await requireActiveUser(session);
 
     const body = await request.json().catch(() => ({}));
-    const { trip_type, flights, passengers } = body ?? {};
+    const { trip_type, flights, passengers, promotion_code } = body ?? {};
 
     if (!["one_way", "round_trip"].includes(trip_type)) {
       return NextResponse.json(
@@ -143,7 +144,55 @@ export async function POST(request) {
       leg: l.leg,
       amount: amounts[String(l.flightDoc._id)],
     }));
-    const total_amount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
+    const totalAmountBeforeDiscount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
+
+    // A5 — mã khuyến mãi (tùy chọn, chỉ áp khi client có gửi promotion_code).
+    // applyPromotion() ném PromotionError (404/400/409, xem
+    // services/promotionService.js) nếu mã không hợp lệ — bắt ở catch bên
+    // dưới như mọi lỗi nghiệp vụ khác, KHÔNG bọc try/catch riêng ở đây để
+    // âm thầm bỏ qua mã sai (khách phải biết rõ mã bị từ chối, không được
+    // lặng lẽ tính giá gốc).
+    //
+    // GỌI applyPromotion() SAU KHI validateBookingCreation() đã pass (ở
+    // trên) — tăng used_count càng trễ càng tốt, giảm tối đa cửa sổ "đã tính
+    // là dùng mã nhưng cuối cùng Booking.create() lại lỗi vì lý do khác".
+    // Vẫn còn 1 khe hở nhỏ (nếu Booking.create() bên dưới lỗi, used_count
+    // coi như mất 1 lượt oan) — chấp nhận được, ĐÚNG tinh thần đánh đổi đã
+    // ghi rõ ở ghi chú (p): "khi booking dùng mã bị hủy → KHÔNG giảm lại
+    // used_count", tức là dự án đã chấp nhận used_count có thể không khớp
+    // tuyệt đối 100% với số booking thực tế dùng mã thành công, đổi lấy
+    // KHÔNG cần transaction/lock phức tạp.
+    let promotion = null;
+    let total_amount = totalAmountBeforeDiscount;
+    if (promotion_code) {
+      promotion = await applyPromotion(promotion_code);
+      const discountAmount = computeDiscountAmount(promotion, totalAmountBeforeDiscount);
+
+      // Chia đều discountAmount xuống TỪNG CHẶNG theo đúng tỷ lệ amount của
+      // chặng đó — BẮT BUỘC giữ bất biến "total_amount === Σ flights[].amount"
+      // (ghi chú t) vì services/cancellationService.js (A7/C9/A8) dùng TRỰC
+      // TIẾP flights[leg].amount cho TH2 (hoàn tiền riêng chặng về) và dùng
+      // Σ flights[].amount đã bay để trừ khỏi total_amount ở A8 — nếu để
+      // flights[].amount giữ nguyên giá GỐC (chưa giảm) trong khi
+      // total_amount đã trừ giảm giá, 2 con số lệch nhau sẽ làm sai hoàn
+      // toàn mọi phép tính hoàn tiền sau này, không phải lỗi ở
+      // cancellationService — lỗi ở chỗ phá vỡ bất biến ngay từ đây.
+      let allocated = 0;
+      flightLegs.forEach((leg, i) => {
+        if (i === flightLegs.length - 1) {
+          // Chặng cuối nhận phần dư của phép chia làm tròn xuống (Math.floor
+          // ở mỗi chặng trước có thể để dư 1-2đ) — đảm bảo tổng SAU khi trừ
+          // đúng bằng totalAmountBeforeDiscount - discountAmount, không lệch
+          // vài đồng do làm tròn từng chặng riêng lẻ.
+          leg.amount -= discountAmount - allocated;
+        } else {
+          const legDiscount = Math.floor((leg.amount * discountAmount) / totalAmountBeforeDiscount);
+          leg.amount -= legDiscount;
+          allocated += legDiscount;
+        }
+      });
+      total_amount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
+    }
 
     const heldUntil = earliestHeldUntil(flightDocs, passengers);
     const payment_expires_at = heldUntil
@@ -156,6 +205,7 @@ export async function POST(request) {
       locale: user.preferred_language,
       flights: flightLegs,
       passengers,
+      promotion_id: promotion ? promotion._id : null,
       total_amount,
       status: "pending_payment",
       payment: { payment_expires_at },

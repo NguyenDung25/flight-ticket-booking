@@ -32,6 +32,14 @@ class PaymentError extends Error {
   }
 }
 
+// Phương thức thanh toán (giá trị lưu ở Booking.payment.method) -> requestType
+// gửi sang Momo (xem lib/momoClient.REQUEST_TYPES). Hệ thống chỉ hỗ trợ thẻ ATM
+// nội địa qua cổng Momo; không dùng ví Momo/quét QR (không cần app Momo).
+const PAYMENT_METHODS = Object.freeze({
+  momo_atm: momoClient.REQUEST_TYPES.ATM,
+});
+const DEFAULT_PAYMENT_METHOD = "momo_atm";
+
 // ObjectId của Mongo luôn là chuỗi hex 24 ký tự, không chứa dấu '-' — an
 // toàn để lấy 24 ký tự đầu của orderId làm bookingId (xem buildOrderId).
 const OBJECT_ID_LENGTH = 24;
@@ -69,15 +77,26 @@ function collectSeatRefs(booking) {
  * @param {String} params.bookingId
  * @param {String} params.baseUrl - origin của app (VD lấy từ `req.nextUrl.origin`
  *   ở route handler), dùng để build redirectUrl/ipnUrl tuyệt đối cho Momo
- * @param {String} [params.paymentMethod="momo"] - hệ thống chỉ hỗ trợ Momo (C6)
+ * @param {String} [params.paymentMethod="momo_atm"] - hiện chỉ có "momo_atm"
+ *   (thẻ ATM nội địa qua cổng Momo) — xem PAYMENT_METHODS
  * @param {String} [params.locale="vi"] - gắn vào redirectUrl để trang kết quả hiển thị đúng ngôn ngữ
  * @returns {Promise<{ payUrl: String, deeplink: String, qrCodeUrl: String, orderId: String }>}
  * @throws {PaymentError} 404 không tìm thấy booking, 409 booking không ở trạng thái
  *   chờ thanh toán hoặc đã hết hạn giữ ghế
  */
-async function initiatePayment({ bookingId, baseUrl, paymentMethod = "momo", locale = "vi" }) {
-  if (paymentMethod !== "momo") {
-    throw new PaymentError("Hệ thống hiện chỉ hỗ trợ thanh toán qua Momo.", 400);
+async function initiatePayment({
+  bookingId,
+  baseUrl,
+  paymentMethod = DEFAULT_PAYMENT_METHOD,
+  locale = "vi",
+}) {
+  // Object.hasOwn: tránh các key kế thừa như "constructor"/"__proto__" lọt qua
+  // bước kiểm tra chỉ vì tồn tại trên prototype của object.
+  if (typeof paymentMethod !== "string" || !Object.hasOwn(PAYMENT_METHODS, paymentMethod)) {
+    throw new PaymentError(
+      `Phương thức thanh toán không được hỗ trợ (chỉ nhận: ${Object.keys(PAYMENT_METHODS).join(", ")}).`,
+      400
+    );
   }
 
   const booking = await Booking.findById(bookingId);
@@ -110,7 +129,19 @@ async function initiatePayment({ bookingId, baseUrl, paymentMethod = "momo", loc
     orderInfo: `Thanh toan ve may bay - Booking ${bookingId}`,
     redirectUrl,
     ipnUrl,
+    requestType: PAYMENT_METHODS[paymentMethod],
   });
+
+  // Ghi nhớ phương thức khách vừa chọn (CHỈ field payment.method, không đụng
+  // status) — updateOne thay vì booking.save() để không ghi đè nhầm các field
+  // khác nếu webhook của lần thanh toán trước đang xử lý song song. Điều kiện
+  // status giữ cho booking đã chốt (confirmed/cancelled...) không bị sửa lại.
+  // `payment.last_order_id` lưu orderId vừa gửi Momo để syncPaymentStatus() hỏi lại
+  // kết quả khi IPN không về được.
+  await Booking.updateOne(
+    { _id: bookingId, status: "pending_payment" },
+    { $set: { "payment.method": paymentMethod, "payment.last_order_id": orderId } }
+  );
 
   return {
     payUrl: momoResult.payUrl,
@@ -132,7 +163,18 @@ async function applySuccessfulPayment(booking, payload) {
     userId: booking.user_id,
   });
 
-  booking.payment.method = "momo";
+  // IPN và syncPaymentStatus() có thể cùng chạy gần như đồng thời cho 1 booking. Bên
+  // chạy sau sẽ thấy ghế đã `booked` (không còn `held`) và tưởng là race-condition thật
+  // -> oan sang payment_error_manual_refund. Nếu có ghế "thất bại", đọc lại status tươi:
+  // đã `confirmed` nghĩa là bên kia thắng, trả về luôn, không ghi đè.
+  if (!allSucceeded) {
+    const fresh = await Booking.findById(booking._id);
+    if (fresh && fresh.status === "confirmed") return fresh;
+  }
+
+  // Giữ nguyên payment.method đã ghi lúc initiatePayment; chỉ gán mặc định
+  // cho booking cũ chưa có giá trị.
+  booking.payment.method = booking.payment.method || DEFAULT_PAYMENT_METHOD;
   booking.payment.transaction_id = String(payload.transId);
   booking.payment.paid_at = nowVN().toDate();
 
@@ -171,9 +213,86 @@ async function applyFailedPayment(booking) {
     await seatService.forceReleaseSeat({ flightId, seatNumber });
   }
   booking.status = "cancelled";
-  booking.cancel_reason = "Thanh toán Momo thất bại hoặc bị khách hủy trên app Momo.";
+  booking.cancel_reason = "Thanh toán Momo thất bại hoặc bị khách hủy trên trang thanh toán Momo.";
   await booking.save();
   return booking;
+}
+
+/**
+ * Quyết định webhook cần làm gì — hàm THUẦN (không đụng DB) để test được.
+ *
+ * - `pending_payment` + resultCode 0     -> "confirm"
+ * - `pending_payment` + resultCode khác  -> "fail"
+ * - `cancelled` + resultCode 0 + chưa ghi transaction_id -> "late_payment_error":
+ *   booking đã bị cron/khách hủy (ghế đã nhả) nhưng Momo vẫn trừ tiền. Theo ghi chú (y)
+ *   KHÔNG được bỏ qua âm thầm — chuyển `payment_error_manual_refund` để admin hoàn tay.
+ * - mọi trường hợp khác (IPN gửi lại, booking đã confirmed/refunded...) -> "noop"
+ */
+function decideWebhookAction({ status, resultCode, hasTransactionId }) {
+  if (status === "pending_payment") {
+    return resultCode === 0 ? "confirm" : "fail";
+  }
+  if (status === "cancelled" && resultCode === 0 && !hasTransactionId) {
+    return "late_payment_error";
+  }
+  return "noop";
+}
+
+/**
+ * Tiền đã bị trừ nhưng booking đã `cancelled` (ghế đã được nhả từ trước, có thể đang
+ * thuộc người khác) -> KHÔNG đụng tới ghế, chỉ ghi nhận giao dịch + đánh dấu cần hoàn tay.
+ */
+async function applyLatePayment(booking, payload) {
+  booking.payment.method = booking.payment.method || DEFAULT_PAYMENT_METHOD;
+  booking.payment.transaction_id = String(payload.transId);
+  booking.payment.paid_at = nowVN().toDate();
+  booking.status = "payment_error_manual_refund";
+  await booking.save();
+  return booking;
+}
+
+/**
+ * Đường dự phòng khi IPN không về được (ngrok tắt, server restart...): hỏi thẳng Momo
+ * kết quả giao dịch gần nhất của booking `pending_payment`. Gọi từ trang kết quả
+ * thanh toán (app/[locale]/payment/page.js) mỗi khi khách quay lại.
+ *
+ * CHỈ xử lý chiều THÀNH CÔNG (resultCode 0 + đúng số tiền). Thất bại/đang xử lý: không
+ * làm gì — IPN hoặc cron (quá payment_expires_at) sẽ dọn, tránh hủy oan do mã lỗi tạm thời.
+ * Không bao giờ ném lỗi ra ngoài: lỗi mạng/Momo -> trả booking nguyên trạng.
+ *
+ * @param {String} bookingId
+ * @returns {Promise<Object|null>} Booking doc (sau khi có thể đã được xác nhận)
+ */
+async function syncPaymentStatus(bookingId) {
+  const booking = await Booking.findById(bookingId);
+  if (!booking || booking.status !== "pending_payment") return booking;
+
+  const orderId = booking.payment?.last_order_id;
+  if (!orderId) return booking;
+
+  let result;
+  try {
+    result = await momoClient.queryTransaction({ orderId });
+  } catch (err) {
+    console.error("[payment] syncPaymentStatus: không truy vấn được Momo:", err.message);
+    return booking;
+  }
+
+  if (result.resultCode !== 0) return booking;
+
+  // Không tin mù: số tiền Momo báo phải khớp đúng tổng tiền booking.
+  if (Number(result.amount) !== booking.total_amount) {
+    console.error(
+      `[payment] syncPaymentStatus: lệch số tiền (Momo ${result.amount} vs booking ${booking.total_amount}) — bỏ qua, cần admin kiểm tra.`
+    );
+    return booking;
+  }
+
+  // Đọc lại status tươi ngay trước khi ghi — IPN có thể vừa xử lý xong trong lúc chờ Momo trả lời.
+  const fresh = await Booking.findById(bookingId);
+  if (!fresh || fresh.status !== "pending_payment") return fresh;
+
+  return applySuccessfulPayment(fresh, { transId: result.transId });
 }
 
 /**
@@ -206,19 +325,32 @@ async function handleWebhook(payload) {
     throw new PaymentError(`Không tìm thấy booking cho orderId '${payload.orderId}'.`, 404);
   }
 
-  if (booking.status !== "pending_payment") {
-    // No-op có chủ đích — xem JSDoc phía trên (idempotent trước IPN gửi lại).
-    return booking;
-  }
+  const action = decideWebhookAction({
+    status: booking.status,
+    resultCode: payload.resultCode,
+    hasTransactionId: Boolean(booking.payment?.transaction_id),
+  });
 
-  const isSuccess = payload.resultCode === 0;
-  return isSuccess ? applySuccessfulPayment(booking, payload) : applyFailedPayment(booking);
+  switch (action) {
+    case "confirm":
+      return applySuccessfulPayment(booking, payload);
+    case "fail":
+      return applyFailedPayment(booking);
+    case "late_payment_error":
+      return applyLatePayment(booking, payload);
+    default:
+      // No-op có chủ đích — xem JSDoc phía trên (idempotent trước IPN gửi lại).
+      return booking;
+  }
 }
 
 module.exports = {
   PaymentError,
+  PAYMENT_METHODS,
   buildOrderId,
   parseBookingIdFromOrderId,
+  decideWebhookAction,
   initiatePayment,
   handleWebhook,
+  syncPaymentStatus,
 };

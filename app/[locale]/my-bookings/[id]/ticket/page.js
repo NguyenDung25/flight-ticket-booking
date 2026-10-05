@@ -70,6 +70,10 @@ export default async function TicketPage({ params }) {
   try {
     ({ ticketData } = await issueTicket({ bookingId: id }));
   } catch (err) {
+    // Log lỗi THẬT ra terminal — không có dòng này thì mọi lỗi không phải
+    // TicketError bị nuốt hoàn toàn, chỉ còn message chung chung hiện cho
+    // khách, không cách nào biết nguyên nhân thật để debug.
+    console.error("TicketPage error:", err);
     errorMessage = err instanceof TicketError ? err.message : t("genericError");
   }
 

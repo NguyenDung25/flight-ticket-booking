@@ -5,7 +5,9 @@
 // (`ipnUrl = ${baseUrl}/api/payments/${bookingId}`, xây trong initiatePayment):
 //
 // 1) Khách bấm "Thanh toán" trên UI của mình → body KHÔNG có `signature` →
-//    cần đăng nhập, chỉ chủ booking mới gọi được → initiatePayment().
+//    cần đăng nhập, chỉ chủ booking mới gọi được → initiatePayment(). Thanh
+//    toán bằng thẻ ATM nội địa qua cổng Momo (payWithATM); body có thể kèm
+//    `method: "momo_atm"` (giá trị duy nhất hiện được hỗ trợ, cũng là mặc định).
 // 2) Momo gọi ngầm (IPN) sau khi khách thanh toán xong bên app Momo → body
 //    LUÔN có `signature` (Momo tự ký, xem lib/momoClient.buildIpnRawSignature)
 //    → KHÔNG có session (Momo gọi server-to-server) → verify chữ ký ngay
@@ -21,6 +23,29 @@ import { requireActiveUser } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
 import Booking from "@/models/Booking";
 import { initiatePayment, handleWebhook } from "@/services/paymentService";
+
+/**
+ * Origin công khai của app, dùng để dựng redirectUrl/ipnUrl gửi cho Momo.
+ *
+ * `request.nextUrl.origin` KHÔNG đáng tin khi chạy sau proxy/tunnel (ngrok):
+ * trong `next dev` nó có thể vẫn là http://localhost:3000 dù khách đang mở web
+ * qua https://xxxx.ngrok-free.app -> Momo nhận ipnUrl là localhost, không gọi
+ * ngược được, booking kẹt ở pending_payment. Thứ tự ưu tiên:
+ *   1. APP_BASE_URL (.env.local) — chắc chắn nhất, nên dùng khi demo/deploy.
+ *   2. Header x-forwarded-host / x-forwarded-proto (ngrok, reverse proxy).
+ *   3. request.nextUrl.origin (chạy thuần localhost).
+ */
+function resolveBaseUrl(request) {
+  const fromEnv = process.env.APP_BASE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, "");
+
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
+  if (forwardedHost) {
+    const proto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim() || "https";
+    return `${proto}://${forwardedHost}`;
+  }
+  return request.nextUrl.origin;
+}
 
 export async function POST(request, { params }) {
   const { bookingId } = await params;
@@ -55,10 +80,13 @@ export async function POST(request, { params }) {
       );
     }
 
+    // `method` không bắt buộc: không gửi -> mặc định "momo_atm". Giá trị khác
+    // (VD "momo" cũ) bị initiatePayment từ chối với 400.
     const result = await initiatePayment({
       bookingId,
-      baseUrl: request.nextUrl.origin,
+      baseUrl: resolveBaseUrl(request),
       locale: user.preferred_language,
+      ...(body?.method !== undefined && { paymentMethod: body.method }),
     });
 
     return NextResponse.json(result);

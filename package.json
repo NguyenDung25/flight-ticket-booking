@@ -6,17 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cron": "node cron/releaseExpiredHolds.js",
+    "seed": "node scripts/seedSample.js",
+    "seed:test": "node scripts/seedTestFlights.js",
+    "test:momo": "node scripts/testMomoAtm.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "dayjs": "^1.11.23",
     "mongoose": "^9.10.0",
-    "next": "16.3.4",
+    "next": "^16.3.8",
     "next-auth": "^5.0.0-beta.32",
     "next-intl": "^4.14.5",
     "node-cron": "^4.6.0",
-    "nodemailer": "^9.1.1",
+    "nodemailer": "^8.0.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

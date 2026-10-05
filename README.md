@@ -1,162 +1,149 @@
-# flight-ticket-booking
+# Sun Phu Quoc Airways — Web đặt vé máy bay
 
-Code khung Flight, Booking + Validate Service, sinh từ đúng `chuc-nang-he-thong.md` + `mongodb-schema-design.md` đã chốt. Dùng JavaScript thuần (CommonJS `require`/`module.exports` — đổi sang `import`/`export` nếu bạn dùng Next.js App Router với ES module).
+Đồ án web đặt vé máy bay: Next.js App Router + MongoDB (Mongoose) + NextAuth (Auth.js) + next-intl (đa ngôn ngữ) + Momo (thanh toán). Chi tiết chức năng và thiết kế CSDL xem `chuc-nang-he-thong.md` và `mongodb-schema-design.md`.
 
-## Cài dependency
+## 1. Chuẩn bị
+
+- Node.js (bản mới), MongoDB đang chạy (local hoặc Atlas).
+- Tài khoản MoMo Business (M4B) để lấy khóa môi trường Test — xem mục 5.
+
+## 2. Cài đặt
 
 ```bash
-npm install mongoose dayjs node-cron
+npm install
+cp .env.example .env.local
 ```
 
-## Cấu trúc thư mục đầy đủ của dự án (đối chiếu đủ 19 chức năng C1–C11, A1–A8)
+Mở `.env.local`, điền đủ các biến (xem chú thích ngay trong file mẫu):
 
-Thư mục đã sinh trong lượt này được đánh dấu `✅ đã có`, phần còn lại là khung tham chiếu cho các tuần code sau.
+| Biến | Dùng để |
+|---|---|
+| `MONGO_URI` | Kết nối MongoDB |
+| `AUTH_SECRET` | Ký session đăng nhập — sinh bằng `npx auth secret` |
+| `MOMO_PARTNER_CODE` / `MOMO_ACCESS_KEY` / `MOMO_SECRET_KEY` / `MOMO_API_URL` | Thanh toán MoMo (môi trường Test) |
+| `AIRLABS_API_KEY` | Seed dữ liệu sân bay/hãng bay + tự điền lịch bay khi admin tạo chuyến |
+| `SMTP_*`, `EMAIL_FROM` | Gửi email vé điện tử (Gmail cần tạo App Password riêng, không dùng mật khẩu Gmail thật) |
+| `APP_BASE_URL` | Chỉ cần khi test MoMo qua ngrok/tunnel — xem mục 6 |
 
-```
-flight-ticket-booking/
-├── app/
-│   ├── [locale]/                        # C11 — route theo ngôn ngữ
-│   │   ├── page.js                      # trang tìm kiếm (C1)
-│   │   ├── flights/[id]/page.js         # chi tiết + chọn chuyến (C3)
-│   │   ├── booking/page.js              # C4 + C5 (nhập khách + chọn ghế)
-│   │   ├── payment/page.js              # C6
-│   │   ├── my-bookings/page.js          # C9
-│   │   ├── check-in/page.js             # C10
-│   │   ├── login/page.js, register/page.js   # C8
-│   │   └── layout.js
-│   ├── admin/                           # A1–A8, KHÔNG theo locale
-│   │   ├── flights/page.js
-│   │   ├── airlines-aircraft/page.js
-│   │   ├── bookings/page.js
-│   │   ├── users/page.js
-│   │   ├── promotions/page.js
-│   │   ├── stats/page.js
-│   │   └── refund-log/page.js
-│   └── api/
-│       ├── auth/register/route.js
-│       ├── auth/[...nextauth]/route.js
-│       ├── flights/search/route.js              # C1
-│       ├── flights/[id]/route.js                # C3
-│       ├── flights/[id]/hold-seat/route.js       # C5
-│       ├── flights/[id]/release-seat/route.js    # C5
-│       ├── flights/[id]/check-in/route.js        # C10
-│       ├── bookings/route.js                    # C6 (tạo booking)
-│       ├── bookings/my/route.js                 # C9
-│       ├── bookings/[id]/cancel/route.js         # C9
-│       ├── bookings/[id]/ticket/route.js         # C7
-│       ├── payments/[bookingId]/route.js         # C6 (webhook Momo)
-│       ├── users/me/route.js                     # C8 đổi ngôn ngữ ưa thích
-│       └── admin/
-│           ├── flights/route.js                  # A1
-│           ├── airlines/route.js, aircraft/route.js  # A2
-│           ├── bookings/route.js                 # A3
-│           ├── users/route.js                    # A4
-│           ├── promotions/route.js               # A5
-│           ├── stats/revenue/route.js            # A6
-│           ├── bookings/refund-log/route.js      # A7
-│           └── flights/[id]/cancel-bookings/route.js  # A8
-├── models/
-│   ├── User.js                                    # ✅ đã có
-│   ├── Airport.js                                 # ✅ đã có
-│   ├── Airline.js                                 # ✅ đã có
-│   ├── Aircraft.js                                # ✅ đã có (kèm cloneSeatMapForFlight — ghi chú u)
-│   ├── Flight.js                                  # ✅ đã có
-│   ├── Booking.js                                 # ✅ đã có
-│   └── Promotion.js                               # ✅ đã có (kèm incrementUsage — ghi chú p)
-├── services/
-│   ├── bookingValidationService.js               # ✅ đã có
-│   ├── seatService.js                            # ✅ đã có (hold/release/confirm/forceRelease + cron dùng chung)
-│   ├── cancellationService.js                    # ✅ đã có (A7/C9 3 trường hợp TH1/TH2/TH3, A8 hủy hàng loạt)
-│   ├── promotionService.js                       # ✅ đã có (A5)
-│   └── statsService.js                           # A6
-├── lib/
-│   ├── timezone.js                                # ✅ đã có
-│   ├── momoClient.js                              # C6
-│   ├── emailClient.js                             # C7
-│   └── airlabsClient.js                           # seed + A1 autofill
-├── scripts/
-│   └── seedAirlabs.js                             # seed Airport/Airline ban đầu
-├── cron/
-│   └── releaseExpiredHolds.js                     # ✅ đã có (nhả ghế quá hạn + hủy booking quá hạn thanh toán — ghi chú f)
-├── messages/
-│   ├── vi.json, en.json                           # C11
-├── components/                                    # UI dùng chung (form, sơ đồ ghế...)
-├── middleware.js                                  # requireActiveUser + next-intl gộp chung
-└── README.md
+**Không commit `.env.local`** — đã có trong `.gitignore`.
+
+## 3. Tạo dữ liệu mẫu
+
+```bash
+npm run seed        # tài khoản admin + khách demo, hãng bay, tàu bay, sân bay
 ```
 
-## Ví dụ dùng khi tạo booking (C6 — API `POST /api/bookings`)
+Lệnh in ra email/mật khẩu tài khoản demo — ghi lại để đăng nhập thử.
 
-```js
-const Flight = require("./models/Flight");
-const Booking = require("./models/Booking");
-const { validateBookingCreation } = require("./services/bookingValidationService");
+Muốn có sẵn vài chuyến bay đúng các mốc giờ để test hủy vé (>24h / 3–24h / <3h) và check-in:
 
-async function createBooking(req, res) {
-  try {
-    const { passengers, tripType, promotionId, locale, userId } = req.body;
-
-    // 1) Lấy Flight thật từ DB cho từng chặng (KHÔNG tin flight data client gửi)
-    const legFlightIds = [...new Set(passengers.flatMap((p) => p.seats.map((s) => s.flight_id)))];
-    const flightDocs = await Flight.find({ _id: { $in: legFlightIds } });
-
-    // QUAN TRỌNG: MongoDB KHÔNG đảm bảo thứ tự kết quả khớp với thứ tự mảng
-    // truyền vào $in — không được gán leg theo index i như "flightDocs[0] =
-    // outbound". Phải sort theo departure_time thật: chặng có giờ bay sớm hơn
-    // luôn là outbound. Sai chỗ này sẽ làm cancellationService tính nhầm
-    // TH1/TH2/TH3 (ghi chú w) sau này vì dựa vào đúng field `leg` này.
-    const sortedByDeparture = [...flightDocs].sort(
-      (a, b) => a.departure_time - b.departure_time
-    );
-    const legs = sortedByDeparture.map((flightDoc, i) => ({
-      flightDoc,
-      leg: i === 0 ? "outbound" : "return",
-    }));
-
-    // 2) Validate tuổi/giấy tờ + transit time + seat_class — ném lỗi nếu sai
-    const { amounts } = await validateBookingCreation({ passengers, legs });
-
-    // 3) Build flights[] cho Booking từ amounts đã tính
-    const flights = legs.map((l) => ({
-      flight_id: l.flightDoc._id,
-      leg: l.leg,
-      amount: amounts[String(l.flightDoc._id)],
-    }));
-
-    const totalAmountBeforeDiscount = flights.reduce((sum, f) => sum + f.amount, 0);
-    // TODO: trừ giảm giá theo promotionId (dùng update atomic tăng used_count — xem ghi chú p)
-    const total_amount = totalAmountBeforeDiscount;
-
-    const booking = await Booking.create({
-      user_id: userId,
-      trip_type: tripType,
-      locale,
-      flights,
-      passengers,
-      promotion_id: promotionId || null,
-      total_amount,
-      status: "pending_payment",
-    });
-
-    return res.status(201).json(booking);
-  } catch (err) {
-    const statusCode = err.statusCode || 500;
-    return res.status(statusCode).json({ message: err.message });
-  }
-}
-
-module.exports = { createBooking };
+```bash
+npm run seed:test
 ```
 
-## Điểm cần quyết định sớm — Cron job
+Script này tạo chuyến bay **khởi hành tính từ lúc chạy lệnh** (không phải ngày cố định) — chạy lại bất cứ lúc nào cần bộ dữ liệu mới.
 
-Next.js không có sẵn tiến trình nền chạy liên tục — `app/api/.../route.js` chỉ chạy khi có request tới. Với đồ án demo local, có 2 cách:
-1. Viết `cron/releaseExpiredHolds.js` dùng `node-cron`, chạy như 1 tiến trình Node riêng song song với `next dev` (đơn giản nhất cho demo).
-2. Gọi tay lúc demo hoặc `setInterval` phía admin — không chuẩn nhưng đủ dùng nếu ghi rõ giới hạn này trong "Ngoài phạm vi đồ án".
+## 4. Chạy dự án
 
-## Còn thiếu (chưa sinh trong lượt này, nhắn nếu cần)
+Cần **2 cửa sổ terminal** chạy song song:
 
-- `services/statsService.js` — aggregation pipeline doanh thu A6 (đã có sẵn snippet mẫu tránh nhân đôi tiền phạt trong `chuc-nang-he-thong.md`, chỉ cần bọc thành hàm + `$lookup` sang `Flight` lấy tuyến bay).
-- `lib/momoClient.js`, `lib/emailClient.js`, `lib/airlabsClient.js` — client gọi API bên ngoài (Momo, gửi email, AirLabs), chưa có logic nghiệp vụ phức tạp nên có thể để làm sau cùng khi tới đúng tuần trong lịch.
-- Model `Promotion.js` đã có `incrementUsage()` — `services/promotionService.js` (vừa tạo) đã gọi tới, không cần thêm gì ở tầng model nữa.
+```bash
+npm run dev    # cửa sổ 1 — server chính, http://localhost:3000
+npm run cron   # cửa sổ 2 — nhả ghế giữ quá hạn + hủy booking quá hạn thanh toán
+```
 
+Thiếu `npm run cron` thì các booking quá hạn thanh toán sẽ không tự hủy, ghế sẽ bị giữ mãi.
+
+## 5. Lấy khóa MoMo (môi trường Test)
+
+Bộ khóa test dùng chung công khai kiểu cũ (`MOMOBKUN...`) **không còn dùng được** — MoMo hiện bắt buộc tự đăng ký tài khoản M4B:
+
+1. Đăng ký tại [developers.momo.vn](https://developers.momo.vn) (chưa cần xác thực giấy tờ doanh nghiệp, đăng ký xong có ngay khóa Test).
+2. Chọn giải pháp "Thanh toán qua ứng dụng MoMo".
+3. Vào mục "Thông tin tích hợp" lấy `Partner Code` / `Access Key` / `Secret Key`, dán vào `.env.local`.
+4. `MOMO_API_URL` giữ nguyên `https://test-payment.momo.vn`.
+
+## 6. Test thanh toán MoMo qua ngrok (bắt buộc nếu chạy local)
+
+MoMo cần gọi ngược (IPN) về server của bạn sau khi khách thanh toán xong — `localhost` thì MoMo không gọi tới được.
+
+```bash
+ngrok http 3000
+```
+
+Copy địa chỉ `https://xxxx.ngrok-free.app`, thêm vào `.env.local`:
+
+```
+APP_BASE_URL=https://xxxx.ngrok-free.app
+```
+
+Restart `npm run dev`, rồi **mở web bằng chính địa chỉ ngrok** (không mở `localhost`). Theo dõi MoMo có gọi về không tại `http://127.0.0.1:4040`.
+
+Địa chỉ ngrok bản free đổi mỗi lần chạy lại — nhớ cập nhật `APP_BASE_URL` và restart mỗi lần.
+
+## 6b. Thanh toán bằng thẻ ATM nội địa qua cổng MoMo (không cần app MoMo)
+
+Hệ thống thanh toán bằng **thẻ ATM nội địa qua cổng MoMo** (`requestType: payWithATM`) — vẫn là API thanh toán MoMo thật, cùng endpoint `/v2/gateway/api/create`, cùng chữ ký HMAC-SHA256 và cùng webhook (IPN). Không dùng luồng ví MoMo/quét QR nên **không cần cài app MoMo Test**.
+
+Luồng: khách bấm "Thanh toán" → được chuyển sang trang `payUrl` của MoMo/Napas → nhập thẻ → MoMo gọi webhook `POST /api/payments/[bookingId]` → booking `confirmed` (hoặc `cancelled` nếu thất bại). Phương thức được lưu ở `Booking.payment.method = "momo_atm"`.
+
+Thẻ test của MoMo (môi trường Test), tên chủ thẻ `NGUYEN VAN A`, hạn `03/07`, nhập OTP theo yêu cầu trên trang:
+
+| Số thẻ | Kết quả mô phỏng |
+|---|---|
+| `9704 0000 0000 0018` | Thành công |
+| `9704 0000 0000 0026` | Thẻ bị khóa |
+| `9704 0000 0000 0034` | Không đủ tiền |
+| `9704 0000 0000 0042` | Vượt hạn mức |
+
+Các thẻ lỗi dùng để test nhánh thanh toán thất bại (booking chuyển `cancelled`, nhả ghế ngay). Webhook vẫn cần ngrok như mục 6. Nếu MoMo trả lỗi khi tạo yêu cầu `payWithATM`, xem `message` + `resultCode` trong log server — có thể bộ khóa đang dùng chưa được bật loại thanh toán này.
+
+## 7. Cấu trúc chính
+
+```
+app/[locale]/        # Giao diện khách — đa ngôn ngữ (vi/en)
+app/admin/            # Giao diện quản trị — KHÔNG qua next-intl
+app/api/              # API routes (REST, không dùng Server Action cho phần nghiệp vụ)
+models/                # 7 Mongoose schema — xem mongodb-schema-design.md
+services/              # Logic nghiệp vụ (tách khỏi route) — seatService, cancellationService, statsService...
+lib/                   # Hạ tầng dùng chung: mongodb, timezone (giờ VN), apiError, momoClient, emailClient
+cron/                  # Job chạy nền — xem mục 4
+scripts/                # Script chạy tay: seed dữ liệu, seed AirLabs
+i18n/, messages/        # Cấu hình + nội dung dịch next-intl
+```
+
+## 8. Script có sẵn
+
+| Lệnh | Việc làm |
+|---|---|
+| `npm run dev` | Chạy dev server |
+| `npm run build` | Build production |
+| `npm run lint` | Kiểm tra ESLint |
+| `npm run cron` | Chạy job nhả ghế/hủy booking quá hạn (chạy song song `dev`) |
+| `npm run seed` | Tạo tài khoản + dữ liệu nền demo |
+| `npm run seed:test` | Tạo chuyến bay test theo các mốc giờ hủy vé/check-in |
+| `npm run test:momo` | Gọi thử API tạo thanh toán MoMo thật (thẻ ATM) để kiểm tra khóa — không cần chạy web/MongoDB |
+
+## 9. Tài khoản demo
+
+Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ dùng để demo cục bộ**, không dùng lại mật khẩu này ở nơi khác.
+
+## 10. Lưu ý đã biết
+
+- `npm audit` còn 3 lỗ hổng mức "high" ở `nodemailer`/`next-auth` (lỗi của thư viện, chưa có bản vá non-breaking). Rủi ro thấp vì email chỉ gửi tới địa chỉ do hệ thống kiểm soát — **không chạy `npm audit fix --force`** vì sẽ hạ `next-auth` xuống bản rất cũ, hỏng đăng nhập.
+- Không có PUT/DELETE cho Aircraft/Airline (chỉ có cho Flight và Promotion) — đơn giản hóa có chủ đích, không phải thiếu sót.
+
+## 7. Kiểm thử
+
+```bash
+npm test      # 21 test tự động cho quy tắc nghiệp vụ thuần (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký MoMo...) — không cần MongoDB
+```
+
+Bảng test case thủ công cho Chương 4 (64 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
+
+## 8. Một số hành vi cần biết khi demo
+
+- **IPN MoMo không về được** (VD ngrok tắt): khi khách quay lại trang `/payment?bookingId=...`, hệ thống tự hỏi lại MoMo (`POST /v2/gateway/api/query`) và xác nhận booking nếu giao dịch đã thành công. Chỉ xử lý chiều thành công; thất bại/đang xử lý để IPN hoặc cron dọn.
+- **Thanh toán đến muộn**: nếu MoMo báo thành công nhưng booking đã bị hủy (quá hạn/khách hủy), booking chuyển `payment_error_manual_refund` để admin hoàn tay.
+- **Hoàn tiền tay**: ở trang Admin → Booking, booking `payment_error_manual_refund` có nút "Hoàn tiền tay" (nhập số tiền đã chuyển trả khách). Hệ thống chỉ ghi nhận số tiền, chưa gọi API hoàn tiền của MoMo.
+- **Hãng bay / máy bay**: sửa và xóa ngay trên bảng. Xóa bị chặn nếu còn chuyến bay đang dùng. Sửa sơ đồ ghế máy bay chỉ áp dụng cho chuyến tạo sau.

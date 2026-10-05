@@ -53,6 +53,11 @@ export default async function FlightDetailPage({ params, searchParams }) {
   try {
     flight = await getFlightDetail(id);
   } catch (err) {
+    // Log lỗi THẬT ra terminal — nếu không, lỗi không phải FlightError (VD
+    // CastError do id sai định dạng, DB mất kết nối...) sẽ bị NUỐT hoàn
+    // toàn, chỉ còn "Đã có lỗi xảy ra" hiện cho khách, không cách nào biết
+    // nguyên nhân thật để debug (đây chính xác là bug vừa gặp lúc test).
+    console.error("FlightDetailPage error:", err);
     errorMessage = err instanceof FlightError ? err.message : tCommon("error");
   }
 
@@ -97,6 +102,12 @@ export default async function FlightDetailPage({ params, searchParams }) {
   const economyAvailable = countAvailable(flight.seats, "economy");
   const businessAvailable = countAvailable(flight.seats, "business");
   const hasBusiness = flight.base_price.business !== undefined && flight.base_price.business !== null;
+  // Đúng công thức FlightCard.jsx đã dùng ở trang kết quả tìm kiếm — hết chỗ
+  // nghĩa là CẢ 2 hạng ghế (nếu có business) đều 0, không chỉ riêng economy.
+  // Chỉ tắt nút khi thật sự không còn ghế nào để bán, để không chặn oan
+  // khách muốn đặt business lúc economy đã hết.
+  const totalAvailable = economyAvailable + (hasBusiness ? businessAvailable : 0);
+  const soldOut = totalAvailable === 0;
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
@@ -162,12 +173,18 @@ export default async function FlightDetailPage({ params, searchParams }) {
           </div>
         </div>
 
-        <Link
-          href={nextHref}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-coral-500 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-coral-600"
-        >
-          {t("selectButton")}
-        </Link>
+        {soldOut ? (
+          <span className="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-sand-100 px-5 py-3 text-sm font-medium text-danger/70">
+            {t("soldOutLabel")}
+          </span>
+        ) : (
+          <Link
+            href={nextHref}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-coral-500 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-coral-600"
+          >
+            {t("selectButton")}
+          </Link>
+        )}
       </Card>
     </div>
   );

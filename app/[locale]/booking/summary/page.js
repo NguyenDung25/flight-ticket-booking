@@ -81,6 +81,9 @@ export default async function BookingSummaryPage({ params, searchParams }) {
       returnFlight = await getFlightDetail(returnFlightId);
     }
   } catch (err) {
+    // Log lỗi THẬT ra terminal trước — không có dòng này, mọi lỗi không
+    // phải FlightError bị nuốt hoàn toàn, không cách nào debug được.
+    console.error("BookingFlowPage error:", err);
     errorMessage = err instanceof FlightError ? t("errorNotFound") : tCommon("error");
   }
 
@@ -127,13 +130,17 @@ export default async function BookingSummaryPage({ params, searchParams }) {
             <p className="text-sm text-ink/60">
               {t("passengerCountLabel")}: {passengerCount}
             </p>
-            <p className="mt-1 max-w-xs text-xs text-ink/50">{t("estimatedTotalNote")}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-ink/60">{t("estimatedTotalLabel")}</p>
             <p className="text-xl font-semibold text-coral-600">
               {CURRENCY_FORMATTER.format(estimatedTotal)}đ
             </p>
+            {/* Ghi chú "tạm tính" đặt NGAY DƯỚI số tiền (trước đây nằm bên
+                trái, cạnh số hành khách — tách rời trực quan khỏi con số nó
+                đang giải thích, dễ bị đọc lướt qua và hiểu nhầm đây là giá
+                cuối). */}
+            <p className="mt-1 max-w-[16rem] text-xs text-ink/50">{t("estimatedTotalNote")}</p>
           </div>
         </div>
 

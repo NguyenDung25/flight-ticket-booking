@@ -51,6 +51,27 @@ function validatePassengerDocument(passenger) {
 }
 
 /**
+ * MỚI THÊM: chặn 2 hành khách trong CÙNG 1 booking khai TRÙNG số giấy tờ —
+ * về mặt logic không thể có 2 người thật cùng 1 số CCCD/hộ chiếu/giấy khai
+ * sinh. Bỏ qua document_id RỖNG (trẻ dưới MIN_AGE_REQUIRE_ID_DOCUMENT tuổi
+ * hợp lệ không cần điền — xem validatePassengerDocument) — KHÔNG được coi 2
+ * document_id rỗng là "trùng nhau".
+ */
+function validateNoDuplicateDocumentIds(passengers) {
+  const seenBy = new Map(); // document_id (đã trim) -> full_name người đầu tiên khai số đó
+  for (const passenger of passengers) {
+    const id = passenger.document_id?.trim();
+    if (!id) continue;
+    if (seenBy.has(id)) {
+      throw new ValidationError(
+        `Số giấy tờ "${id}" bị trùng giữa 2 hành khách ("${seenBy.get(id)}" và "${passenger.full_name}") — mỗi hành khách phải có số giấy tờ khác nhau.`
+      );
+    }
+    seenBy.set(id, passenger.full_name);
+  }
+}
+
+/**
  * Ghi chú (z): validate khoảng cách transit tối thiểu 2 tiếng giữa chặng đi và
  * chặng về cho vé khứ hồi. Lớp bảo vệ cuối ở service — UI (C3 bước 2) nên lọc
  * trước nhưng không được bỏ qua bước này.
@@ -145,6 +166,9 @@ async function validateBookingCreation({ passengers, legs, userId }) {
     validatePassengerDocument(passenger);
   }
 
+  // 1b) Chặn trùng số giấy tờ GIỮA các hành khách trong cùng booking (MỚI THÊM)
+  validateNoDuplicateDocumentIds(passengers);
+
   // 2) Validate transit time nếu khứ hồi
   if (legs.length === 2) {
     const outbound = legs.find((l) => l.leg === "outbound");
@@ -182,6 +206,7 @@ async function validateBookingCreation({ passengers, legs, userId }) {
 module.exports = {
   ValidationError,
   validatePassengerDocument,
+  validateNoDuplicateDocumentIds,
   validateRoundTripTransit,
   assertSeatClassMatches,
   assertSeatIsHeldByUser,

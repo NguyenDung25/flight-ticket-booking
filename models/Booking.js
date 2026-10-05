@@ -45,17 +45,33 @@ const FlightLegSchema = new Schema(
 
 const PaymentSchema = new Schema(
   {
-    method: { type: String, default: "momo" },
-    transaction_id: { type: String, default: null }, // unique + sparse (ghi chú i)
+    method: { type: String, default: "momo_atm" },
+    // KHÔNG đặt `default: null` — sparse unique index (bên dưới) chỉ loại
+    // trừ document mà field HOÀN TOÀN VẮNG MẶT (undefined), không loại trừ
+    // field có giá trị null tường minh. `default: null` khiến MỌI booking mới
+    // đều có transaction_id = null tường minh → document thứ 2 trở đi luôn
+    // đụng unique index với document đầu tiên → mọi lần đặt vé sau lần đầu
+    // đều lỗi 409 "Dữ liệu bị trùng" ngay ở bước tạo Booking (đã xác nhận qua
+    // log thật, không phải giả thuyết). Để trống default: field chỉ tồn tại
+    // sau khi services/paymentService.js gán transaction_id thật.
+    transaction_id: { type: String }, // unique + sparse (ghi chú i)
     paid_at: { type: Date, default: null },
     payment_expires_at: { type: Date, default: null }, // = held_until − 5 phút (ghi chú y)
+    // orderId của LẦN GỌI MOMO GẦN NHẤT (services/paymentService.initiatePayment ghi).
+    // Dùng để hỏi lại Momo kết quả giao dịch khi IPN không về được (syncPaymentStatus).
+    // Cũng KHÔNG đặt default: null — không nằm trong index nên không bắt buộc, nhưng
+    // giữ nhất quán với transaction_id: field chỉ tồn tại sau khi có giao dịch thật.
+    last_order_id: { type: String },
   },
   { _id: false }
 );
 
 const BookingSchema = new Schema(
   {
-    booking_code: { type: String, default: null }, // sinh sau khi thanh toán thành công (C7)
+    // Cùng lý do transaction_id ở trên — KHÔNG đặt default: null, để sparse
+    // unique index chỉ loại trừ đúng những booking CHƯA sinh mã (undefined),
+    // không bị coi là trùng nhau vì cùng giá trị null tường minh.
+    booking_code: { type: String }, // sinh sau khi thanh toán thành công (C7)
     user_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // bắt buộc (ghi chú a)
     trip_type: { type: String, enum: ["one_way", "round_trip"], required: true },
     locale: { type: String, enum: ["vi", "en"], required: true }, // chụp User.preferred_language lúc đặt

@@ -14,6 +14,10 @@ import { auth } from "@/auth";
 import { requireActiveUser } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
 import Booking from "@/models/Booking";
+// Side-effect import — populate({path:"flights.flight_id"}) bên dưới cần
+// model "Flight" đã đăng ký. Cùng lớp bug MissingSchemaError đã gặp ở
+// services/flightService.js (xem comment đầy đủ ở đó).
+import "@/models/Flight";
 
 export async function GET() {
   try {

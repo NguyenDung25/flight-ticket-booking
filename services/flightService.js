@@ -7,6 +7,17 @@
 // API liên quan: GET /api/flights/search (C1), GET /api/flights/[id] (C3)
 
 const Flight = require("../models/Flight");
+const Booking = require("../models/Booking");
+// Flight.airline_id/aircraft_id chỉ là { ref: "Airline"/"Aircraft" } (tên
+// chuỗi) — Mongoose CHỈ tìm ra model thật khi file định nghĩa nó đã được
+// require() ở ĐÂU ĐÓ trong cùng tiến trình. Next.js/Turbopack bundle theo
+// từng route RIÊNG BIỆT ở dev, nên nếu route nào đó (VD trang chi tiết
+// chuyến bay) không tự require 2 model này, và không có route KHÁC tình cờ
+// nạp trước trong cùng bundle, .populate("airline_id"/"aircraft_id") bên
+// dưới sẽ ném MissingSchemaError — đúng bug vừa gặp khi test C3. Require ở
+// đây để KHÔNG PHỤ THUỘC vào việc file khác có tình cờ nạp trước hay không.
+require("../models/Airline");
+require("../models/Aircraft");
 const { dayRangeVN } = require("../lib/timezone");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
@@ -164,8 +175,37 @@ async function getFlightDetail(flightId) {
   return flight;
 }
 
+/**
+ * A1 (ghi chú v) — chặn sửa `departure_time`/`aircraft_id` hoặc xóa chuyến
+ * bay nếu đang có booking HIỆU LỰC liên quan (`pending_payment` hoặc
+ * `confirmed` — KHÔNG tính `cancelled`/`refunded`/`payment_error_manual_refund`,
+ * vì các trạng thái đó không còn giữ ghế thật, đã xử lý xong).
+ *
+ * Gọi hàm này ở:
+ * - PATCH /api/admin/flights/[id], CHỈ KHI body có sửa `departure_time`
+ *   (đổi `base_price`/`status`/tên chuyến không ảnh hưởng vé đã bán, không
+ *   cần chặn).
+ * - DELETE /api/admin/flights/[id], LUÔN LUÔN (xóa hẳn document càng phải
+ *   chặn chắc hơn sửa 1 field).
+ *
+ * @throws {FlightError} 409 nếu có ít nhất 1 booking hiệu lực đang phụ thuộc
+ */
+async function assertNoActiveBooking(flightId) {
+  const hasActive = await Booking.exists({
+    "flights.flight_id": flightId,
+    status: { $in: ["pending_payment", "confirmed"] },
+  });
+  if (hasActive) {
+    throw new FlightError(
+      "Chuyến bay đang có booking hiệu lực (chưa hủy) — không thể sửa giờ bay hoặc xóa. Dùng chức năng hủy chuyến (A8) nếu cần ngừng khai thác.",
+      409
+    );
+  }
+}
+
 module.exports = {
   FlightError,
   searchFlights,
   getFlightDetail,
+  assertNoActiveBooking,
 };

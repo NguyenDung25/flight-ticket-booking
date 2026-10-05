@@ -81,6 +81,9 @@ export default async function BookingPassengersPage({ params, searchParams }) {
       returnFlight = await getFlightDetail(returnFlightId);
     }
   } catch (err) {
+    // Log lỗi THẬT ra terminal trước — không có dòng này, mọi lỗi không
+    // phải FlightError bị nuốt hoàn toàn, không cách nào debug được.
+    console.error("BookingFlowPage error:", err);
     errorMessage = err instanceof FlightError ? t("errorNotFound") : tCommon("error");
   }
 

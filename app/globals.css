@@ -31,6 +31,14 @@
      này) — đỏ gạch, KHÁC hẳn coral-500 (CTA) để không bị nhầm là nút bấm. */
   --color-danger: #c0392b;
 
+  /* StatusBadge.jsx (Booking.status: pending_payment/confirmed) đã dùng 2
+     token này từ trước nhưng chưa từng được định nghĩa — badge trạng thái
+     đang render KHÔNG MÀU ở mọi nơi dùng component đó (my-bookings, admin
+     bookings...). Vàng hổ phách/xanh lá, tách biệt hẳn sea (xanh biển) và
+     coral (CTA cam) để không lẫn ý nghĩa. */
+  --color-warning: #c9971f;
+  --color-success: #2f855a;
+
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

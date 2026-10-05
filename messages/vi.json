@@ -64,7 +64,8 @@
     "businessLabel": "Thương gia",
     "notOffered": "Chuyến này không có hạng ghế này",
     "availableSeatsLabel": "Còn trống",
-    "selectButton": "Chọn chuyến này"
+    "selectButton": "Chọn chuyến này",
+    "soldOutLabel": "Đã hết chỗ trên chuyến này"
   },
   "SearchResults": {
     "title": "Kết quả tìm kiếm",
@@ -78,7 +79,18 @@
     "stepOutboundTitle": "Bước 1/3 · Chọn chuyến đi",
     "stepReturnTitle": "Bước 2/3 · Chọn chuyến về",
     "selectedOutboundLabel": "Chuyến đi đã chọn",
-    "sameAirlineNote": "Chỉ hiện chuyến của {airline} để giữ khứ hồi cùng 1 hãng bay."
+    "sameAirlineNote": "Chỉ hiện chuyến của {airline} để giữ khứ hồi cùng 1 hãng bay.",
+    "filterPriceLabel": "Giá tối đa: {price}đ",
+    "filterTimeLabel": "Khung giờ",
+    "filterAirlineLabel": "Hãng bay",
+    "timeSlotEarly": "Đêm khuya (00:00-06:00)",
+    "timeSlotMorning": "Buổi sáng (06:00-12:00)",
+    "timeSlotAfternoon": "Buổi chiều (12:00-18:00)",
+    "timeSlotEvening": "Buổi tối (18:00-24:00)",
+    "filterResetButton": "Xóa bộ lọc",
+    "noResultsAfterFilter": "Không có chuyến nào khớp bộ lọc — thử nới rộng lựa chọn.",
+    "fromPrice": "Từ",
+    "hasBusinessClass": "Có hạng thương gia"
   },
   "Booking": {
     "passengerInfoTitle": "Thông tin hành khách",
@@ -107,12 +119,20 @@
     "noSeatSelected": "Chưa chọn ghế",
     "holdingSeat": "Đang giữ ghế...",
     "totalAmountLabel": "Tổng tiền",
+    "promotionCodeLabel": "Mã khuyến mãi (nếu có)",
+    "promotionCodePlaceholder": "VD: SUMMER26",
+    "promotionAppliedNote": "Số tiền cuối cùng sẽ được tính lại (kèm giảm giá nếu mã hợp lệ) ở bước tiếp theo.",
+    "paymentMethodNote": "Thanh toán bằng thẻ ATM nội địa qua cổng Momo: bạn sẽ được chuyển tới trang thanh toán của Momo để nhập thẻ, không cần cài app Momo.",
     "backButton": "Quay lại",
     "submitError": "Đã có lỗi xảy ra, vui lòng thử lại.",
     "errorMissingSeats": "Vui lòng chọn đủ ghế cho mọi hành khách trên tất cả các chặng.",
     "errorMissingFields": "Vui lòng nhập đầy đủ thông tin cho mọi hành khách.",
+    "errorDocumentTypeForAge": "Hành khách từ 14 tuổi phải dùng CCCD/Hộ chiếu kèm số giấy tờ; dưới 14 tuổi không được chọn CCCD.",
+    "errorDuplicateDocumentId": "Số giấy tờ bị trùng giữa 2 hành khách — mỗi người phải có số giấy tờ khác nhau.",
     "errorMinPassengers": "Cần ít nhất 1 hành khách.",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "selectingSeatFor": "Đang chọn ghế cho",
+    "seatStatusBusinessClass": "Hạng thương gia (viền xanh)"
   },
   "Payment": {
     "title": "Thanh toán",
@@ -124,7 +144,9 @@
     "statusCancelled": "Booking đã bị hủy (thanh toán thất bại hoặc hết hạn giữ ghế).",
     "statusPaymentError": "Có sự cố khi xác nhận ghế sau khi thanh toán. Vui lòng liên hệ hỗ trợ để được xử lý hoàn tiền.",
     "statusNotFound": "Không tìm thấy booking này.",
-    "backToHome": "Về trang chủ"
+    "backToHome": "Về trang chủ",
+    "viewTicket": "Xem vé điện tử",
+    "myBookings": "Vé của tôi"
   },
   "MyBookings": {
     "title": "Vé của tôi",
@@ -147,7 +169,13 @@
     "confirmCancelPrompt": "Xác nhận hủy vé này?",
     "cancelling": "Đang hủy...",
     "cancelError": "Không thể hủy vé, vui lòng thử lại.",
-    "viewTicket": "Xem vé điện tử"
+    "viewTicket": "Xem vé điện tử",
+    "payNow": "Thanh toán ngay",
+    "paymentExpiresIn": "Còn",
+    "paymentExpired": "Đã hết hạn thanh toán",
+    "paymentExpiresInSuffix": "để thanh toán",
+    "payingRedirecting": "Đang chuyển tới Momo...",
+    "payNowError": "Không mở được trang thanh toán, thử lại sau."
   },
   "CheckIn": {
     "title": "Check-in online",

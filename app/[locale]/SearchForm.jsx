@@ -123,6 +123,20 @@ export default function SearchForm({ airports, locale }) {
           onChange={(e) => setDestination(e.target.value)}
           options={airportOptions}
         />
+      </div>
+
+      {/* Hàng ngày bay + số khách TÁCH RIÊNG khỏi lưới From/To ở trên, và số
+          cột tự đổi theo tripType (2 cột one_way, 3 cột round_trip) — để
+          "Số khách" LUÔN nằm cùng hàng với ngày bay thay vì rơi xuống hàng
+          riêng một mình khi round_trip (5 field lẻ trong 1 lưới 2 cột cố
+          định sẽ để passengers mồ côi 1 mình, nhìn lệch — đây chính là bug
+          UI đã sửa). Cũng tránh việc bật/tắt round_trip làm "Số khách" nhảy
+          vị trí đột ngột giữa 2 layout khác hẳn nhau. */}
+      <div
+        className={`mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+          tripType === "round_trip" ? "md:grid-cols-3" : ""
+        }`}
+      >
         <DatePicker
           label={t("departureDate")}
           value={departureDate}

@@ -32,16 +32,45 @@ function randomBoardingPassCode() {
 }
 
 /**
- * C5 — hold-seat: giữ 1 ghế trong 30 phút, chỉ thành công nếu ghế đang
- * `available`. Atomic bằng điều kiện `status: available` ngay trong query.
+ * C5 — hold-seat: giữ 1 ghế trong 30 phút. Atomic bằng $elemMatch — ĐÚNG 1
+ * phần tử mảng phải thỏa 1 trong 2 điều kiện: đang `available`, HOẶC đang
+ * `held` bởi CHÍNH userId này rồi (idempotent — client (PassengersForm.jsx)
+ * không tự đoán "ghế này chắc vẫn đang là của mình" rồi bỏ qua gọi API, mà
+ * LUÔN gọi hold-seat và để server tự quyết định; xem ghi chú "BUG THẬT" bên
+ * dưới để hiểu vì sao).
+ *
+ * $elemMatch (thay vì 2 điều kiện top-level rời + $or) là bắt buộc ở đây —
+ * đảm bảo CẢ 2 vế của $or cùng áp vào MỘT phần tử mảng duy nhất, để `$`
+ * trong $set phía dưới trỏ đúng phần tử đó. Viết `"seats.status"` +
+ * `"seats.held_by"` rời nhau (không $elemMatch) sẽ SAI tinh vi: Mongo có
+ * thể match "status đúng" ở ghế A và "held_by đúng" ở ghế B khác, `$` sẽ trỏ
+ * mơ hồ/nhầm ghế.
+ *
+ * BUG THẬT đã sửa: code cũ ở client có nhánh "ghế này mình đã giữ từ trước
+ * (mineUnassigned) -> bỏ qua gọi hold-seat lại" — dựa vào state cũ tải từ
+ * trang (có thể đã hết hạn 30 phút ở server tự lúc nào không biết). Client
+ * tưởng vẫn đang giữ, nhưng server đã tự nhả (cron/hết hạn) từ trước — ghế
+ * "held bởi mình" trên UI thực ra KHÔNG hề được giữ thật. Fix ở CẢ 2 phía:
+ * server cho phép hold lại (refresh held_until) nếu đúng là ghế của mình,
+ * và client (xem PassengersForm.jsx) bỏ hẳn nhánh đoán mò đó — LUÔN gọi lại
+ * hold-seat, để server làm trọng tài duy nhất, không tự suy đoán trạng thái
+ * cũ trên client.
  *
  * @returns {Promise<Object>} Flight doc sau update
- * @throws {SeatConflictError} nếu ghế không tồn tại hoặc không còn available
- *   (đã bị người khác giữ/đặt trước — client cần load lại sơ đồ ghế)
+ * @throws {SeatConflictError} nếu ghế không tồn tại, hoặc đang held/booked
+ *   bởi NGƯỜI KHÁC (không phải available, không phải của userId này)
  */
 async function holdSeat({ flightId, seatNumber, userId }) {
   const updated = await Flight.findOneAndUpdate(
-    { _id: flightId, "seats.seat_number": seatNumber, "seats.status": "available" },
+    {
+      _id: flightId,
+      seats: {
+        $elemMatch: {
+          seat_number: seatNumber,
+          $or: [{ status: "available" }, { status: "held", held_by: userId }],
+        },
+      },
+    },
     {
       $set: {
         "seats.$.status": "held",
@@ -207,6 +236,38 @@ async function forceReleaseSeat({ flightId, seatNumber }) {
 }
 
 /**
+ * A3 (hoàn tiền tay cho booking `payment_error_manual_refund`) — nhả 1 ghế CHỈ KHI
+ * nó vẫn đang `booked` đúng bởi `userId` này. Khác `forceReleaseSeat`: hàm đó nhả
+ * bất kể ai đang giữ — với booking lỗi race-condition (ghi chú y) có ghế đã bị
+ * khách khác giữ/đặt, nhả mù sẽ lấy mất ghế của người đó.
+ *
+ * Nếu ghế đã `available` (cron nhả từ trước) hoặc thuộc người khác thì no-op.
+ *
+ * @returns {Promise<boolean>} true nếu có ghế được nhả
+ */
+async function releaseBookedSeatOwnedBy({ flightId, seatNumber, userId }) {
+  const result = await Flight.updateOne(
+    {
+      _id: flightId,
+      seats: {
+        $elemMatch: { seat_number: seatNumber, status: "booked", held_by: userId },
+      },
+    },
+    {
+      $set: {
+        "seats.$.status": "available",
+        "seats.$.held_by": null,
+        "seats.$.held_until": null,
+        "seats.$.checked_in": false,
+        "seats.$.checked_in_at": null,
+        "seats.$.boarding_pass_code": null,
+      },
+    }
+  );
+  return result.modifiedCount === 1;
+}
+
+/**
  * C10 — check-in online cho 1 ghế đã đặt. Chỉ cho phép trong khung
  * [departure_time - 24h, departure_time - 2h] (`isCheckInWindowOpen`,
  * lib/timezone.js — TÁI DÙNG nguyên hàm đó, KHÔNG tự so sánh giờ lại ở đây
@@ -276,5 +337,6 @@ module.exports = {
   confirmAllSeatsBooked,
   releaseExpiredHolds,
   forceReleaseSeat,
+  releaseBookedSeatOwnedBy,
   checkInSeat,
 };

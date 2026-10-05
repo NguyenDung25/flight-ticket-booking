@@ -278,9 +278,104 @@ async function cancelExpiredPendingPayments() {
   return expiredBookings.length;
 }
 
+/**
+ * A3 (ngoại lệ duy nhất cho admin nhập tay số tiền, xem ghi chú y) — tính các field
+ * hoàn tiền cho booking `payment_error_manual_refund`. Hàm THUẦN để test được.
+ *
+ * Admin nhập `refundAmount` = số tiền thực sự hoàn lại khách (thường = toàn bộ số đã trừ).
+ * Phần chênh (nếu admin cố ý hoàn ít hơn) ghi vào `cancellation_fee_amount` để báo cáo
+ * doanh thu A6 vẫn khớp công thức "doanh thu = confirmed + phí phạt của refunded".
+ *
+ * @throws {CancellationError} 400 nếu số tiền không phải số nguyên dương hoặc vượt `totalAmount`
+ */
+function computeManualRefund(totalAmount, refundAmount) {
+  const refund = Number(refundAmount);
+  if (!Number.isInteger(refund) || refund <= 0) {
+    throw new CancellationError("refund_amount phải là số nguyên dương (đồng).", 400);
+  }
+  if (refund > totalAmount) {
+    throw new CancellationError(
+      `refund_amount (${refund}) không được lớn hơn tổng tiền khách đã thanh toán (${totalAmount}).`,
+      400
+    );
+  }
+  return {
+    refund,
+    fee: totalAmount - refund,
+    tier: refund === totalAmount ? "full" : "partial",
+  };
+}
+
+/**
+ * A3 — admin xử lý tay 1 booking `payment_error_manual_refund`: ghi số tiền hoàn,
+ * chuyển `refunded`, nhả các ghế còn `booked` đúng bởi chủ booking này (ghế đã thuộc
+ * người khác thì để nguyên — xem seatService.releaseBookedSeatOwnedBy).
+ *
+ * Giống toàn bộ luồng hoàn tiền khác: hệ thống chỉ GHI NHẬN số tiền, chưa gọi API hoàn
+ * tiền của Momo — admin tự chuyển trả khách ngoài hệ thống rồi ghi nhận ở đây.
+ *
+ * Atomic: điều kiện `status: payment_error_manual_refund` nằm ngay trong query ghi,
+ * 2 admin bấm cùng lúc thì chỉ 1 người thành công.
+ *
+ * @param {Object} params
+ * @param {String} params.bookingId
+ * @param {Number|String} params.refundAmount
+ * @param {String} [params.note] - ghi chú của admin (VD "Đã chuyển khoản lại ngày ...")
+ * @returns {Promise<Object>} Booking doc sau khi cập nhật
+ */
+async function resolveManualRefund({ bookingId, refundAmount, note }) {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new CancellationError("Không tìm thấy booking.", 404);
+  }
+  if (booking.status !== "payment_error_manual_refund") {
+    throw new CancellationError(
+      `Chỉ xử lý tay được booking ở trạng thái 'payment_error_manual_refund' (hiện là '${booking.status}'). Booking đã thanh toán bình thường phải hủy qua PATCH /api/bookings/[id]/cancel.`,
+      409
+    );
+  }
+
+  const { refund, fee, tier } = computeManualRefund(booking.total_amount, refundAmount);
+  const cleanNote = typeof note === "string" ? note.trim() : "";
+
+  const updated = await Booking.findOneAndUpdate(
+    { _id: bookingId, status: "payment_error_manual_refund" },
+    {
+      $set: {
+        status: "refunded",
+        refund_amount: refund,
+        cancellation_fee_amount: fee,
+        cancellation_tier: tier,
+        refund_processed_at: nowVN().toDate(),
+        cancel_reason:
+          "Lỗi thanh toán (ghế không còn khi Momo báo thành công) — admin hoàn tiền thủ công." +
+          (cleanNote ? ` Ghi chú: ${cleanNote}` : ""),
+      },
+    },
+    { new: true }
+  );
+  if (!updated) {
+    throw new CancellationError("Booking vừa được xử lý bởi thao tác khác, vui lòng tải lại.", 409);
+  }
+
+  for (const passenger of updated.passengers) {
+    for (const seat of passenger.seats) {
+      await seatService.releaseBookedSeatOwnedBy({
+        flightId: seat.flight_id,
+        seatNumber: seat.seat_number,
+        userId: updated.user_id,
+      });
+    }
+  }
+
+  return updated;
+}
+
 module.exports = {
   CancellationError,
   computeFeeBucket,
+  computeManualRefund,
+  resolveManualRefund,
   cancelBooking,
   cancelBookingsForFlight,
   cancelExpiredPendingPayments,

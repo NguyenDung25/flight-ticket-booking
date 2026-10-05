@@ -11,8 +11,9 @@
 // tham số tới từ URL nên khách có thể tự gõ tay sai hoặc sửa link.
 //
 // C2 (lọc theo giá/khung giờ/hãng bay) xử lý phía CLIENT trên kết quả đã có
-// (đúng ghi chú kỹ thuật C2 trong flightService.js) — CHƯA làm ở bước này,
-// trang hiện tại chỉ hiển thị nguyên danh sách server trả về.
+// (đúng ghi chú kỹ thuật C2 trong flightService.js) — xem
+// FilterableFlightList.jsx (Client Component nhận danh sách đã serialize
+// sẵn, tự lọc trong browser, KHÔNG gọi lại DB/API khi đổi bộ lọc).
 //
 // LUẬT NGHIỆP VỤ MỚI: khứ hồi bắt buộc CÙNG 1 hãng bay cho cả 2 chặng — ở
 // bước 2, chặng về chỉ hiện đúng hãng của chặng đi đã chọn (lọc ngay bên
@@ -33,7 +34,7 @@ import dbConnect from "@/lib/mongodb";
 import { searchFlights, getFlightDetail, FlightError } from "@/services/flightService";
 import { toVN } from "@/lib/timezone";
 import { Link } from "@/i18n/navigation";
-import FlightCard from "./FlightCard";
+import FilterableFlightList from "./FilterableFlightList";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
@@ -91,7 +92,9 @@ export default async function SearchResultsPage({ params, searchParams }) {
   } catch (err) {
     // FlightError (thiếu/sai tham số) -> message đã được service viết sẵn,
     // an toàn hiển thị thẳng. Lỗi khác (DB down...) -> thông báo chung
-    // chung, KHÔNG lộ chi tiết kỹ thuật ra trang khách xem.
+    // chung, KHÔNG lộ chi tiết kỹ thuật ra trang khách xem — nhưng vẫn PHẢI
+    // log ra terminal, nếu không lỗi thật bị nuốt hoàn toàn, không debug được.
+    console.error("SearchPage error:", err);
     errorMessage = err instanceof FlightError ? err.message : tCommon("error");
   }
 
@@ -109,6 +112,15 @@ export default async function SearchResultsPage({ params, searchParams }) {
     passengerCount: sp.passengerCount,
     outboundFlightId: sp.outboundFlightId,
   };
+
+  // Serialize sang plain JSON TRƯỚC khi đưa vào FilterableFlightList (Client
+  // Component) — result.outbound/result.return tới từ Flight.aggregate()
+  // (searchFlights), _id/airline._id vẫn là ObjectId thô, KHÔNG serialize
+  // được nguyên vẹn qua RSC payload nếu không tự chuyển. JSON.stringify tự
+  // gọi .toJSON() của ObjectId (driver mongodb/bson có sẵn) nên ra đúng
+  // string hex, không cần tự viết converter riêng.
+  const outboundFlights = result ? JSON.parse(JSON.stringify(result.outbound)) : [];
+  const returnFlights = result ? JSON.parse(JSON.stringify(result.return ?? [])) : [];
 
   return (
     <div className="flex flex-1 flex-col gap-8 bg-sand-50 px-4 py-12 sm:px-16">
@@ -152,20 +164,12 @@ export default async function SearchResultsPage({ params, searchParams }) {
                   {t("stepOutboundTitle")}
                 </h2>
               )}
-              {result.outbound.length === 0 ? (
-                <p className="text-sm text-ink/60">{t("noResults")}</p>
-              ) : (
-                result.outbound.map((flight) => (
-                  <FlightCard
-                    key={String(flight._id)}
-                    flight={flight}
-                    locale={locale}
-                    leg="outbound"
-                    searchContext={searchContext}
-                    t={t}
-                  />
-                ))
-              )}
+              <FilterableFlightList
+                flights={outboundFlights}
+                locale={locale}
+                leg="outbound"
+                searchContext={searchContext}
+              />
             </section>
           )}
 
@@ -174,20 +178,12 @@ export default async function SearchResultsPage({ params, searchParams }) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/60">
                 {t("stepReturnTitle")}
               </h2>
-              {result.return.length === 0 ? (
-                <p className="text-sm text-ink/60">{t("noResults")}</p>
-              ) : (
-                result.return.map((flight) => (
-                  <FlightCard
-                    key={String(flight._id)}
-                    flight={flight}
-                    locale={locale}
-                    leg="return"
-                    searchContext={searchContext}
-                    t={t}
-                  />
-                ))
-              )}
+              <FilterableFlightList
+                flights={returnFlights}
+                locale={locale}
+                leg="return"
+                searchContext={searchContext}
+              />
             </section>
           )}
         </>

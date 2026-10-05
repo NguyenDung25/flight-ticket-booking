@@ -44,6 +44,12 @@ loadEnvLocal();
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const dayjs = require("dayjs");
+const utc = require("dayjs/plugin/utc");
+const timezone = require("dayjs/plugin/timezone");
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const VN_TZ = "Asia/Ho_Chi_Minh";
 
 const User = require("../models/User");
 const Airline = require("../models/Airline");
@@ -123,11 +129,28 @@ async function seedAircraft() {
  * quá khứ vì luôn tìm theo ngày hiện tại/tương lai) nếu script chạy muộn hơn
  * nhiều so với lúc viết.
  */
+/**
+ * BUG THẬT tìm được khi soát lại (rất có thể chính là nguyên nhân
+ * "No matching flights found" khi test): bản cũ dùng `new Date()` +
+ * `setDate()`/`setHours()` — các hàm này lấy mốc "hôm nay"/"giờ X" theo
+ * MÚI GIỜ HỆ THỐNG của máy chạy script (`Intl.DateTimeFormat().resolvedOptions().timeZone`),
+ * KHÔNG PHẢI múi giờ Việt Nam. lib/timezone.js đã tự ghi chú rõ đúng cái bẫy
+ * này (ghi chú ab: "tránh lệch giờ nếu server host chạy ở múi giờ khác
+ * GMT+7") nhưng script seed lại không áp dụng.
+ *
+ * Hậu quả: nếu máy chạy `node scripts/seedSample.js` có múi giờ hệ thống
+ * KHÁC Asia/Ho_Chi_Minh (rất dễ xảy ra — VD môi trường chạy ở UTC), "ngày
+ * mai" tính theo múi giờ đó có thể LỆCH 1 ngày so với "ngày mai" mà
+ * dayRangeVN() (dùng khi search) tính theo giờ VN — tùy đúng lúc chạy script
+ * rơi vào khung giờ nào trong ngày. Kết quả: Flight bị seed vào đúng NGÀY
+ * DƯƠNG LỊCH KHÁC với ngày /api/flights/search đang tìm → 0 kết quả, dù dữ
+ * liệu vẫn nằm trong DB.
+ *
+ * Sửa bằng cách PIN CỨNG múi giờ Asia/Ho_Chi_Minh qua dayjs.tz(), giống hệt
+ * cách lib/timezone.js đang làm — không phụ thuộc múi giờ hệ thống nữa.
+ */
 function tomorrowAt(hour) {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(hour, 0, 0, 0);
-  return d;
+  return dayjs().tz(VN_TZ).add(1, "day").hour(hour).minute(0).second(0).millisecond(0).toDate();
 }
 
 async function seedFlights({ airlines, aircraft }) {
@@ -152,6 +175,21 @@ async function seedFlights({ airlines, aircraft }) {
       arrival_time: tomorrowAt(16),
       base_price: { economy: 1200000, business: 3500000 },
     },
+    {
+      // Cùng hãng VN với VN200 (khác VJ300) — để test khứ hồi THÀNH CÔNG:
+      // chọn VN200 (HAN->SGN) làm chặng đi, /search bước 2 phải lọc còn lại
+      // ĐÚNG chuyến này (VJ300 bị loại vì khác hãng). Cách VN200 5 tiếng
+      // (đến 10h, bay tiếp lúc 15h) — an toàn qua mốc tối thiểu 2h giữa 2
+      // chặng khứ hồi.
+      flight_number: "VN201",
+      airline_id: airlines.vietnamAirlines._id,
+      aircraft_id: aircraft._id,
+      origin_code: "SGN",
+      dest_code: "HAN",
+      departure_time: tomorrowAt(15),
+      arrival_time: tomorrowAt(17),
+      base_price: { economy: 1500000, business: 4000000 },
+    },
   ];
 
   for (const data of toSeed) {
@@ -170,7 +208,11 @@ async function seedFlights({ airlines, aircraft }) {
     const flight = await Flight.create({ ...data, seats });
     console.log(
       `✅ Flight: ${flight.flight_number} (${flight.origin_code}→${flight.dest_code}, ` +
-        `khởi hành ${flight.departure_time.toLocaleString("vi-VN")}, ${flight.seats.length} ghế)`
+        // .toLocaleString("vi-VN") KHÔNG chỉ định timeZone -> vẫn theo múi giờ
+        // hệ thống, cùng đúng bẫy vừa sửa ở tomorrowAt() — dùng dayjs.tz() để
+        // dòng log này PHẢN ÁNH ĐÚNG giờ VN thật sự lưu trong DB, tránh tự
+        // đánh lừa chính mình lúc debug.
+        `khởi hành ${dayjs(flight.departure_time).tz(VN_TZ).format("HH:mm DD/MM/YYYY")}, ${flight.seats.length} ghế)`
     );
   }
 }
