@@ -64,6 +64,9 @@ async function holdSeat({ flightId, seatNumber, userId }) {
   const updated = await Flight.findOneAndUpdate(
     {
       _id: flightId,
+      // Chuyến phải còn nhận đặt: chưa hủy và chưa khởi hành.
+      status: "scheduled",
+      departure_time: { $gt: new Date() },
       seats: {
         $elemMatch: {
           seat_number: seatNumber,
@@ -82,6 +85,11 @@ async function holdSeat({ flightId, seatNumber, userId }) {
   );
 
   if (!updated) {
+    // Phân biệt lý do để báo đúng: chuyến không còn nhận đặt vs ghế đã có người.
+    const flight = await Flight.findById(flightId).select("status departure_time").lean();
+    if (flight && (flight.status !== "scheduled" || new Date(flight.departure_time) <= new Date())) {
+      throw new SeatConflictError("Chuyến bay đã bị hủy hoặc đã khởi hành, không thể giữ ghế.");
+    }
     throw new SeatConflictError(
       `Ghế ${seatNumber} không còn trống — vui lòng chọn ghế khác.`
     );
@@ -106,9 +114,9 @@ async function releaseSeat({ flightId, seatNumber, userId }) {
   const updated = await Flight.findOneAndUpdate(
     {
       _id: flightId,
-      "seats.seat_number": seatNumber,
-      "seats.status": "held",
-      "seats.held_by": userId,
+      seats: {
+        $elemMatch: { seat_number: seatNumber, status: "held", held_by: userId },
+      },
     },
     {
       $set: {
@@ -134,9 +142,9 @@ async function confirmSeatBooked({ flightId, seatNumber, userId }) {
   const result = await Flight.updateOne(
     {
       _id: flightId,
-      "seats.seat_number": seatNumber,
-      "seats.status": "held",
-      "seats.held_by": userId,
+      seats: {
+        $elemMatch: { seat_number: seatNumber, status: "held", held_by: userId },
+      },
     },
     { $set: { "seats.$.status": "booked" } }
   );
@@ -218,8 +226,9 @@ async function forceReleaseSeat({ flightId, seatNumber }) {
   const result = await Flight.updateOne(
     {
       _id: flightId,
-      "seats.seat_number": seatNumber,
-      "seats.status": { $in: ["held", "booked"] },
+      seats: {
+        $elemMatch: { seat_number: seatNumber, status: { $in: ["held", "booked"] } },
+      },
     },
     {
       $set: {
@@ -305,10 +314,14 @@ async function checkInSeat({ flightId, seatNumber, userId }) {
   const updated = await Flight.findOneAndUpdate(
     {
       _id: flightId,
-      "seats.seat_number": seatNumber,
-      "seats.status": "booked",
-      "seats.held_by": userId,
-      "seats.checked_in": false,
+      seats: {
+        $elemMatch: {
+          seat_number: seatNumber,
+          status: "booked",
+          held_by: userId,
+          checked_in: false,
+        },
+      },
     },
     {
       $set: {

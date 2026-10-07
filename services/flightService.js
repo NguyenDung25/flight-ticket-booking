@@ -18,7 +18,8 @@ const Booking = require("../models/Booking");
 // đây để KHÔNG PHỤ THUỘC vào việc file khác có tình cờ nạp trước hay không.
 require("../models/Airline");
 require("../models/Aircraft");
-const { dayRangeVN } = require("../lib/timezone");
+const { dayRangeVN, todayStringVN, isValidYmd } = require("../lib/timezone");
+const { MAX_PASSENGERS_PER_BOOKING } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
 class FlightError extends Error {
@@ -66,10 +67,16 @@ function buildAvailableSeatsProjection() {
  * không được hiển thị cho khách tìm/đặt tiếp, dù dữ liệu vẫn còn trong DB
  * (A8 xử lý booking liên quan, không xóa Flight).
  *
+ * Chuyến ĐÃ KHỞI HÀNH (departure_time <= now) cũng không trả về — khách không
+ * thể đặt chuyến đã bay. Với ngày hôm nay, mốc bắt đầu là `now` thay vì 00:00;
+ * với ngày tương lai `start` luôn > now nên không đổi gì.
+ *
  * Sắp xếp mặc định theo `departure_time` tăng dần (đúng Đầu ra C1).
  */
 async function queryFlightsByLeg({ origin, destination, date }) {
-  const { start, end } = dayRangeVN(date);
+  const { start: dayStart, end } = dayRangeVN(date);
+  const now = new Date();
+  const start = dayStart > now ? dayStart : now;
 
   return Flight.aggregate([
     {
@@ -134,14 +141,37 @@ async function searchFlights({ origin, destination, departureDate, tripType, ret
   if (!departureDate) {
     throw new FlightError("Thiếu ngày bay.");
   }
+  // Ngày phải đúng định dạng YYYY-MM-DD và là ngày có thật (chặn "abc", "2026-02-31").
+  if (!isValidYmd(departureDate)) {
+    throw new FlightError("Ngày bay không hợp lệ (định dạng YYYY-MM-DD).");
+  }
+  // So sánh chuỗi YYYY-MM-DD là đúng thứ tự thời gian (cùng độ dài, cùng định dạng).
+  if (departureDate < todayStringVN()) {
+    throw new FlightError("Ngày bay không được ở trong quá khứ.");
+  }
   if (!["one_way", "round_trip"].includes(tripType)) {
     throw new FlightError("trip_type phải là 'one_way' hoặc 'round_trip'.");
   }
   if (tripType === "round_trip" && !returnDate) {
     throw new FlightError("Vé khứ hồi bắt buộc phải có return_date.");
   }
-  if (passengerCount !== undefined && (!Number.isInteger(passengerCount) || passengerCount < 1)) {
-    throw new FlightError("passenger_count phải là số nguyên >= 1.");
+  if (tripType === "round_trip") {
+    if (!isValidYmd(returnDate)) {
+      throw new FlightError("Ngày về không hợp lệ (định dạng YYYY-MM-DD).");
+    }
+    if (returnDate < departureDate) {
+      throw new FlightError("Ngày về không được trước ngày đi.");
+    }
+  }
+  if (
+    passengerCount !== undefined &&
+    (!Number.isInteger(passengerCount) ||
+      passengerCount < 1 ||
+      passengerCount > MAX_PASSENGERS_PER_BOOKING)
+  ) {
+    throw new FlightError(
+      `passenger_count phải là số nguyên từ 1 đến ${MAX_PASSENGERS_PER_BOOKING}.`
+    );
   }
 
   const outbound = await queryFlightsByLeg({ origin, destination, date: departureDate });
@@ -166,7 +196,11 @@ async function searchFlights({ origin, destination, departureDate, tripType, ret
 async function getFlightDetail(flightId) {
   const flight = await Flight.findById(flightId)
     .populate("airline_id", "code name")
-    .populate("aircraft_id", "name");
+    .populate("aircraft_id", "name")
+    // Loại trừ các field nhạy cảm khỏi API công khai — khách chỉ cần biết
+    // seat_number/status/seat_class để chọn ghế, KHÔNG cần held_by (userId
+    // người đang giữ) hay boarding_pass_code (mã lên máy bay của người khác).
+    .select("-seats.held_by -seats.boarding_pass_code");
 
   if (!flight) {
     throw new FlightError("Không tìm thấy chuyến bay.", 404);

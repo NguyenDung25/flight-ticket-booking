@@ -26,8 +26,12 @@ const PASSENGER_OPTIONS = Array.from({ length: 9 }, (_, i) => ({
   label: String(i + 1),
 }));
 
+// Ngày hôm nay theo giờ MÁY KHÁCH (YYYY-MM-DD). KHÔNG dùng toISOString(): nó ra
+// ngày UTC nên từ 0h–7h sáng giờ VN sẽ lùi 1 ngày (min của ô ngày bị sai).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /**
@@ -60,7 +64,15 @@ export default function SearchForm({ airports, locale }) {
   function setTripTypeAndSave(v) { setTripType(v); saveSession("sf_tripType", v); }
   function setOriginAndSave(v) { setOrigin(v); saveSession("sf_origin", v); }
   function setDestinationAndSave(v) { setDestination(v); saveSession("sf_destination", v); }
-  function setDepartureDateAndSave(v) { setDepartureDate(v); saveSession("sf_departureDate", v); }
+  // Đổi ngày đi sang sau ngày về đã chọn -> xóa ngày về (tránh ngày về trước ngày đi).
+  function setDepartureDateAndSave(v) {
+    setDepartureDate(v);
+    saveSession("sf_departureDate", v);
+    if (returnDate && v && returnDate < v) {
+      setReturnDate("");
+      saveSession("sf_returnDate", "");
+    }
+  }
   function setReturnDateAndSave(v) { setReturnDate(v); saveSession("sf_returnDate", v); }
   function setPassengerCountAndSave(v) { setPassengerCount(v); saveSession("sf_passengerCount", v); }
 
@@ -83,8 +95,17 @@ export default function SearchForm({ airports, locale }) {
       setFormError(t("errorSameAirport"));
       return;
     }
+    // Ngày gõ tay hoặc khôi phục từ sessionStorage có thể vượt qua `min` của ô ngày.
+    if (!departureDate || departureDate < todayISO()) {
+      setFormError(t("errorDepartureInPast"));
+      return;
+    }
     if (tripType === "round_trip" && !returnDate) {
       setFormError(t("errorMissingReturnDate"));
+      return;
+    }
+    if (tripType === "round_trip" && returnDate < departureDate) {
+      setFormError(t("errorReturnBeforeDeparture"));
       return;
     }
 

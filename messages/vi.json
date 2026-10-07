@@ -53,7 +53,9 @@
     "searchButton": "Tìm chuyến bay",
     "errorMissingRoute": "Vui lòng chọn điểm đi và điểm đến.",
     "errorSameAirport": "Điểm đi và điểm đến không được trùng nhau.",
-    "errorMissingReturnDate": "Vui lòng chọn ngày về."
+    "errorMissingReturnDate": "Vui lòng chọn ngày về.",
+    "errorDepartureInPast": "Ngày đi không hợp lệ hoặc đã qua — vui lòng chọn từ hôm nay trở đi.",
+    "errorReturnBeforeDeparture": "Ngày về không được trước ngày đi."
   },
   "FlightDetail": {
     "title": "Chi tiết chuyến bay",
@@ -127,6 +129,7 @@
     "submitError": "Đã có lỗi xảy ra, vui lòng thử lại.",
     "errorMissingSeats": "Vui lòng chọn đủ ghế cho mọi hành khách trên tất cả các chặng.",
     "errorMissingFields": "Vui lòng nhập đầy đủ thông tin cho mọi hành khách.",
+    "errorDobFuture": "Ngày sinh không được ở trong tương lai.",
     "errorDocumentTypeForAge": "Hành khách từ 14 tuổi phải dùng CCCD/Hộ chiếu kèm số giấy tờ; dưới 14 tuổi không được chọn CCCD.",
     "errorDuplicateDocumentId": "Số giấy tờ bị trùng giữa 2 hành khách — mỗi người phải có số giấy tờ khác nhau.",
     "errorMinPassengers": "Cần ít nhất 1 hành khách.",

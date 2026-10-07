@@ -38,6 +38,10 @@ const CHECK_IN_CLOSES_HOURS_BEFORE_DEPARTURE = 2;
 // ---- C4 (ghi chú aa) — Ngưỡng tuổi bắt buộc CCCD/Hộ chiếu ----
 const MIN_AGE_REQUIRE_ID_DOCUMENT = 14;
 
+// ---- Giới hạn đầu vào (chống số lượng/ngày vô lý, kể cả khi gọi API trực tiếp) ----
+const MAX_PASSENGERS_PER_BOOKING = 9; // khớp tùy chọn 1–9 ở form tìm kiếm
+const MAX_PASSENGER_AGE_YEARS = 120;
+
 // ---- Cron job (Giai đoạn 6) — tần suất quét ghế held quá hạn ----
 const CRON_SCHEDULE_EVERY_MINUTE = "* * * * *";
 
@@ -67,6 +71,8 @@ module.exports = {
   CHECK_IN_OPENS_HOURS_BEFORE_DEPARTURE,
   CHECK_IN_CLOSES_HOURS_BEFORE_DEPARTURE,
   MIN_AGE_REQUIRE_ID_DOCUMENT,
+  MAX_PASSENGERS_PER_BOOKING,
+  MAX_PASSENGER_AGE_YEARS,
   CRON_SCHEDULE_EVERY_MINUTE,
   BCRYPT_SALT_ROUNDS,
   BOOKING_CODE_LENGTH,

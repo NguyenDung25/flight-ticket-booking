@@ -119,6 +119,17 @@ async function initiatePayment({
     );
   }
 
+  // Momo sandbox chấp nhận 1.000–50.000.000đ. Ngoài khoảng này, Momo từ chối
+  // nhưng booking đã tạo (ghế đang bị giữ) → kẹt đến khi hết hạn. Chặn sớm.
+  const MOMO_MIN = 1_000;
+  const MOMO_MAX = 50_000_000;
+  if (booking.total_amount < MOMO_MIN || booking.total_amount > MOMO_MAX) {
+    throw new PaymentError(
+      `Tổng tiền ${booking.total_amount.toLocaleString("vi-VN")}đ nằm ngoài giới hạn Momo (${MOMO_MIN.toLocaleString("vi-VN")}–${MOMO_MAX.toLocaleString("vi-VN")}đ).`,
+      400
+    );
+  }
+
   const orderId = buildOrderId(bookingId);
   const redirectUrl = `${baseUrl}/${locale}/payment?bookingId=${bookingId}`;
   const ipnUrl = `${baseUrl}/api/payments/${bookingId}`;
@@ -325,11 +336,38 @@ async function handleWebhook(payload) {
     throw new PaymentError(`Không tìm thấy booking cho orderId '${payload.orderId}'.`, 404);
   }
 
+  // Lọc IPN lỗi thời (stale): nếu orderId trong IPN KHÔNG khớp lần thanh toán
+  // cuối cùng (payment.last_order_id), đây là phản hồi của lần thanh toán CŨ hơn.
+  // - Thành công (resultCode 0): vẫn xử lý bình thường — dù lạc hậu, tiền đã trừ
+  //   thật nên phải xác nhận (hoặc late_payment_error nếu booking đã cancelled).
+  // - Thất bại (resultCode != 0): bỏ qua hoàn toàn, KHÔNG hủy booking vì lần
+  //   thanh toán mới hơn có thể đang chờ kết quả, hủy booking lúc này là sai.
+  const lastOrderId = booking.payment?.last_order_id;
+  const isStaleFailure =
+    lastOrderId &&
+    payload.orderId !== lastOrderId &&
+    payload.resultCode !== 0;
+
+  if (isStaleFailure) {
+    return booking; // noop — bỏ qua IPN thất bại lỗi thời
+  }
+
   const action = decideWebhookAction({
     status: booking.status,
     resultCode: payload.resultCode,
     hasTransactionId: Boolean(booking.payment?.transaction_id),
   });
+
+  // Kiểm tra số tiền Momo báo khớp total_amount trong booking (chỉ áp với
+  // nhánh "confirm" — nhánh khác không cần tiền khớp mới xử lý được).
+  if (action === "confirm" && Number(payload.amount) !== booking.total_amount) {
+    // Ghi log để admin biết, nhưng KHÔNG hủy booking — tiền đã trừ thật.
+    console.error(
+      `[webhook] Cảnh báo số tiền lệch: Momo=${payload.amount}, booking=${booking.total_amount}, bookingId=${booking._id}`
+    );
+    // Vẫn xử lý bình thường — nếu chặn ở đây, booking kẹt và tiền bị mất
+    // không truy vết được. Admin xem log để xử lý tay nếu cần.
+  }
 
   switch (action) {
     case "confirm":

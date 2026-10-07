@@ -53,7 +53,9 @@
     "searchButton": "Search flights",
     "errorMissingRoute": "Please select a departure and destination airport.",
     "errorSameAirport": "Departure and destination can't be the same.",
-    "errorMissingReturnDate": "Please select a return date."
+    "errorMissingReturnDate": "Please select a return date.",
+    "errorDepartureInPast": "Invalid or past departure date — please pick today or later.",
+    "errorReturnBeforeDeparture": "The return date can't be before the departure date."
   },
   "FlightDetail": {
     "title": "Flight details",
@@ -127,6 +129,7 @@
     "submitError": "Something went wrong, please try again.",
     "errorMissingSeats": "Please select a seat for every passenger on every leg.",
     "errorMissingFields": "Please fill in all passenger details.",
+    "errorDobFuture": "Date of birth can't be in the future.",
     "errorDocumentTypeForAge": "Passengers 14+ must use a national ID/passport with a document number; under 14 can't use national ID.",
     "errorDuplicateDocumentId": "Duplicate document number between 2 passengers — each passenger must have a different document number.",
     "errorMinPassengers": "At least 1 passenger is required.",

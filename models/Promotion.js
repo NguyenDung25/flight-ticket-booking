@@ -19,8 +19,8 @@ const PromotionSchema = new Schema(
     discount_percent: { type: Number, required: true, min: 0, max: 100 },
     valid_from: { type: Date, required: true },
     valid_until: { type: Date, required: true },
-    usage_limit: { type: Number, default: null }, // null/undefined = không giới hạn
-    used_count: { type: Number, default: 0 },
+    usage_limit: { type: Number, default: null, min: [0, "Hạn mức sử dụng không được âm."] }, // null/undefined = không giới hạn
+    used_count: { type: Number, default: 0, min: 0 },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );

@@ -5,10 +5,12 @@
 // client cho bất kỳ giá trị nào ảnh hưởng tới tiền (ghi chú o) hay giấy tờ (ghi chú aa).
 
 const Flight = require("../models/Flight");
-const { ageInYears } = require("../lib/timezone");
+const { ageInYears, toVN } = require("../lib/timezone");
 const {
   MIN_AGE_REQUIRE_ID_DOCUMENT,
   MIN_ROUND_TRIP_TRANSIT_MS,
+  MAX_PASSENGERS_PER_BOOKING,
+  MAX_PASSENGER_AGE_YEARS,
 } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
@@ -20,12 +22,38 @@ class ValidationError extends Error {
 }
 
 /**
+ * Ngày sinh phải là ngày có thật, KHÔNG ở tương lai và không quá
+ * MAX_PASSENGER_AGE_YEARS tuổi. Trước đây ngày sinh tương lai làm tuổi ÂM và
+ * lọt vào nhánh "dưới 14 tuổi" mà không bị chặn (client có `max` ở ô ngày,
+ * nhưng gõ tay hoặc gọi API trực tiếp thì server phải tự chặn).
+ *
+ * So sánh theo NGÀY giờ VN (không so mốc giây) để em bé sinh trong ngày hôm
+ * nay không bị coi nhầm là "tương lai" do lệch múi giờ UTC/VN.
+ */
+function validatePassengerDateOfBirth(passenger, now = new Date()) {
+  const name = passenger.full_name ?? "";
+  const raw = passenger.date_of_birth;
+  if (!raw || Number.isNaN(new Date(raw).getTime())) {
+    throw new ValidationError(`Hành khách "${name}" có ngày sinh không hợp lệ.`);
+  }
+  if (toVN(raw).format("YYYY-MM-DD") > toVN(now).format("YYYY-MM-DD")) {
+    throw new ValidationError(`Ngày sinh của hành khách "${name}" không được ở trong tương lai.`);
+  }
+  if (ageInYears(raw, now) > MAX_PASSENGER_AGE_YEARS) {
+    throw new ValidationError(
+      `Ngày sinh của hành khách "${name}" không hợp lệ (quá ${MAX_PASSENGER_AGE_YEARS} tuổi).`
+    );
+  }
+}
+
+/**
  * Ghi chú (aa): validate document_type/document_id theo độ tuổi.
  * - >=14 tuổi: bắt buộc có document_id, document_type phải là cccd|passport.
  * - <14 tuổi: chấp nhận birth_certificate, không ép cấu trúc document_id.
  * KHÔNG ảnh hưởng amount — giá vé vẫn tính phẳng theo seat_class (mục 6, ngoài phạm vi).
  */
 function validatePassengerDocument(passenger) {
+  validatePassengerDateOfBirth(passenger);
   const age = ageInYears(passenger.date_of_birth);
 
   if (age >= MIN_AGE_REQUIRE_ID_DOCUMENT) {
@@ -82,6 +110,69 @@ function validateRoundTripTransit(outboundFlight, returnFlight) {
     throw new ValidationError(
       "Chặng về cất cánh quá sớm so với giờ hạ cánh chặng đi (cần tối thiểu 2 tiếng transit). Vui lòng chọn lại chặng về."
     );
+  }
+}
+
+/**
+ * Chuyến bay phải còn `scheduled` và CHƯA khởi hành mới đặt được. Tìm kiếm đã
+ * lọc sẵn, nhưng POST /api/bookings nhận flight_id từ client nên phải tự chặn
+ * (chuyến đã hủy hoặc đã bay không được tạo booking dù biết _id).
+ */
+function assertFlightBookable(flightDoc, now = new Date()) {
+  if (flightDoc.status !== "scheduled") {
+    throw new ValidationError(
+      `Chuyến bay ${flightDoc.flight_number} không còn nhận đặt vé (đã bị hủy).`,
+      409
+    );
+  }
+  if (new Date(flightDoc.departure_time) <= now) {
+    throw new ValidationError(
+      `Chuyến bay ${flightDoc.flight_number} đã khởi hành, không thể đặt vé.`,
+      409
+    );
+  }
+}
+
+/**
+ * Mỗi hành khách phải có ĐÚNG 1 ghế trên MỖI chuyến của hành trình; không có
+ * ghế thuộc chuyến ngoài hành trình; 2 hành khách không được chung 1 ghế. Giao
+ * diện đã ép điều này, nhưng server phải tự kiểm — thiếu ghế thì
+ * computeLegAmount tính 0 đồng cho người đó (vé miễn phí qua API trực tiếp).
+ */
+function validateSeatAssignments(passengers, legs) {
+  const flightNumbers = new Map(legs.map((l) => [String(l.flightDoc._id), l.flightDoc.flight_number]));
+  const seatOwner = new Map(); // `${flightId}:${seat}` -> tên hành khách đầu tiên
+
+  for (const passenger of passengers) {
+    const name = passenger.full_name ?? "";
+    if (!Array.isArray(passenger.seats)) {
+      throw new ValidationError(`Hành khách "${name}" chưa chọn ghế.`);
+    }
+    const seatedFlights = new Set();
+    for (const seat of passenger.seats) {
+      const fid = String(seat.flight_id);
+      if (!flightNumbers.has(fid)) {
+        throw new ValidationError(`Ghế ${seat.seat_number} thuộc chuyến bay không nằm trong hành trình đã chọn.`);
+      }
+      if (seatedFlights.has(fid)) {
+        throw new ValidationError(
+          `Hành khách "${name}" chọn nhiều hơn 1 ghế trên chuyến bay ${flightNumbers.get(fid)}.`
+        );
+      }
+      seatedFlights.add(fid);
+      const key = `${fid}:${seat.seat_number}`;
+      if (seatOwner.has(key)) {
+        throw new ValidationError(
+          `Ghế ${seat.seat_number} (chuyến ${flightNumbers.get(fid)}) bị chọn trùng giữa "${seatOwner.get(key)}" và "${name}".`
+        );
+      }
+      seatOwner.set(key, name);
+    }
+    for (const [fid, flightNumber] of flightNumbers) {
+      if (!seatedFlights.has(fid)) {
+        throw new ValidationError(`Hành khách "${name}" chưa chọn ghế cho chuyến bay ${flightNumber}.`);
+      }
+    }
   }
 }
 
@@ -161,6 +252,20 @@ function computeLegAmount(passengers, flightId, basePriceByFlightId) {
  * @param {String} params.userId - chủ booking, dùng đối chiếu held_by (MỚI THÊM)
  */
 async function validateBookingCreation({ passengers, legs, userId }) {
+  // 0) Số lượng hợp lệ + chuyến còn đặt được (chưa hủy, chưa khởi hành)
+  if (!Array.isArray(passengers) || passengers.length < 1) {
+    throw new ValidationError("Booking phải có ít nhất 1 hành khách.");
+  }
+  if (passengers.length > MAX_PASSENGERS_PER_BOOKING) {
+    throw new ValidationError(`Mỗi booking tối đa ${MAX_PASSENGERS_PER_BOOKING} hành khách.`);
+  }
+  for (const l of legs) {
+    assertFlightBookable(l.flightDoc);
+  }
+  if (new Set(legs.map((l) => String(l.flightDoc._id))).size !== legs.length) {
+    throw new ValidationError("Chặng đi và chặng về không được là cùng một chuyến bay.");
+  }
+
   // 1) Validate giấy tờ theo độ tuổi cho từng hành khách
   for (const passenger of passengers) {
     validatePassengerDocument(passenger);
@@ -175,6 +280,9 @@ async function validateBookingCreation({ passengers, legs, userId }) {
     const returnLeg = legs.find((l) => l.leg === "return");
     validateRoundTripTransit(outbound.flightDoc, returnLeg.flightDoc);
   }
+
+  // 2b) Mỗi hành khách có đúng 1 ghế trên mỗi chuyến, không trùng ghế
+  validateSeatAssignments(passengers, legs);
 
   // 3) Đối chiếu seat_class thật + xác minh ghế đang được CHÍNH user này giữ
   // cho từng ghế mỗi hành khách đã chọn (ghi chú o + bước MỚI THÊM ở trên).
@@ -205,8 +313,11 @@ async function validateBookingCreation({ passengers, legs, userId }) {
 
 module.exports = {
   ValidationError,
+  validatePassengerDateOfBirth,
   validatePassengerDocument,
   validateNoDuplicateDocumentIds,
+  assertFlightBookable,
+  validateSeatAssignments,
   validateRoundTripTransit,
   assertSeatClassMatches,
   assertSeatIsHeldByUser,

@@ -53,6 +53,18 @@ async function registerUser({ email, password, full_name, preferred_language }) 
   if (!email || !password || !full_name) {
     throw new AuthError("email, password, full_name đều là bắt buộc.");
   }
+  // Validate email format và độ dài password ở server — HTML minLength/type=email
+  // chỉ chặn ở UI, gọi API trực tiếp vẫn vượt qua nếu không có check này.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!EMAIL_RE.test(email.trim())) {
+    throw new AuthError("Địa chỉ email không hợp lệ.", 400);
+  }
+  if (password.length < 6) {
+    throw new AuthError("Mật khẩu phải có ít nhất 6 ký tự.", 400);
+  }
+  if (password.length > 128) {
+    throw new AuthError("Mật khẩu không được quá 128 ký tự.", 400);
+  }
 
   await dbConnect();
 

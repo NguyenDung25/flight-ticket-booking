@@ -286,6 +286,11 @@ export default function PassengersForm({
       // validatePassengerDocument): document_id CHỈ bắt buộc từ
       // MIN_AGE_REQUIRE_ID_DOCUMENT tuổi trở lên — dưới tuổi đó, khai sinh
       // hợp lệ dù không có document_id.
+      // Ngày sinh không được ở tương lai (gõ tay vẫn vượt qua `max` của ô ngày);
+      // server validate lại y hệt (validatePassengerDateOfBirth).
+      if (p.date_of_birth > todayLocalISO()) {
+        return t("errorDobFuture");
+      }
       const age = ageInYearsLocal(p.date_of_birth);
       if (age >= MIN_AGE_REQUIRE_ID_DOCUMENT) {
         if (!p.document_id.trim() || !["cccd", "passport"].includes(p.document_type)) {

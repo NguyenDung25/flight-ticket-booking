@@ -270,9 +270,23 @@ async function cancelExpiredPendingPayments() {
 
   for (const booking of expiredBookings) {
     await releaseBookingSeats(booking);
-    booking.status = "cancelled";
-    booking.cancel_reason = "Tự động hủy do quá hạn thanh toán.";
-    await booking.save();
+    // Dùng updateOne với điều kiện status: "pending_payment" thay vì booking.save()
+    // để tránh race-condition với webhook Momo thành công chạy đồng thời:
+    // nếu webhook vừa đổi status -> "confirmed" trước khi cron ghi, điều kiện
+    // này sẽ không match và không ghi đè "confirmed" thành "cancelled".
+    const result = await Booking.updateOne(
+      { _id: booking._id, status: "pending_payment" },
+      {
+        $set: {
+          status: "cancelled",
+          cancel_reason: "Tự động hủy do quá hạn thanh toán.",
+        },
+      }
+    );
+    if (result.modifiedCount === 0) {
+      // Webhook đã xử lý trước — không ghi đè, ghi log để biết.
+      console.log(`[cron] Booking ${booking._id} đã được xử lý bởi webhook, bỏ qua.`);
+    }
   }
 
   return expiredBookings.length;

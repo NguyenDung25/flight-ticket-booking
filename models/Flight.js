@@ -36,8 +36,8 @@ const FlightSchema = new Schema(
     arrival_time: { type: Date, required: true },
 
     base_price: {
-      economy: { type: Number, required: true },
-      business: { type: Number }, // bắt buộc nếu seats[] có ghế business — validate ở service (ghi chú s)
+      economy: { type: Number, required: true, min: [0, "Giá vé không được âm."] },
+      business: { type: Number, min: [0, "Giá vé không được âm."] }, // bắt buộc nếu seats[] có ghế business — validate ở service (ghi chú s)
     },
 
     seats: { type: [SeatSchema], default: [] },
