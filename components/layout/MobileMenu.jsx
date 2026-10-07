@@ -17,7 +17,7 @@ export default function MobileMenu({ links }) {
       {/* Nút hamburger */}
       <button
         type="button"
-        aria-label="Mở menu"
+        aria-label={open ? "Đóng menu" : "Mở menu"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-sea-900 hover:bg-sand-100"

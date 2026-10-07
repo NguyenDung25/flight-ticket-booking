@@ -209,9 +209,25 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
             {CURRENCY_FORMATTER.format(booking.total_amount)}đ
           </p>
           {booking.status === "refunded" && booking.refund_amount != null && (
-            <p className="mt-1 text-xs text-sea-700">
-              {t("refundAmountLabel")}: {CURRENCY_FORMATTER.format(booking.refund_amount)}đ
-            </p>
+            <div className="mt-1 flex flex-col gap-0.5">
+              <p className="text-xs text-sea-700">
+                {t("refundAmountLabel")}: {CURRENCY_FORMATTER.format(booking.refund_amount)}đ
+              </p>
+              {/* Giải thích mốc phạt đã áp dụng (ghi chú j/w) — giúp khách hiểu
+                  tại sao số tiền hoàn khác tổng tiền đã trả. */}
+              {booking.cancellation_fee_amount != null && booking.cancellation_fee_amount > 0 && (
+                <p className="text-xs text-ink/50">
+                  {booking.cancellation_tier === "partial"
+                    ? t("tierPartialNote", { fee: CURRENCY_FORMATTER.format(booking.cancellation_fee_amount) })
+                    : booking.cancellation_tier === "none"
+                    ? t("tierNoneNote")
+                    : t("tierFixedFeeNote", { fee: CURRENCY_FORMATTER.format(booking.cancellation_fee_amount) })}
+                </p>
+              )}
+              {booking.cancellation_fee_amount === 0 && (
+                <p className="text-xs text-ink/50">{t("tierFullNote")}</p>
+              )}
+            </div>
           )}
         </div>
 

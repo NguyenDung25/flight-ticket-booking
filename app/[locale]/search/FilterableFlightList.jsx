@@ -62,20 +62,41 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [flights, locale]);
 
-  const [maxPrice, setMaxPrice] = useState(maxPriceOverall);
-  const [selectedSlots, setSelectedSlots] = useState([]);
-  const [selectedAirlines, setSelectedAirlines] = useState([]);
+  // sessionStorage — giữ bộ lọc khi đổi ngôn ngữ (trang unmount/remount).
+  // Key gắn với leg để không nhầm giữa bộ lọc chặng đi và chặng về (khứ hồi).
+  const FILTER_KEY = `fl_filter_${leg ?? "outbound"}`;
+  function readFilter(key, fallback) {
+    try {
+      const v = sessionStorage.getItem(FILTER_KEY + "_" + key);
+      return v !== null ? JSON.parse(v) : fallback;
+    } catch { return fallback; }
+  }
+  function saveFilter(key, value) {
+    try { sessionStorage.setItem(FILTER_KEY + "_" + key, JSON.stringify(value)); } catch {}
+  }
+
+  const [maxPrice, setMaxPrice] = useState(() => readFilter("maxPrice", maxPriceOverall));
+  const [selectedSlots, setSelectedSlots] = useState(() => readFilter("slots", []));
+  const [selectedAirlines, setSelectedAirlines] = useState(() => readFilter("airlines", []));
 
   function toggleSlot(id) {
-    setSelectedSlots((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+    setSelectedSlots((prev) => {
+      const next = prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id];
+      saveFilter("slots", next);
+      return next;
+    });
   }
   function toggleAirline(id) {
-    setSelectedAirlines((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+    setSelectedAirlines((prev) => {
+      const next = prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id];
+      saveFilter("airlines", next);
+      return next;
+    });
   }
   function resetFilters() {
-    setMaxPrice(maxPriceOverall);
-    setSelectedSlots([]);
-    setSelectedAirlines([]);
+    setMaxPrice(maxPriceOverall); saveFilter("maxPrice", maxPriceOverall);
+    setSelectedSlots([]); saveFilter("slots", []);
+    setSelectedAirlines([]); saveFilter("airlines", []);
   }
 
   const filtered = flights.filter((f) => {
@@ -116,7 +137,7 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
             max={maxPriceOverall}
             step={Math.max(1000, Math.round((maxPriceOverall - minPrice) / 20))}
             value={maxPrice}
-            onChange={(e) => setMaxPrice(Number(e.target.value))}
+            onChange={(e) => { const v = Number(e.target.value); setMaxPrice(v); saveFilter("maxPrice", v); }}
             className="w-48 accent-sea-500"
             disabled={minPrice === maxPriceOverall}
           />

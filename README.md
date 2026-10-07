@@ -23,7 +23,7 @@ Mở `.env.local`, điền đủ các biến (xem chú thích ngay trong file m�
 | `MOMO_PARTNER_CODE` / `MOMO_ACCESS_KEY` / `MOMO_SECRET_KEY` / `MOMO_API_URL` | Thanh toán MoMo (môi trường Test) |
 | `AIRLABS_API_KEY` | Seed dữ liệu sân bay/hãng bay + tự điền lịch bay khi admin tạo chuyến |
 | `SMTP_*`, `EMAIL_FROM` | Gửi email vé điện tử (Gmail cần tạo App Password riêng, không dùng mật khẩu Gmail thật) |
-| `APP_BASE_URL` | Chỉ cần khi test MoMo qua ngrok/tunnel — xem mục 6 |
+| `NEXT_PUBLIC_BASE_URL` | Chỉ cần khi test MoMo qua ngrok/tunnel — xem mục 6 |
 
 **Không commit `.env.local`** — đã có trong `.gitignore`.
 
@@ -74,12 +74,12 @@ ngrok http 3000
 Copy địa chỉ `https://xxxx.ngrok-free.app`, thêm vào `.env.local`:
 
 ```
-APP_BASE_URL=https://xxxx.ngrok-free.app
+NEXT_PUBLIC_BASE_URL=https://xxxx.ngrok-free.app
 ```
 
 Restart `npm run dev`, rồi **mở web bằng chính địa chỉ ngrok** (không mở `localhost`). Theo dõi MoMo có gọi về không tại `http://127.0.0.1:4040`.
 
-Địa chỉ ngrok bản free đổi mỗi lần chạy lại — nhớ cập nhật `APP_BASE_URL` và restart mỗi lần.
+Địa chỉ ngrok bản free đổi mỗi lần chạy lại — nhớ cập nhật `NEXT_PUBLIC_BASE_URL` và restart mỗi lần.
 
 ## 6b. Thanh toán bằng thẻ ATM nội địa qua cổng MoMo (không cần app MoMo)
 

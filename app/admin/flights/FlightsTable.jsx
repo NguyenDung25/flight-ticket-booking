@@ -98,8 +98,8 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
           flight_number: form.flight_number.trim(),
           origin_code: form.origin_code,
           dest_code: form.dest_code,
-          departure_time: new Date(form.departure_time).toISOString(),
-          arrival_time: new Date(form.arrival_time).toISOString(),
+          departure_time: new Date(form.departure_time + "+07:00").toISOString(),
+          arrival_time: new Date(form.arrival_time + "+07:00").toISOString(),
           base_price: {
             economy: Number(form.price_economy),
             ...(form.price_business ? { business: Number(form.price_business) } : {}),

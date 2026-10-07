@@ -124,8 +124,10 @@ export default function FlightForm({ airlines, aircraft, airports }) {
           // mặc định chạy giờ VN (đúng giả định lib/timezone.js đã ghi ở đầu
           // file: mọi mốc thời gian đối chiếu qua GMT+7), nên new Date(...)
           // ở đây ra đúng UTC tương ứng mà không cần tự quy đổi thủ công.
-          departure_time: new Date(form.departure_time).toISOString(),
-          arrival_time: new Date(form.arrival_time).toISOString(),
+          // datetime-local không mang timezone — thêm "+07:00" tường minh để
+          // new Date() luôn parse đúng là giờ VN bất kể múi giờ máy admin.
+          departure_time: new Date(form.departure_time + "+07:00").toISOString(),
+          arrival_time: new Date(form.arrival_time + "+07:00").toISOString(),
           base_price: {
             economy: Number(form.price_economy),
             ...(form.price_business ? { business: Number(form.price_business) } : {}),

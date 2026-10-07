@@ -87,14 +87,43 @@ export default function PassengersForm({
   const tCommon = useTranslations("Common");
   const router = useRouter();
 
+  // sessionStorage — lưu hành khách + ghế đã chọn để không mất khi thoát
+  // trang rồi quay lại (VD bấm Back từ trang summary). Key gắn với
+  // outboundFlight._id để tránh khôi phục nhầm data của chuyến bay khác.
+  const SESSION_KEY = `pf_${outboundFlight._id}`;
+  function readPfSession(key, fallback) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      return raw !== null ? JSON.parse(raw) : fallback;
+    } catch { return fallback; }
+  }
+  function savePfSession(data) {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch {}
+  }
+
+  const savedSession = readPfSession(SESSION_KEY, null);
+
   const [passengers, setPassengers] = useState(() =>
-    Array.from({ length: initialPassengerCount }, emptyPassenger)
+    savedSession?.passengers ?? Array.from({ length: initialPassengerCount }, emptyPassenger)
   );
   const [activeIndex, setActiveIndex] = useState(0);
-  const [outboundSeats, setOutboundSeats] = useState(outboundFlight.seats);
-  const [returnSeats, setReturnSeats] = useState(returnFlight ? returnFlight.seats : []);
+
+  const [outboundSeats, setOutboundSeats] = useState(
+    savedSession?.outboundSeats ?? outboundFlight.seats
+  );
+  const [returnSeats, setReturnSeats] = useState(
+    savedSession?.returnSeats ?? (returnFlight ? returnFlight.seats : [])
+  );
   const [seatBusy, setSeatBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Auto-save passengers + seats vào sessionStorage mỗi khi thay đổi.
+  // Đặt SAU khi cả 3 state đã khai báo — const không hoist, dùng trước khai
+  // báo sẽ gây ReferenceError runtime.
+  useEffect(() => {
+    savePfSession({ passengers, outboundSeats, returnSeats });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passengers, outboundSeats, returnSeats]);
   const [errorMessage, setErrorMessage] = useState(null);
   // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng, nhưng khách
   // vừa bấm ghế ở sơ đồ phía trên -> thường không thấy. Tự cuộn tới lỗi mỗi
@@ -340,6 +369,8 @@ export default function PassengersForm({
         });
         bookingId = booking._id;
         setCreatedBookingId(bookingId);
+        // Xóa session sau khi đặt vé thành công — tránh hiện lại data cũ
+        try { sessionStorage.removeItem(SESSION_KEY); } catch {}
       }
 
       const payment = await apiCall(`/api/payments/${bookingId}`, {});
@@ -514,9 +545,6 @@ export default function PassengersForm({
             disabled={disabled}
           />
         </div>
-        <p className="mb-4 rounded-lg bg-sand-100 px-3.5 py-2.5 text-xs text-ink/70">
-          {t("paymentMethodNote")}
-        </p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs text-ink/60">{t("totalAmountLabel")}</p>
@@ -524,7 +552,7 @@ export default function PassengersForm({
               {CURRENCY_FORMATTER.format(totalAmount)}đ
             </p>
             {promotionCode.trim() && (
-              <p className="mt-1 text-xs text-ink/50">{t("promotionAppliedNote")}</p>
+              <p className="mt-1 text-xs text-coral-600 font-medium">{t("promotionAppliedNote")}</p>
             )}
           </div>
           <Button onClick={handleSubmit} disabled={disabled}>

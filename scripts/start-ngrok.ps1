@@ -1,11 +1,11 @@
 # scripts/start-ngrok.ps1
 #
-# Mở tunnel ngrok tới app đang chạy ở localhost và TỰ ghi APP_BASE_URL vào
+# Mở tunnel ngrok tới app đang chạy ở localhost và TỰ ghi NEXT_PUBLIC_BASE_URL vào
 # .env.local (để Momo gọi ngược IPN về được). Không lưu/in token ra file.
 #
 # Chạy (PowerShell, trong thư mục dự án):
 #   powershell -ExecutionPolicy Bypass -File scripts\start-ngrok.ps1
-# Sau khi script báo xong: RESTART `npm run dev` để app đọc APP_BASE_URL mới.
+# Sau khi script báo xong: RESTART `npm run dev` để app đọc NEXT_PUBLIC_BASE_URL mới.
 
 param([int]$Port = 3000)
 $ErrorActionPreference = "Stop"
@@ -38,11 +38,11 @@ if (-not $url) {
   throw "Không lấy được địa chỉ ngrok. Xem cửa sổ ngrok vừa mở để biết lỗi (thường là chưa có/sai authtoken)."
 }
 
-# 4) Ghi/ cập nhật APP_BASE_URL trong .env.local (giữ nguyên các dòng khác)
+# 4) Ghi/ cập nhật NEXT_PUBLIC_BASE_URL trong .env.local (giữ nguyên các dòng khác)
 $content = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
-$line = "APP_BASE_URL=$url"
-if ($content -match "(?m)^APP_BASE_URL=") {
-  $content = [regex]::Replace($content, "(?m)^APP_BASE_URL=[^\r\n]*", $line)
+$line = "NEXT_PUBLIC_BASE_URL=$url"
+if ($content -match "(?m)^NEXT_PUBLIC_BASE_URL=") {
+  $content = [regex]::Replace($content, "(?m)^NEXT_PUBLIC_BASE_URL=[^\r\n]*", $line)
 } else {
   $content = $content.TrimEnd() + "`r`n" + $line + "`r`n"
 }
@@ -50,6 +50,6 @@ if ($content -match "(?m)^APP_BASE_URL=") {
 
 Write-Host ""
 Write-Host "Xong. Địa chỉ công khai: $url" -ForegroundColor Green
-Write-Host "Đã ghi APP_BASE_URL vào .env.local."
+Write-Host "Đã ghi NEXT_PUBLIC_BASE_URL vào .env.local."
 Write-Host "BƯỚC TIẾP: restart 'npm run dev', rồi MỞ WEB BẰNG ĐỊA CHỈ TRÊN (không dùng localhost)."
 Write-Host "Theo dõi Momo gọi về tại: http://127.0.0.1:4040"

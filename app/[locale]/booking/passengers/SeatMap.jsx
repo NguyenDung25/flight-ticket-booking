@@ -47,7 +47,8 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
         <LegendDot className="border-sand-200 bg-white ring-1 ring-sea-500/40" label={legendT("seatStatusBusinessClass")} />
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="overflow-x-auto">
+      <div className="flex flex-col gap-1.5 min-w-max">
         {rowNumbers.map((row) => (
           <div key={row} className="flex items-center gap-1.5">
             <span className="w-6 text-right text-xs text-ink/40">{row}</span>
@@ -76,6 +77,7 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
               })}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

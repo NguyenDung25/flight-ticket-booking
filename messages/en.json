@@ -175,7 +175,11 @@
     "paymentExpired": "Payment expired",
     "paymentExpiresInSuffix": "left to pay",
     "payingRedirecting": "Redirecting to Momo...",
-    "payNowError": "Could not open the payment page, please try again."
+    "payNowError": "Could not open the payment page, please try again.",
+    "tierFullNote": "Full refund — cancelled more than 24h before departure.",
+    "tierFixedFeeNote": "Fixed cancellation fee {fee}đ (cancelled 3–24h before departure).",
+    "tierNoneNote": "No refund — cancelled within 3h of departure.",
+    "tierPartialNote": "Partial refund — cancellation fee {fee}đ (return leg not yet flown)."
   },
   "CheckIn": {
     "title": "Online check-in",

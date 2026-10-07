@@ -39,13 +39,30 @@ export default function SearchForm({ airports, locale }) {
   const t = useTranslations("Home");
   const router = useRouter();
 
-  const [tripType, setTripType] = useState("one_way");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [departureDate, setDepartureDate] = useState(todayISO());
-  const [returnDate, setReturnDate] = useState("");
-  const [passengerCount, setPassengerCount] = useState("1");
+  // Khôi phục state từ sessionStorage khi đổi ngôn ngữ (locale thay đổi →
+  // trang unmount/remount, useState bị reset). Lazy initializer chỉ đọc 1 lần
+  // lúc mount. sessionStorage tự xoá khi đóng tab, tránh hiện lại dữ liệu cũ.
+  function readSession(key, fallback) {
+    try { return sessionStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  }
+  function saveSession(key, value) {
+    try { sessionStorage.setItem(key, value); } catch {}
+  }
+
+  const [tripType, setTripType] = useState(() => readSession("sf_tripType", "one_way"));
+  const [origin, setOrigin] = useState(() => readSession("sf_origin", ""));
+  const [destination, setDestination] = useState(() => readSession("sf_destination", ""));
+  const [departureDate, setDepartureDate] = useState(() => readSession("sf_departureDate", todayISO()));
+  const [returnDate, setReturnDate] = useState(() => readSession("sf_returnDate", ""));
+  const [passengerCount, setPassengerCount] = useState(() => readSession("sf_passengerCount", "1"));
   const [formError, setFormError] = useState(null);
+
+  function setTripTypeAndSave(v) { setTripType(v); saveSession("sf_tripType", v); }
+  function setOriginAndSave(v) { setOrigin(v); saveSession("sf_origin", v); }
+  function setDestinationAndSave(v) { setDestination(v); saveSession("sf_destination", v); }
+  function setDepartureDateAndSave(v) { setDepartureDate(v); saveSession("sf_departureDate", v); }
+  function setReturnDateAndSave(v) { setReturnDate(v); saveSession("sf_returnDate", v); }
+  function setPassengerCountAndSave(v) { setPassengerCount(v); saveSession("sf_passengerCount", v); }
 
   // Airport.city KHÔNG có bản dịch riêng (chỉ name.vi/name.en có) — dùng
   // name[locale] làm nhãn chính để dropdown thực sự đổi theo ngôn ngữ.
@@ -95,7 +112,7 @@ export default function SearchForm({ airports, locale }) {
           <button
             key={tt}
             type="button"
-            onClick={() => setTripType(tt)}
+            onClick={() => setTripTypeAndSave(tt)}
             aria-pressed={tripType === tt}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               tripType === tt
@@ -113,14 +130,14 @@ export default function SearchForm({ airports, locale }) {
           label={t("from")}
           placeholder="—"
           value={origin}
-          onChange={(e) => setOrigin(e.target.value)}
+          onChange={(e) => setOriginAndSave(e.target.value)}
           options={airportOptions}
         />
         <Select
           label={t("to")}
           placeholder="—"
           value={destination}
-          onChange={(e) => setDestination(e.target.value)}
+          onChange={(e) => setDestinationAndSave(e.target.value)}
           options={airportOptions}
         />
       </div>
@@ -141,20 +158,20 @@ export default function SearchForm({ airports, locale }) {
           label={t("departureDate")}
           value={departureDate}
           min={todayISO()}
-          onChange={(e) => setDepartureDate(e.target.value)}
+          onChange={(e) => setDepartureDateAndSave(e.target.value)}
         />
         {tripType === "round_trip" && (
           <DatePicker
             label={t("returnDate")}
             value={returnDate}
             min={departureDate || todayISO()}
-            onChange={(e) => setReturnDate(e.target.value)}
+            onChange={(e) => setReturnDateAndSave(e.target.value)}
           />
         )}
         <Select
           label={t("passengers")}
           value={passengerCount}
-          onChange={(e) => setPassengerCount(e.target.value)}
+          onChange={(e) => setPassengerCountAndSave(e.target.value)}
           options={PASSENGER_OPTIONS}
         />
       </div>

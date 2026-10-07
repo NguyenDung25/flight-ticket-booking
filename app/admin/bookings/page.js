@@ -9,7 +9,6 @@ import dbConnect from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
-import ManualRefundButton from "./ManualRefundButton";
 // Side-effect import cho populate("user_id") — xem giải thích trong
 // app/api/admin/bookings/route.js.
 import "@/models/User";
@@ -102,16 +101,14 @@ export default async function AdminBookingsPage() {
                 </td>
                 <td className="px-4 py-3">
                   <CancelBookingButton bookingId={b.id} status={b.status} />
-                  <ManualRefundButton
-                    bookingId={b.id}
-                    status={b.status}
-                    totalAmount={b.total_amount}
-                  />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {bookings.length === 0 && (
+          <p className="px-4 py-6 text-sm text-ink/50">Chưa có booking nào.</p>
+        )}
       </div>
     </div>
   );

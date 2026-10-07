@@ -11,10 +11,11 @@ import { useRouter } from "next/navigation";
 
 export default function BlockToggleButton({ userId, isBlocked }) {
   const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
 
-  async function handleClick() {
+  async function handleConfirm() {
     setPending(true);
     setError(null);
     try {
@@ -30,25 +31,51 @@ export default function BlockToggleButton({ userId, isBlocked }) {
       router.refresh();
     } catch (err) {
       setError(err.message);
-    } finally {
       setPending(false);
     }
   }
 
-  return (
-    <div className="flex flex-col items-end gap-1">
+  if (!confirming) {
+    return (
       <button
         type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+        onClick={() => setConfirming(true)}
+        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
           isBlocked
             ? "bg-sea-500 text-white hover:bg-sea-700"
-            : "bg-danger text-white hover:opacity-90"
+            : "border border-danger text-danger hover:bg-danger hover:text-white"
         }`}
       >
-        {pending ? "Đang xử lý..." : isBlocked ? "Mở khóa" : "Khóa"}
+        {isBlocked ? "Mở khóa" : "Khóa"}
       </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <p className="text-xs font-medium text-danger">
+        {isBlocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?"}
+      </p>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={pending}
+          className={`rounded-lg px-2 py-1 text-xs font-medium text-white disabled:opacity-50 ${
+            isBlocked ? "bg-sea-500 hover:bg-sea-700" : "bg-danger hover:opacity-90"
+          }`}
+        >
+          {pending ? "..." : "Xác nhận"}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setConfirming(false); setError(null); }}
+          disabled={pending}
+          className="rounded-lg bg-sand-100 px-2 py-1 text-xs font-medium text-ink"
+        >
+          Bỏ qua
+        </button>
+      </div>
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

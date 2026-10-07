@@ -81,11 +81,21 @@ export default async function SearchResultsPage({ params, searchParams }) {
       // === sẽ luôn false dù cùng giá trị (2 instance khác nhau).
       if (selectedOutbound && result.return) {
         const outboundAirlineId = String(selectedOutbound.airline_id._id);
+        // Ghi chú (z): lọc bỏ chặng về cất cánh trước outbound.arrival_time + 2h
+        // ngay ở UI — tránh khách chọn được rồi mới bị báo lỗi ở service.
+        // Service vẫn validate lại (lớp bảo vệ cuối), nhưng lọc sớm ở đây
+        // giúp UX mượt hơn. Dùng Date để so sánh, outboundArrivalMs là UTC ms.
+        const outboundArrivalMs = new Date(selectedOutbound.arrival_time).getTime();
+        const MIN_TRANSIT_MS = 2 * 60 * 60 * 1000; // 2 tiếng tính bằng ms
+
         result = {
           ...result,
-          return: result.return.filter(
-            (flight) => String(flight.airline._id) === outboundAirlineId
-          ),
+          return: result.return.filter((flight) => {
+            const sameAirline = String(flight.airline._id) === outboundAirlineId;
+            const validTransit =
+              new Date(flight.departure_time).getTime() >= outboundArrivalMs + MIN_TRANSIT_MS;
+            return sameAirline && validTransit;
+          }),
         };
       }
     }
@@ -126,7 +136,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
     <div className="flex flex-1 flex-col gap-8 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
-        <Link href="/" className="text-sm font-medium text-sea-700 hover:underline">
+        <Link href={{ pathname: "/", query: { origin, destination, departureDate, tripType, returnDate, passengerCount: sp.passengerCount } }} className="text-sm font-medium text-sea-700 hover:underline">
           {t("backToSearch")}
         </Link>
       </div>

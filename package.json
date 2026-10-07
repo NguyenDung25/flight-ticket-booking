@@ -11,7 +11,8 @@
     "seed": "node scripts/seedSample.js",
     "seed:test": "node scripts/seedTestFlights.js",
     "test:momo": "node scripts/testMomoAtm.js",
-    "test": "node --test"
+    "test": "node --test",
+    "dev:all": "concurrently \"npm run dev\" \"npm run cron\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -29,6 +30,7 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "concurrently": "^9.0.0"
   }
 }

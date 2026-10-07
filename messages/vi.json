@@ -175,7 +175,11 @@
     "paymentExpired": "Đã hết hạn thanh toán",
     "paymentExpiresInSuffix": "để thanh toán",
     "payingRedirecting": "Đang chuyển tới Momo...",
-    "payNowError": "Không mở được trang thanh toán, thử lại sau."
+    "payNowError": "Không mở được trang thanh toán, thử lại sau.",
+    "tierFullNote": "Hoàn 100% vì hủy trước 24h.",
+    "tierFixedFeeNote": "Phí hủy cố định {fee}đ (hủy trong 3–24h trước giờ bay).",
+    "tierNoneNote": "Không hoàn tiền (hủy trong 3h trước giờ bay).",
+    "tierPartialNote": "Hoàn một phần — phí hủy {fee}đ (chặng về chưa bay)."
   },
   "CheckIn": {
     "title": "Check-in online",

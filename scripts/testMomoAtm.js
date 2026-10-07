@@ -15,7 +15,7 @@ const momoClient = require("../lib/momoClient");
 
 async function main() {
   const orderId = `TEST${Date.now()}`;
-  const base = (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const base = (process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
 
   console.log(`MOMO_API_URL = ${process.env.MOMO_API_URL}`);
   console.log(`partnerCode  = ${process.env.MOMO_PARTNER_CODE}`);
