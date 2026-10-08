@@ -111,7 +111,7 @@ export async function PATCH(request, { params }) {
       await assertNoActiveBooking(id); // throws FlightError 409 nếu có
     }
 
-    const flight = await Flight.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
+    const flight = await Flight.findByIdAndUpdate(id, { $set: updates }, { returnDocument: "after", runValidators: true });
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }

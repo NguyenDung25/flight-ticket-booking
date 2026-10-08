@@ -59,7 +59,7 @@ Thiếu `npm run cron` thì các booking quá hạn thanh toán sẽ không tự
 Bộ khóa test dùng chung công khai kiểu cũ (`MOMOBKUN...`) **không còn dùng được** — MoMo hiện bắt buộc tự đăng ký tài khoản M4B:
 
 1. Đăng ký tại [developers.momo.vn](https://developers.momo.vn) (chưa cần xác thực giấy tờ doanh nghiệp, đăng ký xong có ngay khóa Test).
-2. Chọn giải pháp "Thanh toán qua ứng dụng MoMo".
+2. Chọn giải pháp **Cổng thanh toán MoMo** (loại hỗ trợ thanh toán thẻ ATM nội địa — code dùng `requestType: payWithATM`, xem mục 6b). Nếu chọn nhầm loại, MoMo có thể trả lỗi khi tạo thanh toán.
 3. Vào mục "Thông tin tích hợp" lấy `Partner Code` / `Access Key` / `Secret Key`, dán vào `.env.local`.
 4. `MOMO_API_URL` giữ nguyên `https://test-payment.momo.vn`.
 

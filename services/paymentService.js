@@ -221,7 +221,9 @@ async function applySuccessfulPayment(booking, payload) {
 async function applyFailedPayment(booking) {
   const seatRefs = collectSeatRefs(booking);
   for (const { flightId, seatNumber } of seatRefs) {
-    await seatService.forceReleaseSeat({ flightId, seatNumber });
+    // userId: booking.user_id — xem comment forceReleaseSeat ở seatService.js
+    // (tránh nhả nhầm ghế đã đổi chủ sang booking khác).
+    await seatService.forceReleaseSeat({ flightId, seatNumber, userId: booking.user_id });
   }
   booking.status = "cancelled";
   booking.cancel_reason = "Thanh toán Momo thất bại hoặc bị khách hủy trên trang thanh toán Momo.";

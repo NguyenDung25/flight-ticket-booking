@@ -67,14 +67,14 @@ async function seedUsers() {
   await User.findOneAndUpdate(
     { email: ADMIN_EMAIL },
     { email: ADMIN_EMAIL, password_hash: adminHash, full_name: "Admin Demo", role: "admin" },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
   const customerHash = await bcrypt.hash(CUSTOMER_PASSWORD, BCRYPT_SALT_ROUNDS);
   await User.findOneAndUpdate(
     { email: CUSTOMER_EMAIL },
     { email: CUSTOMER_EMAIL, password_hash: customerHash, full_name: "Customer Demo", role: "customer" },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
   console.log(`✅ Admin:    ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
@@ -85,12 +85,12 @@ async function seedAirlines() {
   const vietnamAirlines = await Airline.findOneAndUpdate(
     { code: "VN" },
     { code: "VN", name: { vi: "Vietnam Airlines", en: "Vietnam Airlines" } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
   const vietjet = await Airline.findOneAndUpdate(
     { code: "VJ" },
     { code: "VJ", name: { vi: "Vietjet Air", en: "Vietjet Air" } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
   console.log("✅ Airline: VN, VJ");
   return { vietnamAirlines, vietjet };
@@ -114,7 +114,7 @@ async function seedAircraft() {
   const aircraft = await Aircraft.findOneAndUpdate(
     { name: "Airbus A321 (Demo)" },
     { name: "Airbus A321 (Demo)", total_seats: seatMap.length, seat_map_template: seatMap },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
   console.log(`✅ Aircraft: ${aircraft.name} (${seatMap.length} ghế: 8 business, 48 economy)`);
   return aircraft;

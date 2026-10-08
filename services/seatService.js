@@ -81,7 +81,7 @@ async function holdSeat({ flightId, seatNumber, userId }) {
         "seats.$.held_until": new Date(Date.now() + SEAT_HOLD_DURATION_MS),
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!updated) {
@@ -125,7 +125,7 @@ async function releaseSeat({ flightId, seatNumber, userId }) {
         "seats.$.held_until": null,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
   return updated; // null là hợp lệ ở đây — xem giải thích JSDoc phía trên
 }
@@ -208,9 +208,20 @@ async function releaseExpiredHolds() {
 
 /**
  * A7/C9 (hủy vé đã thanh toán) và A8 (hủy hàng loạt khi chuyến bay bị hủy) —
- * nhả 1 ghế đang `booked` (hoặc `held` nếu vô tình còn sót) về `available`,
- * KHÔNG cần khớp `held_by` như `releaseSeat` (vì đây là hành động hệ thống/
- * admin thực hiện thay, không phải chính khách bấm bỏ chọn ghế).
+ * nhả 1 ghế đang `booked` (hoặc `held` nếu vô tình còn sót) về `available`.
+ *
+ * BUG THẬT đã sửa: trước đây hàm này nhả ghế BẤT KỂ ai đang giữ (không truyền
+ * `userId`, không khớp `held_by`). Vì `Booking.flights[].seat_number` là dữ
+ * liệu TĨNH chép lúc tạo booking (không tự cập nhật nếu ghế đổi chủ), nếu 1
+ * booking cũ (A) giữ ghế X hết hạn rồi bị cron nhả, booking khác (B) giữ/đặt
+ * đúng ghế X đó, SAU ĐÓ một webhook/cron xử lý TRỄ cho booking A (VD IPN thất
+ * bại tới muộn sau khi A đã hết hạn) gọi forceReleaseSeat cho ghế X — hàm cũ
+ * sẽ nhả NHẦM đúng ghế booking B đang giữ/đã đặt, mất ghế oan cho khách B.
+ *
+ * Giờ BẮT BUỘC truyền `userId` (lấy từ `booking.user_id` của booking đang xử
+ * lý) và khớp `held_by` — nếu ghế đã đổi chủ (held_by khác userId) thì coi
+ * như no-op, ĐÚNG Ý: ghế đó không còn là của booking đang bị hủy nữa, không
+ * có gì để nhả cho nó cả.
  *
  * Luôn reset `checked_in`/`checked_in_at`/`boarding_pass_code` về mặc định —
  * an toàn cho cả 2 trường hợp gọi:
@@ -220,14 +231,20 @@ async function releaseExpiredHolds() {
  *   buộc phải reset field này theo đúng yêu cầu của A8.
  *
  * @returns {Promise<boolean>} true nếu có ghế được nhả (false nếu ghế đã
- *   `available` sẵn từ trước — coi là no-op, không phải lỗi)
+ *   `available` sẵn từ trước, hoặc đã đổi chủ sang booking khác — cả 2 coi
+ *   là no-op, không phải lỗi)
  */
-async function forceReleaseSeat({ flightId, seatNumber }) {
+async function forceReleaseSeat({ flightId, seatNumber, userId }) {
+  if (!userId) {
+    // Không cho gọi thiếu userId — im lặng bỏ qua check sẽ quay lại đúng bug
+    // cũ. Bắt lỗi sớm và rõ ràng tại đây thay vì để lọt xuống tận MongoDB.
+    throw new Error("forceReleaseSeat: thiếu userId — bắt buộc để tránh nhả nhầm ghế người khác.");
+  }
   const result = await Flight.updateOne(
     {
       _id: flightId,
       seats: {
-        $elemMatch: { seat_number: seatNumber, status: { $in: ["held", "booked"] } },
+        $elemMatch: { seat_number: seatNumber, status: { $in: ["held", "booked"] }, held_by: userId },
       },
     },
     {
@@ -246,9 +263,10 @@ async function forceReleaseSeat({ flightId, seatNumber }) {
 
 /**
  * A3 (hoàn tiền tay cho booking `payment_error_manual_refund`) — nhả 1 ghế CHỈ KHI
- * nó vẫn đang `booked` đúng bởi `userId` này. Khác `forceReleaseSeat`: hàm đó nhả
- * bất kể ai đang giữ — với booking lỗi race-condition (ghi chú y) có ghế đã bị
- * khách khác giữ/đặt, nhả mù sẽ lấy mất ghế của người đó.
+ * nó vẫn đang `booked` đúng bởi `userId` này. Cùng nguyên tắc khớp `held_by`
+ * như `forceReleaseSeat` (xem comment hàm đó) — giữ hàm riêng ở đây vì ngữ
+ * cảnh A3 CHỈ áp dụng cho status `booked` (không bao gồm `held`), và trả
+ * `boolean` đơn giản thay vì phải gọi forceReleaseSeat với tham số dư thừa.
  *
  * Nếu ghế đã `available` (cron nhả từ trước) hoặc thuộc người khác thì no-op.
  *
@@ -330,7 +348,7 @@ async function checkInSeat({ flightId, seatNumber, userId }) {
         "seats.$.boarding_pass_code": boardingPassCode,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!updated) {

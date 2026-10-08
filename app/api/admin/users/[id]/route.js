@@ -33,7 +33,7 @@ export async function PATCH(request, { params }) {
     const user = await User.findByIdAndUpdate(
       id,
       { $set: { is_blocked: body.is_blocked } },
-      { new: true, select: "-password_hash" }
+      { returnDocument: "after", select: "-password_hash" }
     );
 
     if (!user) {

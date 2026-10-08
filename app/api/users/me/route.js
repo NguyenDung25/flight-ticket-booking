@@ -33,14 +33,14 @@ export async function PATCH(request) {
       );
     }
 
-    // findByIdAndUpdate + {new: true} thay vì find + save để tránh kích hoạt
+    // findByIdAndUpdate + {returnDocument: "after"} thay vì find + save để tránh kích hoạt
     // các pre-validate không liên quan trên User schema (VD password_hash
     // required — không có vấn đề gì nhưng không cần gánh chi phí validate
     // toàn document chỉ để đổi 1 field enum đơn giản).
     const updated = await User.findByIdAndUpdate(
       user._id,
       { preferred_language },
-      { new: true, select: "preferred_language" }
+      { returnDocument: "after", select: "preferred_language" }
     );
 
     return NextResponse.json({ preferred_language: updated.preferred_language });

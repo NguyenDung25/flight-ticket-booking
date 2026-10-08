@@ -42,7 +42,7 @@ async function update(request, { params }, context) {
     const airline = await Airline.findByIdAndUpdate(
       id,
       { $set: { code: code.toUpperCase(), "name.vi": nameVi, "name.en": nameEn } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!airline) {
       throw new ActiveUserError("Không tìm thấy hãng bay.", 404);

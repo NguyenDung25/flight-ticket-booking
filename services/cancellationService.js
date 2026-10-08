@@ -90,9 +90,13 @@ async function releaseBookingSeats(booking, onlyFlightIds = null) {
   for (const passenger of booking.passengers) {
     for (const seat of passenger.seats) {
       if (targetIds && !targetIds.includes(String(seat.flight_id))) continue;
+      // userId: booking.user_id — forceReleaseSeat bắt buộc khớp held_by
+      // (xem comment ở services/seatService.js), tránh nhả nhầm ghế của
+      // booking khác nếu ghế này đã đổi chủ từ lúc booking hiện tại tạo.
       await seatService.forceReleaseSeat({
         flightId: seat.flight_id,
         seatNumber: seat.seat_number,
+        userId: booking.user_id,
       });
     }
   }
@@ -114,11 +118,24 @@ async function cancelBooking({ bookingId, cancelReason }) {
 
   // --- Nhánh 1 (ghi chú g): chưa thanh toán → hủy ngay, không có gì để hoàn ---
   if (booking.status === "pending_payment") {
+    // Ghi status TRƯỚC bằng update có điều kiện (atomic), CHỈ nhả ghế nếu thắng.
+    // Trước đây: nhả ghế rồi booking.save() (đọc-sửa-ghi, không điều kiện) —
+    // nếu webhook Momo xác nhận thanh toán đúng lúc này, save() có thể ghi đè
+    // "confirmed" thành "cancelled" VÀ ghế đã bị nhả dù tiền đã thu. Thứ tự
+    // cũng quan trọng: nếu nhả ghế trước rồi mới phát hiện thua race, ghế của
+    // booking đã confirmed sẽ bị nhả oan.
+    const result = await Booking.updateOne(
+      { _id: booking._id, status: "pending_payment" },
+      { $set: { status: "cancelled", cancel_reason: cancelReason } }
+    );
+    if (result.modifiedCount === 0) {
+      throw new CancellationError(
+        "Trạng thái booking vừa thay đổi (có thể vừa thanh toán xong). Vui lòng tải lại trang.",
+        409
+      );
+    }
     await releaseBookingSeats(booking); // ghế đang held (chưa từng thành booked)
-    booking.status = "cancelled";
-    booking.cancel_reason = cancelReason;
-    await booking.save();
-    return booking;
+    return await Booking.findById(booking._id);
   }
 
   if (booking.status !== "confirmed") {
@@ -202,18 +219,26 @@ async function cancelBookingsForFlight({ flightId, cancelReason }) {
   const now = nowVN().toDate();
   const affectedIds = [];
 
-  for (const booking of bookings) {
+  for (let booking of bookings) {
     if (booking.status === "pending_payment") {
       // Chưa thu tiền, không có gì để hoàn. Nhả TOÀN BỘ ghế của booking (cả
       // chặng không liên quan tới flightId này nếu là khứ hồi) — vì booking
       // không hỗ trợ hủy tách chặng, cả booking chuyển 'cancelled' nên chặng
       // còn lại (nếu có) cũng không còn hiệu lực, ghế phải được trả lại.
-      await releaseBookingSeats(booking);
-      booking.status = "cancelled";
-      booking.cancel_reason = cancelReason;
-      await booking.save();
-      affectedIds.push(String(booking._id));
-      continue;
+      // Ghi status có điều kiện TRƯỚC, chỉ nhả ghế nếu thắng race với webhook.
+      const result = await Booking.updateOne(
+        { _id: booking._id, status: "pending_payment" },
+        { $set: { status: "cancelled", cancel_reason: cancelReason } }
+      );
+      if (result.modifiedCount === 1) {
+        await releaseBookingSeats(booking);
+        affectedIds.push(String(booking._id));
+        continue;
+      }
+      // Thua race: Momo vừa xác nhận thanh toán -> đọc lại, xử lý như booking
+      // "confirmed" bên dưới (hoàn tiền) thay vì bỏ sót.
+      booking = await Booking.findById(booking._id);
+      if (!booking || booking.status !== "confirmed") continue;
     }
 
     // status === "confirmed"
@@ -268,12 +293,12 @@ async function cancelExpiredPendingPayments() {
     "payment.payment_expires_at": { $lt: now },
   });
 
+  let cancelledCount = 0;
   for (const booking of expiredBookings) {
-    await releaseBookingSeats(booking);
-    // Dùng updateOne với điều kiện status: "pending_payment" thay vì booking.save()
-    // để tránh race-condition với webhook Momo thành công chạy đồng thời:
-    // nếu webhook vừa đổi status -> "confirmed" trước khi cron ghi, điều kiện
-    // này sẽ không match và không ghi đè "confirmed" thành "cancelled".
+    // Ghi status TRƯỚC bằng update có điều kiện (atomic) rồi CHỈ nhả ghế nếu
+    // thắng race. Nếu webhook Momo vừa chuyển booking sang "confirmed", điều
+    // kiện status: "pending_payment" không còn khớp -> không ghi đè VÀ không
+    // nhả ghế (ghế lúc này đã "booked" hợp lệ của booking đã thu tiền).
     const result = await Booking.updateOne(
       { _id: booking._id, status: "pending_payment" },
       {
@@ -284,12 +309,13 @@ async function cancelExpiredPendingPayments() {
       }
     );
     if (result.modifiedCount === 0) {
-      // Webhook đã xử lý trước — không ghi đè, ghi log để biết.
-      console.log(`[cron] Booking ${booking._id} đã được xử lý bởi webhook, bỏ qua.`);
+      console.log(`[cron] Booking ${booking._id} đã được xử lý bởi luồng khác, bỏ qua.`);
+      continue;
     }
+    await releaseBookingSeats(booking);
+    cancelledCount += 1;
   }
-
-  return expiredBookings.length;
+  return cancelledCount;
 }
 
 /**
@@ -366,7 +392,7 @@ async function resolveManualRefund({ bookingId, refundAmount, note }) {
           (cleanNote ? ` Ghi chú: ${cleanNote}` : ""),
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!updated) {
     throw new CancellationError("Booking vừa được xử lý bởi thao tác khác, vui lòng tải lại.", 409);

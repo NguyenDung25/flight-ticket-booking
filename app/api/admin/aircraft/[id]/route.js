@@ -94,7 +94,7 @@ async function update(request, { params }, context) {
       throw new ActiveUserError("Không có trường nào để cập nhật.", 400);
     }
 
-    const aircraft = await Aircraft.findByIdAndUpdate(id, { $set }, { new: true, runValidators: true });
+    const aircraft = await Aircraft.findByIdAndUpdate(id, { $set }, { returnDocument: "after", runValidators: true });
     if (!aircraft) {
       throw new ActiveUserError("Không tìm thấy máy bay.", 404);
     }

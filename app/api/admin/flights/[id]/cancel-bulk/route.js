@@ -39,15 +39,16 @@ export async function POST(request, { params }) {
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
-    if (flight.status === "cancelled") {
-      return NextResponse.json(
-        { message: "Chuyến bay này đã ở trạng thái hủy từ trước." },
-        { status: 409 }
-      );
+    // KHÔNG chặn 409 khi chuyến đã "cancelled" — đúng thiết kế ở comment đầu
+    // file ("an toàn để CHẠY LẠI route này"). Trước đây guard 409 ở đây chặn
+    // ngược chính ý đó: nếu lần trước lỗi giữa chừng sau khi lưu status nhưng
+    // trước khi hủy hết booking, gọi lại sẽ bị 409 và các booking còn sót
+    // không bao giờ xử lý được. cancelBookingsForFlight tự lọc booking còn
+    // pending_payment/confirmed; không còn gì thì trả danh sách rỗng, vô hại.
+    if (flight.status !== "cancelled") {
+      flight.status = "cancelled";
+      await flight.save();
     }
-
-    flight.status = "cancelled";
-    await flight.save();
 
     const affectedBookingIds = await cancelBookingsForFlight({
       flightId: id,

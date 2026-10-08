@@ -196,11 +196,12 @@ async function searchFlights({ origin, destination, departureDate, tripType, ret
 async function getFlightDetail(flightId) {
   const flight = await Flight.findById(flightId)
     .populate("airline_id", "code name")
-    .populate("aircraft_id", "name")
-    // Loại trừ các field nhạy cảm khỏi API công khai — khách chỉ cần biết
-    // seat_number/status/seat_class để chọn ghế, KHÔNG cần held_by (userId
-    // người đang giữ) hay boarding_pass_code (mã lên máy bay của người khác).
-    .select("-seats.held_by -seats.boarding_pass_code");
+    .populate("aircraft_id", "name");
+  // CỐ Ý trả đủ field (kể cả seats[].held_by): booking/passengers/page.js cần
+  // held_by để tính held_by_me ngay trên server rồi tự lọc trước khi gửi
+  // xuống client. Việc ẩn held_by/boarding_pass_code khỏi người ngoài làm ở
+  // API công khai GET /api/flights/[id] (xem route.js), KHÔNG làm ở đây —
+  // loại ở service sẽ khiến held_by_me luôn false, khách mất ghế đang giữ.
 
   if (!flight) {
     throw new FlightError("Không tìm thấy chuyến bay.", 404);
