@@ -10,6 +10,7 @@
 // auth()/getTranslations() trực tiếp không cần "use client".
 
 import { getTranslations } from "next-intl/server";
+import NextLink from "next/link";
 import { auth } from "@/auth";
 import { Link } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -28,20 +29,31 @@ export default async function Header() {
     { href: "/", label: t("search") },
     { href: "/my-bookings", label: t("myBookings") },
     { href: "/check-in", label: t("checkIn") },
+    { href: "/promotions", label: t("promotions") },
+    { href: "/cancellation-policy", label: t("cancellationPolicy") },
   ];
 
   // Nút "Đăng ký" trên thanh header bị ẩn dưới breakpoint sm (chật chỗ) — đưa
   // vào menu hamburger để khách dùng điện thoại vẫn đăng ký được.
+  // Admin đang xem giao diện khách -> có đường quay lại khu quản trị. /admin KHÔNG nằm dưới
+  // [locale] và có root layout riêng, nên dùng Link của next/link (không prefix locale, Next tự tải
+  // trang mới khi đổi root layout) — KHÔNG dùng Link của next-intl.
+  // Chỉ để hiện nút: quyền thật vẫn do app/admin/layout.js kiểm tra tươi từ DB.
+  const isAdmin = session?.user?.role === "admin";
+  const adminLink = isAdmin ? { href: "/admin", label: t("adminPanel"), plain: true } : null;
+
   const mobileLinks = session?.user
-    ? navLinks
+    ? adminLink
+      ? [...navLinks, adminLink]
+      : navLinks
     : [...navLinks, { href: "/register", label: t("register") }];
 
   return (
     <header className="relative border-b border-sand-100 bg-sand-50/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-2">
-          {/* Hamburger — chỉ hiện < md (chính MobileMenu tự có class
-              "md:hidden" trên root của nó), đặt bên trái brand cho quen tay
+          {/* Hamburger — chỉ hiện < lg (chính MobileMenu tự có class
+              "lg:hidden" trên root của nó; 5 mục menu không đủ chỗ ở khổ md), đặt bên trái brand cho quen tay
               (giống đa số app mobile). */}
           <MobileMenu links={mobileLinks} />
           <Link href="/" className="font-display text-xl font-semibold text-sea-900">
@@ -49,7 +61,7 @@ export default async function Header() {
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-sea-900 md:flex">
+        <nav className="hidden items-center gap-6 text-sm font-medium text-sea-900 lg:flex">
           {navLinks.map((l) => (
             <Link key={l.href} href={l.href} className="hover:text-coral-600">
               {l.label}
@@ -61,6 +73,15 @@ export default async function Header() {
           <LanguageSwitcher />
           {session?.user ? (
             <>
+              {isAdmin && (
+                <NextLink
+                  href="/admin"
+                  prefetch={false}
+                  className="hidden rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white lg:inline-flex"
+                >
+                  {t("adminPanel")}
+                </NextLink>
+              )}
               {/* Tên/email người đang đăng nhập — ẩn trên mobile (đã chật
                   chỗ với hamburger + logo), chỉ hiện từ sm trở lên. Ưu tiên
                   hiện `name` nếu auth.js có set (xem callbacks.session ở

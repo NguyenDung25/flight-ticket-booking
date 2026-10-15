@@ -61,8 +61,39 @@ function computeDiscountAmount(promotion, totalAmountBeforeDiscount) {
   return Math.floor((totalAmountBeforeDiscount * promotion.discount_percent) / 100);
 }
 
+/**
+ * Mã đang dùng được NGAY BÂY GIỜ — cho trang Khuyến mãi phía khách: đã tới valid_from, chưa quá
+ * valid_until, và còn lượt (không giới hạn, hoặc used_count < usage_limit). Cùng điều kiện với
+ * applyPromotion() để khách không thấy mã mà áp vào lại bị từ chối. Sắp mã sắp hết hạn lên trước.
+ *
+ * @param {Date} [now]
+ * @returns {Promise<Array<{code: String, discount_percent: Number, valid_until: Date, remaining: Number|null}>>}
+ *   remaining = null nghĩa là không giới hạn lượt
+ */
+async function listActivePromotions(now = nowVN().toDate()) {
+  const docs = await Promotion.find({
+    valid_from: { $lte: now },
+    valid_until: { $gte: now },
+    $or: [
+      { usage_limit: { $exists: false } },
+      { usage_limit: null },
+      { $expr: { $lt: ["$used_count", "$usage_limit"] } },
+    ],
+  })
+    .sort({ valid_until: 1 })
+    .lean();
+
+  return docs.map((p) => ({
+    code: p.code,
+    discount_percent: p.discount_percent,
+    valid_until: p.valid_until,
+    remaining: p.usage_limit === undefined || p.usage_limit === null ? null : Math.max(p.usage_limit - (p.used_count || 0), 0),
+  }));
+}
+
 module.exports = {
   PromotionError,
   applyPromotion,
   computeDiscountAmount,
+  listActivePromotions,
 };

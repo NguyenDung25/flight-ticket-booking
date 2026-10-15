@@ -13,7 +13,7 @@ export default function MobileMenu({ links }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       {/* Nút hamburger */}
       <button
         type="button"
@@ -37,18 +37,29 @@ export default function MobileMenu({ links }) {
 
       {/* Drawer */}
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+1px)] z-50 border-b border-sand-100 bg-sand-50/95 px-6 py-4 shadow-md backdrop-blur md:hidden">
+        <div className="absolute left-0 right-0 top-[calc(100%+1px)] z-50 border-b border-sand-100 bg-sand-50/95 px-6 py-4 shadow-md backdrop-blur lg:hidden">
           <nav className="flex flex-col gap-4">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="text-base font-medium text-sea-900 hover:text-coral-600"
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) =>
+              l.plain ? (
+                // Đích nằm NGOÀI [locale] (VD /admin) -> <a> thường, không prefix locale.
+                <a
+                  key={l.href}
+                  href={l.href}
+                  className="text-base font-medium text-sea-900 hover:text-coral-600"
+                >
+                  {l.label}
+                </a>
+              ) : (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="text-base font-medium text-sea-900 hover:text-coral-600"
+                >
+                  {l.label}
+                </Link>
+              )
+            )}
           </nav>
         </div>
       )}
