@@ -1,11 +1,11 @@
-# Sun Phu Quoc Airways — Web đặt vé máy bay
+# DelayX — Web đặt vé máy bay
 
-Đồ án web đặt vé máy bay: Next.js App Router + MongoDB (Mongoose) + NextAuth (Auth.js) + next-intl (đa ngôn ngữ) + Momo (thanh toán). Chi tiết chức năng và thiết kế CSDL xem `chuc-nang-he-thong.md` và `mongodb-schema-design.md`.
+Đồ án web đặt vé máy bay: Next.js App Router + MongoDB (Mongoose) + NextAuth (Auth.js) + next-intl (đa ngôn ngữ) + VNPay (thanh toán). Chi tiết chức năng và thiết kế CSDL xem [`docs/chuc-nang-he-thong.md`](docs/chuc-nang-he-thong.md) và [`docs/mongodb-schema-design.md`](docs/mongodb-schema-design.md).
 
 ## 1. Chuẩn bị
 
 - Node.js (bản mới), MongoDB đang chạy (local hoặc Atlas).
-- Tài khoản MoMo Business (M4B) để lấy khóa môi trường Test — xem mục 5.
+- Tài khoản merchant sandbox của VNPay để lấy khóa test — xem mục 5.
 
 ## 2. Cài đặt
 
@@ -20,10 +20,10 @@ Mở `.env.local`, điền đủ các biến (xem chú thích ngay trong file m�
 |---|---|
 | `MONGO_URI` | Kết nối MongoDB |
 | `AUTH_SECRET` | Ký session đăng nhập — sinh bằng `npx auth secret` |
-| `MOMO_PARTNER_CODE` / `MOMO_ACCESS_KEY` / `MOMO_SECRET_KEY` / `MOMO_API_URL` | Thanh toán MoMo (môi trường Test) |
+| `VNPAY_TMN_CODE` / `VNPAY_HASH_SECRET` / `VNPAY_PAY_URL` / `VNPAY_API_URL` | Thanh toán VNPay (môi trường sandbox) |
 | `AIRLABS_API_KEY` | Seed dữ liệu sân bay/hãng bay + tự điền lịch bay khi admin tạo chuyến |
 | `SMTP_*`, `EMAIL_FROM` | Gửi email vé điện tử (Gmail cần tạo App Password riêng, không dùng mật khẩu Gmail thật) |
-| `NEXT_PUBLIC_BASE_URL` | Chỉ cần khi test MoMo qua ngrok/tunnel — xem mục 6 |
+| `NEXT_PUBLIC_BASE_URL` | Chỉ cần khi test IPN VNPay qua ngrok/tunnel — xem mục 6b |
 
 **Không commit `.env.local`** — đã có trong `.gitignore`.
 
@@ -54,49 +54,47 @@ npm run cron   # cửa sổ 2 — nhả ghế giữ quá hạn + hủy booking q
 
 Thiếu `npm run cron` thì các booking quá hạn thanh toán sẽ không tự hủy, ghế sẽ bị giữ mãi.
 
-## 5. Lấy khóa MoMo (môi trường Test)
+## 5. Lấy khóa VNPay (môi trường sandbox)
 
-Bộ khóa test dùng chung công khai kiểu cũ (`MOMOBKUN...`) **không còn dùng được** — MoMo hiện bắt buộc tự đăng ký tài khoản M4B:
+1. Đăng ký tài khoản merchant test tại [sandbox.vnpayment.vn/devreg](https://sandbox.vnpayment.vn/devreg/). VNPay gửi **Terminal ID (`vnp_TmnCode`)** và **Secret Key (`vnp_HashSecret`)** qua email, kèm tài khoản đăng nhập trang quản trị merchant sandbox.
+2. Dán vào `.env.local`: `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`. `VNPAY_PAY_URL` và `VNPAY_API_URL` giữ nguyên địa chỉ sandbox trong `.env.example`.
+3. Kiểm tra khóa: `npm run test:vnpay` — in ra 1 URL thanh toán thử, và gọi API truy vấn để xác nhận khóa đúng (không cần chạy web/MongoDB).
 
-1. Đăng ký tại [developers.momo.vn](https://developers.momo.vn) (chưa cần xác thực giấy tờ doanh nghiệp, đăng ký xong có ngay khóa Test).
-2. Chọn giải pháp **Cổng thanh toán MoMo** (loại hỗ trợ thanh toán thẻ ATM nội địa — code dùng `requestType: payWithATM`, xem mục 6b). Nếu chọn nhầm loại, MoMo có thể trả lỗi khi tạo thanh toán.
-3. Vào mục "Thông tin tích hợp" lấy `Partner Code` / `Access Key` / `Secret Key`, dán vào `.env.local`.
-4. `MOMO_API_URL` giữ nguyên `https://test-payment.momo.vn`.
+## 6. Luồng thanh toán VNPay
 
-## 6. Test thanh toán MoMo qua ngrok (bắt buộc nếu chạy local)
+Khách bấm "Thanh toán" → `POST /api/payments/[bookingId]` dựng URL thanh toán có chữ ký (HMAC-SHA512) → khách được chuyển sang trang VNPay, chọn ngân hàng và nhập thẻ → VNPay đưa khách về **Return URL** `/{locale}/payment?vnp_...`. Phương thức được lưu ở `Booking.payment.method = "vnpay"`.
 
-MoMo cần gọi ngược (IPN) về server của bạn sau khi khách thanh toán xong — `localhost` thì MoMo không gọi tới được.
+Kết quả thanh toán được chốt bằng **2 đường độc lập** (đều atomic, chạy song song không bị ghi đè, không phát vé 2 lần):
+
+- **Trang kết quả (Return URL)**: server **không tin** tham số `vnp_*` trên URL mà tự hỏi lại VNPay bằng API truy vấn `querydr` → thành công thì `confirmed`, thất bại thì `cancelled` + nhả ghế. Đường này **chạy được trên `localhost`, không cần ngrok**.
+- **IPN** (`GET /api/payments/vnpay-ipn`): VNPay gọi ngầm server → server. Xác minh chữ ký + `vnp_TmnCode` + số tiền rồi cập nhật booking; trả `{ RspCode, Message }` theo quy ước VNPay (`00` xong, `02` đã xác nhận trước đó, `97` sai chữ ký, `01` không thấy đơn, `04` sai số tiền, `99` lỗi khác).
+
+Thẻ test của VNPay sandbox (chọn ngân hàng **NCB** trên trang thanh toán):
+
+| Trường | Giá trị |
+|---|---|
+| Số thẻ | `9704198526191432198` |
+| Tên chủ thẻ | `NGUYEN VAN A` |
+| Ngày phát hành | `07/15` |
+| Mật khẩu OTP | `123456` |
+
+Muốn test nhánh thất bại: bấm "Hủy thanh toán" trên trang VNPay (booking chuyển `cancelled`, nhả ghế ngay khi quay về trang kết quả).
+
+## 6b. Test IPN qua ngrok (không bắt buộc)
+
+Chỉ cần nếu muốn kiểm tra riêng đường IPN (VD khách đóng trình duyệt trước khi về trang kết quả). VNPay cần gọi được server của bạn — `localhost` thì không gọi tới được:
 
 ```bash
 ngrok http 3000
 ```
 
-Copy địa chỉ `https://xxxx.ngrok-free.app`, thêm vào `.env.local`:
+(Hoặc chạy `powershell -ExecutionPolicy Bypass -File scripts\start-ngrok.ps1` để tự ghi `NEXT_PUBLIC_BASE_URL` vào `.env.local`.)
 
-```
-NEXT_PUBLIC_BASE_URL=https://xxxx.ngrok-free.app
-```
+1. Thêm vào `.env.local`: `NEXT_PUBLIC_BASE_URL=https://xxxx.ngrok-free.app`, restart `npm run dev`, **mở web bằng chính địa chỉ ngrok**.
+2. Khai báo **IPN URL** `https://xxxx.ngrok-free.app/api/payments/vnpay-ipn` ở trang quản trị merchant sandbox của VNPay (VNPay không nhận IPN URL theo từng giao dịch như MoMo; nếu trang quản trị không cho sửa, liên hệ hỗ trợ VNPay).
+3. Theo dõi VNPay gọi về tại `http://127.0.0.1:4040`.
 
-Restart `npm run dev`, rồi **mở web bằng chính địa chỉ ngrok** (không mở `localhost`). Theo dõi MoMo có gọi về không tại `http://127.0.0.1:4040`.
-
-Địa chỉ ngrok bản free đổi mỗi lần chạy lại — nhớ cập nhật `NEXT_PUBLIC_BASE_URL` và restart mỗi lần.
-
-## 6b. Thanh toán bằng thẻ ATM nội địa qua cổng MoMo (không cần app MoMo)
-
-Hệ thống thanh toán bằng **thẻ ATM nội địa qua cổng MoMo** (`requestType: payWithATM`) — vẫn là API thanh toán MoMo thật, cùng endpoint `/v2/gateway/api/create`, cùng chữ ký HMAC-SHA256 và cùng webhook (IPN). Không dùng luồng ví MoMo/quét QR nên **không cần cài app MoMo Test**.
-
-Luồng: khách bấm "Thanh toán" → được chuyển sang trang `payUrl` của MoMo/Napas → nhập thẻ → MoMo gọi webhook `POST /api/payments/[bookingId]` → booking `confirmed` (hoặc `cancelled` nếu thất bại). Phương thức được lưu ở `Booking.payment.method = "momo_atm"`.
-
-Thẻ test của MoMo (môi trường Test), tên chủ thẻ `NGUYEN VAN A`, hạn `03/07`, nhập OTP theo yêu cầu trên trang:
-
-| Số thẻ | Kết quả mô phỏng |
-|---|---|
-| `9704 0000 0000 0018` | Thành công |
-| `9704 0000 0000 0026` | Thẻ bị khóa |
-| `9704 0000 0000 0034` | Không đủ tiền |
-| `9704 0000 0000 0042` | Vượt hạn mức |
-
-Các thẻ lỗi dùng để test nhánh thanh toán thất bại (booking chuyển `cancelled`, nhả ghế ngay). Webhook vẫn cần ngrok như mục 6. Nếu MoMo trả lỗi khi tạo yêu cầu `payWithATM`, xem `message` + `resultCode` trong log server — có thể bộ khóa đang dùng chưa được bật loại thanh toán này.
+Địa chỉ ngrok bản free đổi mỗi lần chạy lại — nhớ cập nhật `NEXT_PUBLIC_BASE_URL`, IPN URL và restart mỗi lần.
 
 ## 7. Cấu trúc chính
 
@@ -104,9 +102,9 @@ Các thẻ lỗi dùng để test nhánh thanh toán thất bại (booking chuy�
 app/[locale]/        # Giao diện khách — đa ngôn ngữ (vi/en)
 app/admin/            # Giao diện quản trị — KHÔNG qua next-intl
 app/api/              # API routes (REST, không dùng Server Action cho phần nghiệp vụ)
-models/                # 7 Mongoose schema — xem mongodb-schema-design.md
+models/                # 8 Mongoose schema — xem docs/mongodb-schema-design.md
 services/              # Logic nghiệp vụ (tách khỏi route) — seatService, cancellationService, statsService...
-lib/                   # Hạ tầng dùng chung: mongodb, timezone (giờ VN), apiError, momoClient, emailClient
+lib/                   # Hạ tầng dùng chung: mongodb, timezone (giờ VN), apiError, vnpayClient, emailClient
 cron/                  # Job chạy nền — xem mục 4
 scripts/                # Script chạy tay: seed dữ liệu, seed AirLabs
 i18n/, messages/        # Cấu hình + nội dung dịch next-intl
@@ -122,28 +120,37 @@ i18n/, messages/        # Cấu hình + nội dung dịch next-intl
 | `npm run cron` | Chạy job nhả ghế/hủy booking quá hạn (chạy song song `dev`) |
 | `npm run seed` | Tạo tài khoản + dữ liệu nền demo |
 | `npm run seed:test` | Tạo chuyến bay test theo các mốc giờ hủy vé/check-in |
-| `npm run test:momo` | Gọi thử API tạo thanh toán MoMo thật (thẻ ATM) để kiểm tra khóa — không cần chạy web/MongoDB |
+| `npm run test:vnpay` | Dựng URL thanh toán thử + gọi API truy vấn VNPay để kiểm tra khóa — không cần chạy web/MongoDB |
 
 ## 9. Tài khoản demo
 
 Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ dùng để demo cục bộ**, không dùng lại mật khẩu này ở nơi khác.
 
-## 10. Lưu ý đã biết
-
-- `npm audit` còn 3 lỗ hổng mức "high" ở `nodemailer`/`next-auth` (lỗi của thư viện, chưa có bản vá non-breaking). Rủi ro thấp vì email chỉ gửi tới địa chỉ do hệ thống kiểm soát — **không chạy `npm audit fix --force`** vì sẽ hạ `next-auth` xuống bản rất cũ, hỏng đăng nhập.
-- Không có PUT/DELETE cho Aircraft/Airline (chỉ có cho Flight và Promotion) — đơn giản hóa có chủ đích, không phải thiếu sót.
-
-## 7. Kiểm thử
+## 10. Kiểm thử
 
 ```bash
-npm test      # 21 test tự động cho quy tắc nghiệp vụ thuần (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký MoMo...) — không cần MongoDB
+npm test       # 138 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
+npm run lint   # ESLint theo bộ luật của Next.js
+npm run build  # build production — nên chạy 1 lần trước khi demo/bảo vệ
 ```
 
-Bảng test case thủ công cho Chương 4 (64 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
+- Test tự động dùng bản giả của DB (stub) cho luồng thanh toán/race, **không thay thế** test với MongoDB thật. Script `scripts/integration-seat-cancel.js` chạy với MongoDB thật (xem chú thích đầu file; **không** trỏ vào DB có dữ liệu thật).
+- Bảng test case thủ công cho Chương 4 (102 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
 
-## 8. Một số hành vi cần biết khi demo
+## 11. Một số hành vi cần biết khi demo
 
-- **IPN MoMo không về được** (VD ngrok tắt): khi khách quay lại trang `/payment?bookingId=...`, hệ thống tự hỏi lại MoMo (`POST /v2/gateway/api/query`) và xác nhận booking nếu giao dịch đã thành công. Chỉ xử lý chiều thành công; thất bại/đang xử lý để IPN hoặc cron dọn.
-- **Thanh toán đến muộn**: nếu MoMo báo thành công nhưng booking đã bị hủy (quá hạn/khách hủy), booking chuyển `payment_error_manual_refund` để admin hoàn tay.
-- **Hoàn tiền tay**: ở trang Admin → Booking, booking `payment_error_manual_refund` có nút "Hoàn tiền tay" (nhập số tiền đã chuyển trả khách). Hệ thống chỉ ghi nhận số tiền, chưa gọi API hoàn tiền của MoMo.
+- **IPN VNPay không về được** (chạy local không ngrok): khi khách về trang `/payment` (hoặc mở lại `/payment?bookingId=...`), hệ thống tự hỏi lại VNPay (`querydr`) và chốt booking theo kết quả thật. Chưa thanh toán / đang xử lý thì giữ nguyên để IPN hoặc cron dọn.
+- **Thanh toán đến muộn**: nếu VNPay báo thành công nhưng booking đã bị hủy (quá hạn/khách hủy), booking chuyển `payment_error_manual_refund` để admin hoàn tay.
+- **Hoàn tiền tay**: ở trang Admin → Booking, booking `payment_error_manual_refund` có nút "Hoàn tiền tay" (nhập số tiền đã chuyển trả khách). Hệ thống chỉ ghi nhận số tiền, chưa gọi API hoàn tiền của VNPay.
+- **Check-in online** (`/check-in`): không cần đăng nhập — nhập mã đặt chỗ + họ của 1 hành khách, chọn chặng và hành khách, đồng ý quy định ICI, nhận thẻ lên máy bay có mã QR. Nhập sai 5 lần thì bị khóa tra cứu 15 phút (lưu trong bộ nhớ — restart server là mở khóa).
+- **Email vé**: cần `SMTP_USER`/`SMTP_PASS` (Gmail App Password). Chưa cấu hình thì trang kết quả thanh toán báo "chưa gửi được qua email" thay vì báo đã gửi.
+- **Ngôn ngữ**: thông báo lỗi từ server được dịch sang tiếng Anh ở giao diện EN (`lib/apiMessages.js` — thêm bản dịch khi thêm thông báo lỗi mới).
 - **Hãng bay / máy bay**: sửa và xóa ngay trên bảng. Xóa bị chặn nếu còn chuyến bay đang dùng. Sửa sơ đồ ghế máy bay chỉ áp dụng cho chuyến tạo sau.
+
+## 12. Lưu ý đã biết
+
+- **`TRUST_PROXY`**: chỉ đặt `true` khi app chạy sau proxy tin cậy (ngrok, Nginx). Mặc định hệ thống **không tin** header `X-Forwarded-For` (người gọi tự gửi được) nên mọi request dùng chung 1 khóa chống dò mã check-in.
+- **Các bộ đếm chống dò** (đăng nhập sai, tra cứu check-in, gửi lại email vé) lưu trong bộ nhớ tiến trình: đủ cho đồ án chạy 1 instance; triển khai nhiều instance cần chuyển sang Redis hoặc collection MongoDB có TTL.
+- **IPN VNPay** mới được kiểm thử bằng unit test; luồng thanh toán thật đã kiểm chứng qua trang kết quả (`querydr`). Muốn thử IPN thật xem mục 6b.
+- **Lỗi nạp SWC trên Windows** (`Failed to load native binding`, `ERR_SWC_NATIVE_CACHE`): đặt biến `SWC_NATIVE_BINDING_CACHE` trỏ tới thư mục `.swc-cache` trong dự án trước khi chạy `npm run dev`/`npm run build` (PowerShell: `$env:SWC_NATIVE_BINDING_CACHE="$PWD\.swc-cache"`). Không đặt thư mục này trong `.next` — `next build` sẽ xóa nó.
+- **`npm audit`**: các gói chạy production không có lỗ hổng (`npm audit --omit=dev` → 0). Lỗ hổng mức "high" còn lại nằm ở công cụ lint (`eslint-config-next` → `braces`/`micromatch`, chỉ là DoS khi xử lý glob lúc chạy lint), không đi vào ứng dụng. **Không chạy `npm audit fix --force`**: có thể hạ `next-auth`/`eslint-config-next` xuống bản không tương thích.
