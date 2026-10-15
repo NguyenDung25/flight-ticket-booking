@@ -48,7 +48,13 @@ const ADMIN_LANDING = "/admin";
 export async function loginAction(_prevState, formData) {
   const email = formData.get("email");
   const password = formData.get("password");
-  const callbackUrl = formData.get("callbackUrl");
+  const rawCallbackUrl = formData.get("callbackUrl") ?? "";
+  // S3: chỉ chấp nhận callbackUrl nội bộ (bắt đầu bằng "/" nhưng không
+  // phải "//") — Auth.js đã chặn redirect ra ngoài domain mặc định, nhưng
+  // tự filter thêm ở đây để defence-in-depth, tránh open-redirect.
+  const callbackUrl = rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+    ? rawCallbackUrl
+    : "/";
 
   // Biết role TRƯỚC khi thiết lập session — xem giải thích ở đầu file vì
   // sao KHÔNG đọc role SAU signIn() nữa.
@@ -56,6 +62,9 @@ export async function loginAction(_prevState, formData) {
   try {
     user = await verifyCredentials({ email, password });
   } catch (err) {
+    if (err instanceof ServiceAuthError && err.statusCode === 429) {
+      return { error: "too_many" };
+    }
     if (err instanceof ServiceAuthError) {
       // CHỈ 1 THÔNG BÁO LỖI CHUNG cho mọi lý do thất bại (sai mật khẩu LẪN
       // tài khoản bị khóa) — chống user-enumeration, xem giải thích đầy đủ

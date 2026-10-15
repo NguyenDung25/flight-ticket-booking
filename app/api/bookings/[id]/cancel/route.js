@@ -52,7 +52,7 @@ export async function PATCH(request, { params }) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const rawReason = typeof body?.reason === "string" ? body.reason.trim() : "";
+    const rawReason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 500) : "";
 
     let cancelReason;
     if (isOwner) {

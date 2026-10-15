@@ -126,7 +126,7 @@ export default function SearchForm({ airports, locale }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-3xl rounded-2xl border border-sand-100 bg-white/70 p-6 shadow-sm"
+      className="w-full max-w-3xl rounded-2xl border border-sand-100 bg-white/95 p-6 shadow-lg"
     >
       <div className="mb-5 flex gap-2">
         {["one_way", "round_trip"].map((tt) => (

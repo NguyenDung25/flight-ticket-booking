@@ -8,6 +8,7 @@
 // mọi page.js khác trong khu Admin.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Airline from "@/models/Airline";
 import AirlineForm from "./AirlineForm";
 import AirlineRow from "./AirlineRow";
@@ -17,6 +18,7 @@ export const metadata = {
 };
 
 export default async function AdminAirlinesPage() {
+  await guardAdminPage();
   await dbConnect();
   const airlineDocs = await Airline.find().sort({ code: 1 }).lean();
 

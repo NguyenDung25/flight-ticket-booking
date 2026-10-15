@@ -8,6 +8,7 @@
 // convention mọi page.js khác trong khu Admin.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Promotion from "@/models/Promotion";
 import { nowVN, toVN } from "@/lib/timezone";
 import PromotionForm from "./PromotionForm";
@@ -18,6 +19,7 @@ export const metadata = {
 };
 
 export default async function AdminPromotionsPage() {
+  await guardAdminPage();
   await dbConnect();
   const promotionDocs = await Promotion.find().sort({ created_at: -1 }).lean();
 

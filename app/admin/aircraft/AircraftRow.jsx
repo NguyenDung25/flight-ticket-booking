@@ -2,46 +2,37 @@
 
 // app/admin/aircraft/AircraftRow.jsx
 //
-// A2 — 1 dòng máy bay, có sửa tại chỗ + xóa. Sơ đồ ghế sinh theo CÙNG công thức
-// với AircraftForm.jsx (business 4 ghế/hàng đánh số trước, economy 6 ghế/hàng sau).
-// Chỉ gửi seat_map_template khi admin THỰC SỰ đổi số hàng — nếu chỉ đổi tên thì
-// giữ nguyên sơ đồ ghế cũ (kể cả sơ đồ nhập tay không theo layout chuẩn).
+// A2 — 1 dòng máy bay, có sửa tại chỗ + xóa. "Sửa" mở hàng phụ ngay dưới dòng để đổi tên và CẤU HÌNH
+// GHẾ THEO HẠNG (số hàng + số ghế mỗi hàng của business / economy), sinh bằng lib/seatLayout.js
+// (cùng công thức với AircraftForm). Chỉ gửi seat_map_template khi admin THỰC SỰ đổi cấu hình ghế —
+// nếu chỉ đổi tên thì giữ nguyên sơ đồ cũ (kể cả sơ đồ nhập tay không theo layout chuẩn).
 //
 // Lưu ý hiển thị cho admin: sửa sơ đồ KHÔNG đổi ghế của chuyến bay đã tạo (ghi chú u).
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const BUSINESS_COLS = ["A", "B", "C", "D"];
-const ECONOMY_COLS = ["A", "B", "C", "D", "E", "F"];
-
-function buildSeatMap(businessRows, economyRows) {
-  const seatMap = [];
-  for (let row = 1; row <= businessRows; row++) {
-    for (const col of BUSINESS_COLS) {
-      seatMap.push({ seat_number: `${row}${col}`, seat_class: "business" });
-    }
-  }
-  for (let row = businessRows + 1; row <= businessRows + economyRows; row++) {
-    for (const col of ECONOMY_COLS) {
-      seatMap.push({ seat_number: `${row}${col}`, seat_class: "economy" });
-    }
-  }
-  return seatMap;
-}
+import SeatLayoutFields from "@/components/admin/SeatLayoutFields";
+import { buildSeatMap, validateLayout } from "@/lib/seatLayout";
 
 const inputCls =
   "rounded-lg border border-sand-100 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500";
 
+function describe(rows, perRow) {
+  return rows > 0 ? `${rows} hàng × ${perRow} ghế` : "—";
+}
+
 export default function AircraftRow({ aircraft }) {
   const router = useRouter();
-  const initialBusinessRows = Math.round(aircraft.businessCount / BUSINESS_COLS.length);
-  const initialEconomyRows = Math.round(aircraft.economyCount / ECONOMY_COLS.length);
+  const { layout: initialLayout } = aircraft; // { businessRows, businessPerRow, economyRows, economyPerRow, standard }
 
   const [mode, setMode] = useState("view"); // view | edit | confirmDelete
   const [name, setName] = useState(aircraft.name);
-  const [businessRows, setBusinessRows] = useState(initialBusinessRows);
-  const [economyRows, setEconomyRows] = useState(initialEconomyRows);
+  const [layout, setLayout] = useState({
+    businessRows: initialLayout.businessRows,
+    businessPerRow: initialLayout.businessPerRow,
+    economyRows: initialLayout.economyRows,
+    economyPerRow: initialLayout.economyPerRow,
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -49,8 +40,12 @@ export default function AircraftRow({ aircraft }) {
     setMode("view");
     setError(null);
     setName(aircraft.name);
-    setBusinessRows(initialBusinessRows);
-    setEconomyRows(initialEconomyRows);
+    setLayout({
+      businessRows: initialLayout.businessRows,
+      businessPerRow: initialLayout.businessPerRow,
+      economyRows: initialLayout.economyRows,
+      economyPerRow: initialLayout.economyPerRow,
+    });
   }
 
   async function call(options) {
@@ -70,16 +65,17 @@ export default function AircraftRow({ aircraft }) {
   }
 
   function handleSave() {
-    const b = Number(businessRows) || 0;
-    const e = Number(economyRows) || 0;
-    const rowsChanged = b !== initialBusinessRows || e !== initialEconomyRows;
-    if (rowsChanged && b + e === 0) {
-      setError("Cần ít nhất 1 hàng ghế.");
-      return;
-    }
+    const layoutChanged = ["businessRows", "businessPerRow", "economyRows", "economyPerRow"].some(
+      (k) => (Number(layout[k]) || 0) !== initialLayout[k]
+    );
     const payload = { name: name.trim() };
-    if (rowsChanged) {
-      const seatMap = buildSeatMap(b, e);
+    if (layoutChanged) {
+      const layoutError = validateLayout(layout);
+      if (layoutError) {
+        setError(layoutError);
+        return;
+      }
+      const seatMap = buildSeatMap(layout);
       payload.seat_map_template = seatMap;
       payload.total_seats = seatMap.length;
     }
@@ -91,52 +87,33 @@ export default function AircraftRow({ aircraft }) {
   }
 
   if (mode === "edit") {
-    const previewTotal =
-      (Number(businessRows) || 0) * BUSINESS_COLS.length +
-      (Number(economyRows) || 0) * ECONOMY_COLS.length;
     return (
-      <tr className="border-b border-sand-100 bg-sand-50/50 last:border-0 align-top">
-        <td className="px-4 py-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`${inputCls} w-full min-w-[160px]`}
-          />
-        </td>
-        <td className="px-4 py-3 text-ink/70">{previewTotal}</td>
-        <td className="px-4 py-3">
-          <input
-            type="number"
-            min={0}
-            value={businessRows}
-            onChange={(e) => setBusinessRows(e.target.value)}
-            className={`${inputCls} w-20`}
-            title="Số hàng business (4 ghế/hàng)"
-          />
-          <div className="mt-1 text-[11px] text-ink/50">hàng</div>
-        </td>
-        <td className="px-4 py-3">
-          <input
-            type="number"
-            min={0}
-            value={economyRows}
-            onChange={(e) => setEconomyRows(e.target.value)}
-            className={`${inputCls} w-20`}
-            title="Số hàng economy (6 ghế/hàng)"
-          />
-          <div className="mt-1 text-[11px] text-ink/50">hàng</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="flex w-56 flex-col gap-2">
+      <tr className="border-b border-sand-100 bg-sand-50/70 last:border-0">
+        <td colSpan={5} className="px-4 py-4">
+          <div className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ink/60">Tên máy bay</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} className={`${inputCls} w-64`} />
+            </label>
+
+            {!initialLayout.standard && (
+              <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+                Sơ đồ ghế hiện tại là sơ đồ tùy chỉnh (không đều theo hàng). Nếu bạn đổi cấu hình bên dưới,
+                toàn bộ sơ đồ sẽ được sinh lại theo cấu hình mới; chỉ đổi tên thì sơ đồ giữ nguyên.
+              </p>
+            )}
+
+            <SeatLayoutFields layout={layout} onChange={setLayout} />
+
             <p className="text-[11px] text-ink/60">
               Sửa sơ đồ ghế chỉ áp dụng cho chuyến bay tạo SAU, không đổi chuyến đã có.
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={pending}
-                className="rounded-lg bg-sea-500 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                className="rounded-lg bg-sea-500 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sea-700 disabled:opacity-50"
               >
                 {pending ? "Đang lưu..." : "Lưu"}
               </button>
@@ -144,12 +121,12 @@ export default function AircraftRow({ aircraft }) {
                 type="button"
                 onClick={reset}
                 disabled={pending}
-                className="rounded-lg bg-sand-100 px-3 py-1 text-xs font-medium text-ink"
+                className="rounded-lg bg-sand-100 px-4 py-1.5 text-sm font-medium text-ink"
               >
                 Bỏ qua
               </button>
+              {error && <p className="text-xs text-danger">{error}</p>}
             </div>
-            {error && <p className="text-xs text-danger">{error}</p>}
           </div>
         </td>
       </tr>
@@ -160,8 +137,18 @@ export default function AircraftRow({ aircraft }) {
     <tr className="border-b border-sand-100 last:border-0">
       <td className="px-4 py-3 font-medium text-ink">{aircraft.name}</td>
       <td className="px-4 py-3 text-ink/70">{aircraft.total_seats}</td>
-      <td className="px-4 py-3 text-ink/70">{aircraft.businessCount}</td>
-      <td className="px-4 py-3 text-ink/70">{aircraft.economyCount}</td>
+      <td className="px-4 py-3 text-ink/70">
+        {aircraft.businessCount}
+        <div className="text-[11px] text-ink/50">
+          {initialLayout.standard ? describe(initialLayout.businessRows, initialLayout.businessPerRow) : "tùy chỉnh"}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-ink/70">
+        {aircraft.economyCount}
+        <div className="text-[11px] text-ink/50">
+          {initialLayout.standard ? describe(initialLayout.economyRows, initialLayout.economyPerRow) : "tùy chỉnh"}
+        </div>
+      </td>
       <td className="px-4 py-3">
         {mode === "confirmDelete" ? (
           <div className="flex w-52 flex-col gap-2">
@@ -196,9 +183,9 @@ export default function AircraftRow({ aircraft }) {
             <button
               type="button"
               onClick={() => setMode("edit")}
-              className="rounded-lg border border-sea-700 px-3 py-1 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
+              className="whitespace-nowrap rounded-lg border border-sea-700 px-3 py-1 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
             >
-              Sửa
+              Sửa cấu hình
             </button>
             <button
               type="button"

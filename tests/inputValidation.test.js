@@ -118,7 +118,7 @@ test("validatePassengerDateOfBirth: sinh hôm nay và ngày hợp lệ được 
 
 // ------------------------------------------------------------ C6: tạo booking
 function makeFlight(id, { status = "scheduled", departIn = 48 * HOUR, userId = "u1" } = {}) {
-  const seat = (n, cls = "economy") => ({ seat_number: n, seat_class: cls, status: "held", held_by: userId });
+  const seat = (n, cls = "economy") => ({ seat_number: n, seat_class: cls, status: "held", held_by: userId, held_until: new Date(Date.now() + 20 * 60 * 1000) });
   return {
     _id: id,
     flight_number: `VN${id}`,
@@ -223,7 +223,11 @@ test("validateBookingCreation: ca hợp lệ tính đúng tiền; hành khách t
 test("holdSeat: chỉ giữ ghế chuyến scheduled và chưa khởi hành; báo đúng lý do khi thất bại", async () => {
   const origUpdate = Flight.findOneAndUpdate;
   const origFind = Flight.findById;
+  const origFindOne = Flight.findOne;
+  const origAggregate = Flight.aggregate;
   try {
+    Flight.findOne = async () => null; // không có ghế mình đang giữ
+    Flight.aggregate = async () => []; // hạn mức ghế đang giữ (vòng 5) — không cần DB thật
     let filterSeen;
     Flight.findOneAndUpdate = async (filter) => {
       filterSeen = filter;
@@ -249,5 +253,7 @@ test("holdSeat: chỉ giữ ghế chuyến scheduled và chưa khởi hành; bá
   } finally {
     Flight.findOneAndUpdate = origUpdate;
     Flight.findById = origFind;
+    Flight.findOne = origFindOne;
+    Flight.aggregate = origAggregate;
   }
 });

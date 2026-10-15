@@ -35,14 +35,19 @@ import PassengersForm from "./PassengersForm";
  */
 function toPlainFlight(doc, currentUserId) {
   const plain = JSON.parse(JSON.stringify(doc));
+  const now = Date.now();
   return {
     ...plain,
-    seats: plain.seats.map((s) => ({
-      seat_number: s.seat_number,
-      seat_class: s.seat_class,
-      status: s.status,
-      held_by_me: s.status === "held" && String(s.held_by) === String(currentUserId),
-    })),
+    seats: plain.seats.map((s) => {
+      // Ghế `held` đã quá hạn coi như trống (cron có thể chưa kịp nhả) — server holdSeat cũng vậy.
+      const expired = s.status === "held" && s.held_until && new Date(s.held_until).getTime() < now;
+      return {
+        seat_number: s.seat_number,
+        seat_class: s.seat_class,
+        status: expired ? "available" : s.status,
+        held_by_me: !expired && s.status === "held" && String(s.held_by) === String(currentUserId),
+      };
+    }),
   };
 }
 

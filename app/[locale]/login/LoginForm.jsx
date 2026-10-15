@@ -42,7 +42,7 @@ export default function LoginForm({ callbackUrl }) {
 
       {state?.error && (
         <p role="alert" className="text-sm text-danger">
-          {t("invalidCredentials")}
+          {state.error === "too_many" ? t("tooManyAttempts") : t("invalidCredentials")}
         </p>
       )}
 

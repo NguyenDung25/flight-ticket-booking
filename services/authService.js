@@ -11,6 +11,19 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const dbConnect = require("../lib/mongodb");
 const { BCRYPT_SALT_ROUNDS } = require("../config/constants");
+const { lockRemainingMs, recordFailure, reset } = require("../lib/loginThrottle");
+
+// bcrypt chỉ dùng 72 byte đầu của mật khẩu — mật khẩu dài hơn sẽ bị cắt ÂM THẦM, nên chặn rõ ràng.
+const BCRYPT_MAX_PASSWORD_BYTES = 72;
+const FULL_NAME_MAX_LENGTH = 100;
+
+// Hash giả để vẫn chạy bcrypt khi email không tồn tại → thời gian phản hồi không lộ email nào có
+// trong hệ thống (chống dò email qua timing).
+let dummyHash = null;
+function getDummyHash() {
+  if (!dummyHash) dummyHash = bcrypt.hashSync("dummy-password-for-timing", BCRYPT_SALT_ROUNDS);
+  return dummyHash;
+}
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
 class AuthError extends Error {
@@ -53,6 +66,19 @@ async function registerUser({ email, password, full_name, preferred_language }) 
   if (!email || !password || !full_name) {
     throw new AuthError("email, password, full_name đều là bắt buộc.");
   }
+  if (typeof email !== "string" || typeof password !== "string" || typeof full_name !== "string") {
+    throw new AuthError("email, password, full_name phải là chuỗi.", 400);
+  }
+  full_name = full_name.trim();
+  if (full_name.length < 1 || full_name.length > FULL_NAME_MAX_LENGTH) {
+    throw new AuthError(`Họ tên phải từ 1 đến ${FULL_NAME_MAX_LENGTH} ký tự.`, 400);
+  }
+  const allowedLanguages = User.schema.path("preferred_language")?.enumValues;
+  if (preferred_language !== undefined && preferred_language !== null && preferred_language !== "") {
+    if (typeof preferred_language !== "string" || (allowedLanguages && !allowedLanguages.includes(preferred_language))) {
+      throw new AuthError("Ngôn ngữ không được hỗ trợ.", 400);
+    }
+  }
   // Validate email format và độ dài password ở server — HTML minLength/type=email
   // chỉ chặn ở UI, gọi API trực tiếp vẫn vượt qua nếu không có check này.
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,8 +88,11 @@ async function registerUser({ email, password, full_name, preferred_language }) 
   if (password.length < 6) {
     throw new AuthError("Mật khẩu phải có ít nhất 6 ký tự.", 400);
   }
-  if (password.length > 128) {
-    throw new AuthError("Mật khẩu không được quá 128 ký tự.", 400);
+  if (password.length > 128 || Buffer.byteLength(password, "utf8") > BCRYPT_MAX_PASSWORD_BYTES) {
+    throw new AuthError(
+      `Mật khẩu quá dài (tối đa ${BCRYPT_MAX_PASSWORD_BYTES} byte, ký tự có dấu tính nhiều byte).`,
+      400
+    );
   }
 
   await dbConnect();
@@ -104,31 +133,33 @@ async function registerUser({ email, password, full_name, preferred_language }) 
  * @throws {AuthError} 401 nếu sai email/mật khẩu, 403 nếu tài khoản bị khóa
  */
 async function verifyCredentials({ email, password }) {
-  if (!email || !password) {
+  if (!email || !password || typeof email !== "string" || typeof password !== "string") {
     throw new AuthError("email và password đều là bắt buộc.", 401);
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Giới hạn số lần đăng nhập sai (kiểm tra TRƯỚC khi tốn công băm bcrypt).
+  if (lockRemainingMs(normalizedEmail) > 0) {
+    throw new AuthError("Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.", 429);
   }
 
   await dbConnect();
 
-  const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ email: normalizedEmail });
 
-  if (!user) {
+  // Luôn chạy bcrypt (hash giả nếu không có user) để thời gian phản hồi không phân biệt được.
+  const passwordMatches = await bcrypt.compare(password, user ? user.password_hash : getDummyHash());
+  if (!user || !passwordMatches) {
+    recordFailure(normalizedEmail);
     throw new AuthError("Email hoặc mật khẩu không đúng.", 401);
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.password_hash);
-  if (!passwordMatches) {
-    throw new AuthError("Email hoặc mật khẩu không đúng.", 401);
-  }
-
-  // Check SAU KHI xác thực mật khẩu đúng — tránh lộ qua thời gian phản hồi
-  // (timing side-channel) việc 1 email có tồn tại/bị khóa hay không cho
-  // người chưa biết đúng mật khẩu.
   if (user.is_blocked) {
     throw new AuthError("Tài khoản đã bị khóa.", 403);
   }
 
+  reset(normalizedEmail);
   return sanitizeUser(user);
 }
 

@@ -22,6 +22,7 @@ export async function GET(_request, { params }) {
     flight.seats = flight.seats.map((seat) => {
       const {
         held_by: _heldBy,
+        held_until: _heldUntil,
         boarding_pass_code: _boardingPassCode,
         checked_in: _checkedIn,
         checked_in_at: _checkedInAt,

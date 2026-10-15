@@ -7,6 +7,7 @@
 // client), bản thân LIST thì đọc thẳng.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import User from "@/models/User";
 import BlockToggleButton from "./BlockToggleButton";
 import DeleteUserButton from "./DeleteUserButton";
@@ -16,6 +17,7 @@ export const metadata = {
 };
 
 export default async function AdminUsersPage() {
+  await guardAdminPage();
   await dbConnect();
   const usersDocs = await User.find({}, "-password_hash")
     .sort({ created_at: -1 })

@@ -23,7 +23,9 @@ import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
+import Booking from "@/models/Booking";
 import { assertNoActiveBooking } from "@/services/flightService";
+import { validatePatch, changedSensitiveFields } from "@/lib/flightPatchRules";
 // Side-effect import — KHÔNG dùng biến này, chỉ cần chạy mongoose.model("Airline"/
 // "Aircraft", ...) trước khi .populate() bên dưới gọi tới. Không có 2 dòng
 // này, Next.js/Turbopack bundle route này riêng ở dev có thể KHÔNG bao giờ
@@ -103,11 +105,28 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Không có field hợp lệ nào để cập nhật." }, { status: 400 });
     }
 
-    // Ghi chú (v): đổi departure_time trên 1 chuyến đã có booking hiệu lực
-    // sẽ làm sai lệch vé đã bán (vé điện tử/boarding pass đã phát ghi giờ
-    // cũ) — chặn cứng ở đây TRƯỚC khi ghi DB. Không chặn khi chỉ sửa
-    // base_price/status/flight_number (không ảnh hưởng gì tới vé đã bán).
-    if (updates.departure_time) {
+    // Đọc bản ghi hiện có 1 lần để validate chéo và so sánh giá trị thật.
+    const current = await Flight.findById(id).select(
+      "departure_time arrival_time origin_code dest_code base_price seats"
+    );
+    if (!current) {
+      return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
+    }
+
+    // L2/L3: findByIdAndUpdate không chạy pre("validate") nên kiểm tra tay;
+    // đồng thời từ chối status "cancelled" (phải dùng cancel-bulk, A8).
+    validatePatch(updates, {
+      departure_time: current.departure_time,
+      arrival_time: current.arrival_time,
+      origin_code: current.origin_code,
+      dest_code: current.dest_code,
+      base_price: current.base_price,
+      hasBusinessSeats: current.seats?.some((s) => s.seat_class === "business"),
+    });
+
+    // Ghi chú (v): chỉ chặn khi field nhạy cảm THỰC SỰ đổi giá trị. UI luôn gửi
+    // đủ form, nên so theo "có mặt trong body" sẽ chặn cả việc chỉ sửa flight_number.
+    if (changedSensitiveFields(updates, current).length > 0) {
       await assertNoActiveBooking(id); // throws FlightError 409 nếu có
     }
 
@@ -115,7 +134,20 @@ export async function PATCH(request, { params }) {
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
-    return NextResponse.json(flight);
+    // Tài liệu (v/A8): đổi status → cancelled là sửa trạng thái đơn thuần, KHÔNG tự hủy booking.
+    // Cảnh báo admin nếu còn vé đang hiệu lực để họ chủ động bấm "Hủy chuyến & xử lý vé liên quan".
+    const body2 = flight.toObject();
+    if (updates.status === "cancelled") {
+      const stranded = await Booking.exists({
+        "flights.flight_id": flight._id,
+        status: { $in: ["pending_payment", "confirmed"] },
+      });
+      if (stranded) {
+        body2.warning =
+          "Chuyến đã chuyển 'cancelled' nhưng vẫn còn booking hiệu lực. Hãy bấm 'Hủy chuyến & xử lý vé liên quan' (A8) để hoàn tiền cho khách.";
+      }
+    }
+    return NextResponse.json(body2);
   } catch (err) {
     return handleApiError(err, "PATCH /api/admin/flights/[id]");
   }

@@ -17,6 +17,8 @@ import { handleApiError } from "@/lib/apiError";
 import Booking from "@/models/Booking";
 import { issueTicket } from "@/services/ticketService";
 
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
 export async function GET(request, { params }) {
   try {
     await dbConnect();
@@ -39,6 +41,22 @@ export async function GET(request, { params }) {
     // ?resend=true — khách bấm riêng nút "Gửi lại vé qua email" (xem comment
     // issueTicket: mặc định KHÔNG gửi lại mỗi lần chỉ mở trang xem vé).
     const resend = request.nextUrl.searchParams.get("resend") === "true";
+
+    // Chống bấm/gọi liên tục để "bắn" email: mỗi booking chỉ được gửi lại sau RESEND_COOLDOWN_MS.
+    // Lưu trong bộ nhớ tiến trình (globalThis vì Next có thể nạp module nhiều lần).
+    if (resend) {
+      const m = (globalThis.__ticketResendAt ??= new Map());
+      const last = m.get(id) ?? 0;
+      const wait = RESEND_COOLDOWN_MS - (Date.now() - last);
+      if (wait > 0) {
+        return NextResponse.json(
+          { message: `Vui lòng đợi ${Math.ceil(wait / 1000)} giây trước khi gửi lại email vé.` },
+          { status: 429 }
+        );
+      }
+      m.set(id, Date.now());
+      if (m.size > 5000) m.delete(m.keys().next().value);
+    }
 
     const { ticketData, emailSent } = await issueTicket({ bookingId: id, resend });
 

@@ -11,6 +11,7 @@
 // hơn đặt vé nhưng dùng chung hàm cho nhất quán, không viết logic riêng.
 
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { requireActiveUser } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
@@ -21,7 +22,8 @@ const ALLOWED_LOCALES = ["vi", "en"];
 export async function PATCH(request) {
   try {
     await dbConnect();
-    const user = await requireActiveUser();
+    const session = await auth();
+    const user = await requireActiveUser(session);
 
     const body = (await request.json().catch(() => null)) ?? {};
     const { preferred_language } = body;

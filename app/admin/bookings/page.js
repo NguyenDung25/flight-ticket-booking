@@ -6,6 +6,7 @@
 // Route API vẫn giữ cho phần hủy (cần tương tác client, dùng chung với C9).
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
@@ -28,6 +29,7 @@ const STATUS_LABELS = {
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
 export default async function AdminBookingsPage() {
+  await guardAdminPage();
   await dbConnect();
   const bookingDocs = await Booking.find({}, "-passengers.document_id")
     .populate("user_id", "email full_name")

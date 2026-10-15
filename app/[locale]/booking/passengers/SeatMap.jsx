@@ -33,6 +33,7 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
     if (!rows[row]) rows[row] = [];
     rows[row].push(seat);
   }
+  const gridCols = Math.max(0, ...Object.values(rows).map((r) => r.length));
   const rowNumbers = Object.keys(rows)
     .map(Number)
     .sort((a, b) => a - b);
@@ -49,34 +50,48 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
 
       <div className="overflow-x-auto">
       <div className="flex flex-col gap-1.5 min-w-max">
-        {rowNumbers.map((row) => (
-          <div key={row} className="flex items-center gap-1.5">
-            <span className="w-6 text-right text-xs text-ink/40">{row}</span>
-            {rows[row]
-              .sort((a, b) => a.seat_number.localeCompare(b.seat_number))
-              .map((seat) => {
-                const clickable =
-                  !disabled &&
-                  (seat.localStatus === "available" ||
-                    seat.localStatus === "selected" ||
-                    seat.localStatus === "mineUnassigned");
-                return (
-                  <button
-                    key={seat.seat_number}
-                    type="button"
-                    disabled={!clickable}
-                    onClick={() => clickable && onSelect(seat.seat_number)}
-                    title={`${seat.seat_number} · ${seat.seat_class}`}
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[11px] font-medium transition-colors disabled:cursor-not-allowed ${
-                      STATUS_CLASSES[seat.localStatus] ?? STATUS_CLASSES.available
-                    } ${seat.seat_class === "business" ? "ring-1 ring-sea-500/40" : ""}`}
-                  >
-                    {parseSeatNumber(seat.seat_number).letter}
-                  </button>
-                );
-              })}
-          </div>
-        ))}
+        {rowNumbers.map((row) => {
+          // Lưới cột = số ghế của hàng DÀI NHẤT (thường là economy). Hàng ngắn hơn (business) được đặt vào GIỮA
+          // lưới → ghế business thẳng cột với các ghế giữa của economy (VD economy A–F, business 4 ghế → B–E).
+          // Lối đi nằm giữa lưới (sau nửa số cột) khi lưới từ 4 cột trở lên, giống máy bay thật.
+          const rowSeats = [...rows[row]].sort((a, b) => a.seat_number.localeCompare(b.seat_number));
+          const offset = Math.floor((gridCols - rowSeats.length) / 2);
+          const aisleAt = gridCols >= 4 ? Math.ceil(gridCols / 2) : -1;
+          const cells = [];
+          for (let c = 0; c < gridCols; c++) {
+            if (c === aisleAt) cells.push(<span key={`aisle-${c}`} className="w-6 shrink-0" aria-hidden="true" />);
+            const seat = rowSeats[c - offset];
+            if (!seat) {
+              cells.push(<span key={`gap-${c}`} className="h-8 w-8 shrink-0" aria-hidden="true" />);
+              continue;
+            }
+            const clickable =
+              !disabled &&
+              (seat.localStatus === "available" ||
+                seat.localStatus === "selected" ||
+                seat.localStatus === "mineUnassigned");
+            cells.push(
+              <button
+                key={seat.seat_number}
+                type="button"
+                disabled={!clickable}
+                onClick={() => clickable && onSelect(seat.seat_number)}
+                title={`${seat.seat_number} · ${seat.seat_class}`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[11px] font-medium transition-colors disabled:cursor-not-allowed ${
+                  STATUS_CLASSES[seat.localStatus] ?? STATUS_CLASSES.available
+                } ${seat.seat_class === "business" ? "ring-1 ring-sea-500/40" : ""}`}
+              >
+                {parseSeatNumber(seat.seat_number).letter}
+              </button>
+            );
+          }
+          return (
+            <div key={row} className="flex items-center gap-1.5">
+              <span className="w-6 shrink-0 text-right text-xs text-ink/40">{row}</span>
+              {cells}
+            </div>
+          );
+        })}
       </div>
       </div>
     </div>

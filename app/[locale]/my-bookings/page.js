@@ -9,6 +9,7 @@
 // session hợp lệ — không cần tự redirect (giống app/[locale]/booking/*).
 
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { guardActivePage } from "@/lib/guardActivePage";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
@@ -26,13 +27,14 @@ export default async function MyBookingsPage({ params }) {
   const t = await getTranslations("MyBookings");
 
   const session = await auth();
+  await guardActivePage(session); // tài khoản bị khóa/xóa -> về /login (JWT cũ vẫn còn hạn)
 
   await dbConnect();
   const bookings = await Booking.find({ user_id: session.user.id })
     .sort({ created_at: -1 })
     .populate({
       path: "flights.flight_id",
-      select: "flight_number origin_code dest_code departure_time arrival_time",
+      select: "flight_number origin_code dest_code departure_time arrival_time status",
     });
 
   // toJSON() của Mongoose Document tự lo ObjectId -> string, Date -> ISO —

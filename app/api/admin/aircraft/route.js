@@ -9,6 +9,7 @@ import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Aircraft from "@/models/Aircraft";
+import { assertValidSeatMapTemplate } from "@/lib/seatMapValidation";
 
 export async function GET() {
   try {
@@ -50,6 +51,7 @@ export async function POST(request) {
       );
     }
 
+    assertValidSeatMapTemplate(seat_map_template);
     const aircraft = await Aircraft.create({ name, total_seats, seat_map_template });
     return NextResponse.json(aircraft, { status: 201 });
   } catch (err) {

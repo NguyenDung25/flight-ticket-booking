@@ -36,6 +36,14 @@ class FlightError extends Error {
  * biết còn trống bao nhiêu ghế mỗi hạng, không cần seat_number cụ thể.
  * Seat map chi tiết (để chọn ghế) chỉ cần tải riêng ở bước C5.
  */
+// Ghế trống = `available`, HOẶC `held` đã quá hạn (cron chưa kịp nhả) — khớp seatService.holdSeat.
+const AVAILABLE_SEAT_COND = {
+  $or: [
+    { $eq: ["$$s.status", "available"] },
+    { $and: [{ $eq: ["$$s.status", "held"] }, { $lt: ["$$s.held_until", "$$NOW"] }] },
+  ],
+};
+
 function buildAvailableSeatsProjection() {
   return {
     economy: {
@@ -43,7 +51,7 @@ function buildAvailableSeatsProjection() {
         $filter: {
           input: "$seats",
           as: "s",
-          cond: { $and: [{ $eq: ["$$s.status", "available"] }, { $eq: ["$$s.seat_class", "economy"] }] },
+          cond: { $and: [AVAILABLE_SEAT_COND, { $eq: ["$$s.seat_class", "economy"] }] },
         },
       },
     },
@@ -52,7 +60,7 @@ function buildAvailableSeatsProjection() {
         $filter: {
           input: "$seats",
           as: "s",
-          cond: { $and: [{ $eq: ["$$s.status", "available"] }, { $eq: ["$$s.seat_class", "business"] }] },
+          cond: { $and: [AVAILABLE_SEAT_COND, { $eq: ["$$s.seat_class", "business"] }] },
         },
       },
     },

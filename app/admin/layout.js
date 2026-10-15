@@ -22,7 +22,8 @@
 // đã làm (giữ ghế, tạo booking, thanh toán...).
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminTopbar from "@/components/admin/AdminTopbar";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { ActiveUserError } from "@/lib/requireActiveUser";
 import "../globals.css";
@@ -36,19 +37,8 @@ import "../globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Quản trị — Sun Phú Quốc Airways",
+  title: "Quản trị — DelayX",
 };
-
-const NAV_ITEMS = [
-  { href: "/admin/users", label: "Người dùng" },
-  { href: "/admin/bookings", label: "Booking" },
-  { href: "/admin/flights", label: "Chuyến bay" },
-  { href: "/admin/airlines", label: "Hãng bay" },
-  { href: "/admin/aircraft", label: "Máy bay" },
-  { href: "/admin/promotions", label: "Khuyến mãi" },
-  { href: "/admin/refunds", label: "Hoàn tiền" },
-  { href: "/admin/stats", label: "Thống kê" },
-];
 
 export default async function AdminLayout({ children }) {
   let admin;
@@ -66,54 +56,15 @@ export default async function AdminLayout({ children }) {
 
   return (
     <html lang="vi" className="h-full antialiased">
-      <body className="flex min-h-full flex-col bg-sand-50 text-ink">
-        <header className="border-b border-sand-100 bg-white px-6 py-4">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center justify-between gap-4 lg:justify-start">
-              <Link href="/admin" className="font-display text-lg font-semibold text-sea-900">
-                Quản trị
-              </Link>
-              {/* Nhóm này chuyển sang hàng đầu cùng brand trên mobile/tablet
-                  (chỗ trống rộng hơn để căn phải), rồi mới xuống lg mới tách
-                  ra hàng riêng bên phải — tránh brand + admin.email + nút
-                  "Về giao diện khách" chen cùng 8 mục nav trên 1 hàng, đúng
-                  nguyên nhân tràn/chồng đã báo. */}
-              <div className="flex items-center gap-4 lg:hidden">
-                <Link
-                  href="/"
-                  className="rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
-                >
-                  ← Về giao diện khách
-                </Link>
-                <span className="text-sm text-ink/60">{admin.email}</span>
-              </div>
-            </div>
-
-            {/* 8 mục — cuộn ngang thay vì tràn/chồng khi màn hình hẹp hơn
-                bề rộng cần thiết (thay vì flex-wrap xuống nhiều hàng, vì nav
-                admin dùng thường xuyên, cuộn ngang 1 hàng dễ quét mắt hơn
-                nhảy dòng lộn xộn). -mx-6 px-6 để vùng cuộn tràn hết bề ngang
-                khả dụng kể cả trong lúc đang cuộn (che mất padding cha). */}
-            <nav className="-mx-6 flex gap-5 overflow-x-auto whitespace-nowrap px-6 text-sm font-medium text-sea-700 lg:mx-0 lg:px-0">
-              {NAV_ITEMS.map((item) => (
-                <Link key={item.href} href={item.href} className="shrink-0 hover:underline">
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-
-            <div className="hidden items-center gap-4 lg:flex">
-              <Link
-                href="/"
-                className="rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
-              >
-                ← Về giao diện khách
-              </Link>
-              <span className="text-sm text-ink/60">{admin.email}</span>
-            </div>
+      <body className="min-h-full bg-sand-50 text-ink">
+        {/* Menu trái (md trở lên) / hàng ngang trên cùng (màn hình hẹp) + thanh trên có tên trang, đăng xuất. */}
+        <div className="flex min-h-screen flex-col md:flex-row">
+          <AdminSidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <AdminTopbar email={admin.email} />
+            <main className="w-full flex-1 px-6 py-8 md:px-8">{children}</main>
           </div>
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
+        </div>
       </body>
     </html>
   );

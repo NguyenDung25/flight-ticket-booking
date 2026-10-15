@@ -58,9 +58,15 @@ const Flight = require("../models/Flight");
 const { BCRYPT_SALT_ROUNDS } = require("../config/constants");
 
 const ADMIN_EMAIL = "admin@example.com";
-const ADMIN_PASSWORD = "Admin@123";
+// Tài khoản DEMO mật khẩu mặc định công khai — chỉ để chạy thử/bảo vệ đồ án. Đặt SEED_ADMIN_PASSWORD /
+// SEED_CUSTOMER_PASSWORD trong môi trường để dùng mật khẩu khác; script từ chối chạy khi NODE_ENV=production.
+if (process.env.NODE_ENV === "production") {
+  console.error("❌ Không chạy seed demo ở môi trường production (có tài khoản admin mật khẩu mặc định).");
+  process.exit(1);
+}
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
 const CUSTOMER_EMAIL = "customer@example.com";
-const CUSTOMER_PASSWORD = "Customer@123";
+const CUSTOMER_PASSWORD = process.env.SEED_CUSTOMER_PASSWORD || "Customer@123";
 
 async function seedUsers() {
   const adminHash = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_SALT_ROUNDS);

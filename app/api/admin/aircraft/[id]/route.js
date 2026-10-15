@@ -15,6 +15,7 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { ActiveUserError } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
 import Aircraft from "@/models/Aircraft";
+import { assertValidSeatMapTemplate } from "@/lib/seatMapValidation";
 import Flight from "@/models/Flight";
 
 const SEAT_CLASSES = ["economy", "business"];
@@ -26,26 +27,6 @@ function assertValidId(id) {
 }
 
 /** Kiểm tra từng ghế hợp lệ + không trùng số ghế. Ném 400 nếu sai. */
-function assertValidSeatMap(seatMap) {
-  const seen = new Set();
-  for (const seat of seatMap) {
-    const num = typeof seat?.seat_number === "string" ? seat.seat_number.trim() : "";
-    if (!num) {
-      throw new ActiveUserError("Mọi ghế trong seat_map_template phải có seat_number.", 400);
-    }
-    if (!SEAT_CLASSES.includes(seat.seat_class)) {
-      throw new ActiveUserError(
-        `Ghế ${num} có seat_class không hợp lệ (chỉ nhận: ${SEAT_CLASSES.join(", ")}).`,
-        400
-      );
-    }
-    if (seen.has(num)) {
-      throw new ActiveUserError(`Số ghế ${num} bị trùng trong seat_map_template.`, 400);
-    }
-    seen.add(num);
-  }
-}
-
 async function update(request, { params }, context) {
   try {
     await dbConnect();
@@ -70,7 +51,7 @@ async function update(request, { params }, context) {
       if (!Array.isArray(body.seat_map_template) || body.seat_map_template.length === 0) {
         throw new ActiveUserError("seat_map_template phải là mảng có ít nhất 1 ghế.", 400);
       }
-      assertValidSeatMap(body.seat_map_template);
+      assertValidSeatMapTemplate(body.seat_map_template);
       // total_seats luôn tính từ chính template — không tin con số client gửi riêng.
       if (
         body.total_seats !== undefined &&

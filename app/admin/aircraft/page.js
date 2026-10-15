@@ -8,15 +8,18 @@
 // convention mọi page.js khác trong khu Admin.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Aircraft from "@/models/Aircraft";
 import AircraftForm from "./AircraftForm";
 import AircraftRow from "./AircraftRow";
+import { detectLayout } from "@/lib/seatLayout";
 
 export const metadata = {
   title: "Máy bay — Quản trị",
 };
 
 export default async function AdminAircraftPage() {
+  await guardAdminPage();
   await dbConnect();
   const aircraftDocs = await Aircraft.find().sort({ name: 1 }).lean();
 
@@ -29,6 +32,7 @@ export default async function AdminAircraftPage() {
       total_seats: a.total_seats,
       businessCount,
       economyCount,
+      layout: detectLayout(a.seat_map_template),
       // Cờ cảnh báo — mismatch không bị chặn ở DB (ghi chú trong
       // models/Aircraft.js: "ngoài phạm vi đồ án, mục 6"), nhưng UI vẫn nên
       // tự phát hiện và cảnh báo cho admin biết ngay, thay vì để lộ khi tạo
@@ -42,8 +46,8 @@ export default async function AdminAircraftPage() {
       <div>
         <h1 className="font-display text-2xl font-semibold text-sea-900">Máy bay</h1>
         <p className="text-sm text-ink/60">
-          {aircraft.length} loại máy bay. seat_map_template là nguồn DUY NHẤT sinh ghế khi tạo chuyến
-          bay (A1) — sửa sơ đồ chỉ áp dụng cho chuyến bay tạo sau, không đổi các chuyến đã có.
+          {aircraft.length} loại máy bay. Cấu hình ghế theo hạng (số hàng × số ghế mỗi hàng của Business / Economy) là nguồn
+          DUY NHẤT sinh ghế khi tạo chuyến bay (A1) — sửa cấu hình chỉ áp dụng cho chuyến bay tạo sau, không đổi các chuyến đã có.
         </p>
       </div>
 

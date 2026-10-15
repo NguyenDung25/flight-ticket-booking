@@ -13,19 +13,50 @@
 // (KHÔNG qua API) — đúng convention mọi page.js khác trong khu Admin.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Flight from "@/models/Flight";
 import Airline from "@/models/Airline";
 import Aircraft from "@/models/Aircraft";
 import Airport from "@/models/Airport";
 import FlightForm from "./FlightForm";
 import FlightsTable from "./FlightsTable";
+import FlightsTabs from "./FlightsTabs";
+import PopularRoutesAdmin from "./PopularRoutesAdmin";
+import { listForAdmin } from "@/services/popularRouteService";
 
 export const metadata = {
   title: "Chuyến bay — Quản trị",
 };
 
-export default async function AdminFlightsPage() {
+// Tab "Tuyến phổ biến" (?tab=routes): quản lý khối "Tuyến bay phổ biến" ở trang chủ khách — xem
+// PopularRoutesAdmin.jsx / services/popularRouteService.js. Cùng nằm dưới 1 mục menu Chuyến bay.
+async function RoutesTab() {
+  const [initial, airportDocs] = await Promise.all([
+    listForAdmin(),
+    Airport.find({}, "code name city").sort({ code: 1 }).lean(),
+  ]);
+  const airports = airportDocs.map((a) => ({
+    code: a.code,
+    city: a.city ?? "",
+    label: `${a.code} — ${a.name?.vi ?? a.code}${a.city ? ` (${a.city})` : ""}`,
+  }));
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-sea-900">Chuyến bay</h1>
+        <p className="text-sm text-ink/60">Tuyến bay phổ biến hiển thị ở trang chủ.</p>
+      </div>
+      <FlightsTabs active="routes" />
+      <PopularRoutesAdmin initial={initial} airports={airports} />
+    </div>
+  );
+}
+
+export default async function AdminFlightsPage({ searchParams }) {
+  await guardAdminPage();
   await dbConnect();
+  const { tab } = await searchParams;
+  if (tab === "routes") return <RoutesTab />;
   const [flightDocs, airlineDocs, aircraftDocs, airportDocs] = await Promise.all([
     Flight.find()
       .sort({ departure_time: -1 })
@@ -81,6 +112,8 @@ export default async function AdminFlightsPage() {
         <h1 className="font-display text-2xl font-semibold text-sea-900">Chuyến bay</h1>
         <p className="text-sm text-ink/60">{flights.length} chuyến gần nhất.</p>
       </div>
+
+      <FlightsTabs active="flights" />
 
       <FlightForm airlines={airlines} aircraft={aircraft} airports={airports} />
 

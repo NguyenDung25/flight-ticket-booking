@@ -37,7 +37,7 @@ export async function POST(request) {
     await dbConnect();
     await requireAdminUser();
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const { code, discount_percent, valid_from, valid_until, usage_limit } = body ?? {};
 
     if (!code || discount_percent === undefined || !valid_from || !valid_until) {
