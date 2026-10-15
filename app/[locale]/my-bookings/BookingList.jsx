@@ -19,6 +19,8 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { toVN } from "@/lib/timezone";
+import { getRefundNote } from "@/lib/refundNote";
+import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
@@ -45,16 +47,20 @@ const CANCELLABLE_STATUSES = new Set(["pending_payment", "confirmed"]);
  * mount) nên đưa thẳng vào dependency array là đủ, không cần ref.
  */
 function useCountdown(expiresAt) {
-  const [remainingMs, setRemainingMs] = useState(() =>
-    expiresAt ? new Date(expiresAt).getTime() - Date.now() : null
-  );
+  // Bắt đầu bằng null (chưa hiển thị) ở CẢ server lẫn lần render đầu trên trình duyệt: nếu tính
+  // Date.now() ngay khi render, server và trình duyệt lệch nhau vài trăm ms -> chữ "11:33" vs "11:34"
+  // khác nhau -> lỗi hydration. Chỉ bắt đầu đếm sau khi component đã chạy trên trình duyệt.
+  const [remainingMs, setRemainingMs] = useState(null);
 
   useEffect(() => {
     if (!expiresAt) return undefined;
-    const id = setInterval(() => {
-      setRemainingMs(new Date(expiresAt).getTime() - Date.now());
-    }, 1000);
-    return () => clearInterval(id);
+    const tick = () => setRemainingMs(new Date(expiresAt).getTime() - Date.now());
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [expiresAt]);
 
   return remainingMs;
@@ -121,7 +127,7 @@ function PayNowButton({ bookingId, t }) {
       const res = await fetch(`/api/payments/${bookingId}`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data?.message || t("payNowError"));
+        throw new Error(localizeApiMessage(data?.message, currentUiLocale()) || t("payNowError"));
       }
       window.location.href = data.payUrl;
     } catch (err) {
@@ -147,6 +153,7 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
 
   const outboundLeg = booking.flights.find((f) => f.leg === "outbound");
   const returnLeg = booking.flights.find((f) => f.leg === "return");
+  const refundNote = getRefundNote(booking);
 
   async function handleConfirmCancel() {
     setCancelling(true);
@@ -159,7 +166,7 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || t("cancelError"));
+        throw new Error(localizeApiMessage(data.message, currentUiLocale()) || t("cancelError"));
       }
       onCancelled(data);
       setConfirming(false);
@@ -189,12 +196,22 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
       </div>
 
       {booking.status === "confirmed" && (
-        <Link
-          href={`/my-bookings/${booking._id}/ticket`}
-          className="mt-2 inline-block text-xs font-medium text-sea-500 hover:underline"
-        >
-          {t("viewTicket")}
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-4">
+          <Link
+            href={`/my-bookings/${booking._id}/ticket`}
+            className="text-xs font-medium text-sea-500 hover:underline"
+          >
+            {t("viewTicket")}
+          </Link>
+          {booking.booking_code && (
+            <Link
+              href={`/check-in?code=${booking.booking_code}`}
+              className="text-xs font-medium text-sea-500 hover:underline"
+            >
+              {t("goToCheckIn")}
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="mt-3 flex flex-col gap-1">
@@ -213,19 +230,15 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
               <p className="text-xs text-sea-700">
                 {t("refundAmountLabel")}: {CURRENCY_FORMATTER.format(booking.refund_amount)}đ
               </p>
-              {/* Giải thích mốc phạt đã áp dụng (ghi chú j/w) — giúp khách hiểu
-                  tại sao số tiền hoàn khác tổng tiền đã trả. */}
-              {booking.cancellation_fee_amount != null && booking.cancellation_fee_amount > 0 && (
+              {/* Giải thích số tiền hoàn theo từng trường hợp hủy (một chiều / khứ hồi chặng đi /
+                  khứ hồi chặng về / hãng hủy) — logic chọn câu nằm ở lib/refundNote.js. */}
+              {refundNote && (
                 <p className="text-xs text-ink/50">
-                  {booking.cancellation_tier === "partial"
-                    ? t("tierPartialNote", { fee: CURRENCY_FORMATTER.format(booking.cancellation_fee_amount) })
-                    : booking.cancellation_tier === "none"
-                    ? t("tierNoneNote")
-                    : t("tierFixedFeeNote", { fee: CURRENCY_FORMATTER.format(booking.cancellation_fee_amount) })}
+                  {t(
+                    refundNote.key,
+                    refundNote.fee != null ? { fee: CURRENCY_FORMATTER.format(refundNote.fee) } : undefined
+                  )}
                 </p>
-              )}
-              {booking.cancellation_fee_amount === 0 && (
-                <p className="text-xs text-ink/50">{t("tierFullNote")}</p>
               )}
             </div>
           )}
@@ -279,8 +292,10 @@ export default function BookingList({ initialBookings }) {
   const [bookings, setBookings] = useState(initialBookings);
 
   function handleCancelled(updatedBooking) {
+    // API cancel trả booking CHƯA populate flights (flight_id chỉ là chuỗi) — giữ lại flights đã
+    // populate của bản cũ, nếu không thẻ vé sẽ báo "Flight no longer available" cho tới khi tải lại trang.
     setBookings((prev) =>
-      prev.map((b) => (b._id === updatedBooking._id ? updatedBooking : b))
+      prev.map((b) => (b._id === updatedBooking._id ? { ...updatedBooking, flights: b.flights } : b))
     );
   }
 

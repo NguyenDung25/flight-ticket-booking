@@ -21,6 +21,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
+import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
@@ -71,7 +72,10 @@ async function apiCall(url, body) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || "Request failed");
+    const err = new Error(localizeApiMessage(data.message, currentUiLocale()) || "Request failed");
+    // 409 từ POST /api/bookings: đã có booking chờ thanh toán chứa cùng ghế — kèm id để tiếp tục thanh toán.
+    if (data.existing_booking_id) err.existingBookingId = data.existing_booking_id;
+    throw err;
   }
   return data;
 }
@@ -228,9 +232,9 @@ export default function PassengersForm({
       // client rồi bỏ qua gọi API. Lý do: state "mineUnassigned" tính từ
       // dữ liệu tải lúc vào trang, có thể đã CŨ (VD ghế đã bị server tự nhả
       // vì hết hạn 30 phút trong lúc người dùng còn đang ở trên trang) —
-      // hold-seat() phía server giờ đã idempotent (xem services/seatService.js),
-      // gọi lại luôn an toàn: nếu ghế thật sự vẫn đang là của mình thì chỉ
-      // refresh held_until; nếu đã bị nhả thì giữ lại như hold mới, không
+      // hold-seat() phía server là idempotent (xem services/seatService.js),
+      // gọi lại luôn an toàn: nếu ghế thật sự vẫn đang là của mình (còn hạn) thì không đổi gì
+      // (KHÔNG gia hạn held_until); nếu đã bị nhả/quá hạn thì giữ lại như hold mới, không
       // silently coi là "đã giữ" trong khi thực ra không còn giữ gì cả.
       await callHoldSeat(leg, seatNumber);
       setSeatLocal(leg, seatNumber, { status: "held", held_by_me: true });
@@ -332,7 +336,7 @@ export default function PassengersForm({
     try {
       let bookingId = createdBookingId;
 
-      // Nếu bước thanh toán lần trước lỗi (VD Momo tạm thời không phản hồi),
+      // Nếu bước thanh toán lần trước lỗi (VD VNPay tạm thời không phản hồi),
       // booking ĐÃ tồn tại — chỉ retry thanh toán, KHÔNG tạo booking lần 2.
       if (!bookingId) {
         const flights = [{ flight_id: outboundFlight._id, leg: "outbound" }];
@@ -381,6 +385,23 @@ export default function PassengersForm({
       const payment = await apiCall(`/api/payments/${bookingId}`, {});
       window.location.href = payment.payUrl;
     } catch (err) {
+      // Quay lại từ trang VNPay rồi bấm đặt lần nữa: server chặn booking thứ 2 cùng ghế (409). Cho khách
+      // tiếp tục thanh toán booking đang chờ thay vì kẹt; nói rõ là dữ liệu hành khách của booking cũ.
+      if (err.existingBookingId) {
+        const goOn = window.confirm(
+          `${err.message}\n\n${t("continuePendingConfirm")}`
+        );
+        if (goOn) {
+          try {
+            const payment = await apiCall(`/api/payments/${err.existingBookingId}`, {});
+            window.location.href = payment.payUrl;
+            return;
+          } catch (payErr) {
+            setErrorMessage(payErr.message || t("submitError"));
+            return;
+          }
+        }
+      }
       setErrorMessage(err.message || t("submitError"));
     } finally {
       setSubmitting(false);

@@ -48,3 +48,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Cache native binding SWC (xem .claude/launch.json — SWC_NATIVE_BINDING_CACHE)
+/.swc-cache

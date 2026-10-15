@@ -32,6 +32,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { searchFlights, getFlightDetail, FlightError } from "@/services/flightService";
+import { localizeApiMessage } from "@/lib/apiMessages";
 import { toVN } from "@/lib/timezone";
 import { Link } from "@/i18n/navigation";
 import FilterableFlightList from "./FilterableFlightList";
@@ -105,7 +106,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
     // chung, KHÔNG lộ chi tiết kỹ thuật ra trang khách xem — nhưng vẫn PHẢI
     // log ra terminal, nếu không lỗi thật bị nuốt hoàn toàn, không debug được.
     console.error("SearchPage error:", err);
-    errorMessage = err instanceof FlightError ? err.message : tCommon("error");
+    errorMessage = err instanceof FlightError ? localizeApiMessage(err.message, locale) : tCommon("error");
   }
 
   // Mang NGUYÊN VẸN ngữ cảnh tìm kiếm (giữ luôn passengerCount dạng chuỗi

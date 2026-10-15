@@ -9,24 +9,28 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
+import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
 
 export default function ResendButton({ bookingId }) {
   const t = useTranslations("Ticket");
   const [state, setState] = useState("idle"); // idle | sending | sent | error
+  const [errorText, setErrorText] = useState(null);
 
   async function handleResend() {
     setState("sending");
+    setErrorText(null);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/ticket?resend=true`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || t("resendError"));
+        throw new Error(localizeApiMessage(data.message, currentUiLocale()) || t("resendError"));
       }
       // emailSent có thể vẫn false nếu SMTP lỗi (issueTicket KHÔNG ném lỗi
       // trong trường hợp đó, xem comment gốc) — phân biệt rõ 2 trạng thái
       // thay vì gộp chung "đã gửi" khi thực ra chỉ là request thành công.
       setState(data.email_sent ? "sent" : "error");
-    } catch {
+    } catch (err) {
+      setErrorText(err.message);
       setState("error");
     }
   }
@@ -37,7 +41,7 @@ export default function ResendButton({ bookingId }) {
         {state === "sending" ? t("resending") : t("resendButton")}
       </Button>
       {state === "sent" && <p className="text-xs text-sea-700">{t("resendSuccess")}</p>}
-      {state === "error" && <p className="text-xs text-danger">{t("resendError")}</p>}
+      {state === "error" && <p className="text-xs text-danger">{errorText || t("resendError")}</p>}
     </div>
   );
 }

@@ -11,10 +11,12 @@
 // vì là hành động sau khi trang đã tải xong).
 
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { guardActivePage } from "@/lib/guardActivePage";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
 import { issueTicket, TicketError } from "@/services/ticketService";
+import { localizeApiMessage } from "@/lib/apiMessages";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";
 import { toVN } from "@/lib/timezone";
@@ -36,6 +38,7 @@ export default async function TicketPage({ params }) {
   const tFlightDetail = await getTranslations("FlightDetail"); // tái dùng economyLabel/businessLabel
 
   const session = await auth();
+  await guardActivePage(session); // tài khoản bị khóa/xóa -> về /login (JWT cũ vẫn còn hạn)
 
   await dbConnect();
   const booking = await Booking.findById(id).catch(() => null);
@@ -74,7 +77,7 @@ export default async function TicketPage({ params }) {
     // TicketError bị nuốt hoàn toàn, chỉ còn message chung chung hiện cho
     // khách, không cách nào biết nguyên nhân thật để debug.
     console.error("TicketPage error:", err);
-    errorMessage = err instanceof TicketError ? err.message : t("genericError");
+    errorMessage = err instanceof TicketError ? localizeApiMessage(err.message, locale) : t("genericError");
   }
 
   if (errorMessage || !ticketData) {
@@ -97,6 +100,9 @@ export default async function TicketPage({ params }) {
       </div>
 
       <Card className="w-full max-w-2xl p-6">
+        <h1 className="mb-4 border-b border-sand-100 pb-3 font-display text-xl font-semibold text-sea-900">
+          {t("title")}
+        </h1>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">

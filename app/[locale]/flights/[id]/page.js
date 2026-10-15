@@ -22,6 +22,7 @@
 import { getTranslations, getLocale, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { getFlightDetail, FlightError } from "@/services/flightService";
+import { localizeApiMessage } from "@/lib/apiMessages";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";
 import { toVN } from "@/lib/timezone";
@@ -58,7 +59,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
     // toàn, chỉ còn "Đã có lỗi xảy ra" hiện cho khách, không cách nào biết
     // nguyên nhân thật để debug (đây chính xác là bug vừa gặp lúc test).
     console.error("FlightDetailPage error:", err);
-    errorMessage = err instanceof FlightError ? err.message : tCommon("error");
+    errorMessage = err instanceof FlightError ? localizeApiMessage(err.message, locale) : tCommon("error");
   }
 
   if (errorMessage || !flight) {
