@@ -1,41 +1,24 @@
 // app/api/flights/[id]/check-in/route.js
 //
-// C10 — check-in online. Toàn bộ rule nghiệp vụ (khung giờ 24h-2h, đúng chủ
-// ghế, ghế phải đang 'booked', chặn check-in 2 lần) nằm ở
-// services/seatService.checkInSeat(), được services/checkinService.checkIn()
-// gọi kèm bước đối chiếu Booking để lấy locale + tên hành khách cho boarding
-// pass. Route này chỉ lo auth + đọc body + map lỗi.
+// C10 — bước cuối của check-in online: POST { seat_number, booking_code, passenger_name, ici_accepted }
+// -> thẻ lên máy bay. KHÔNG cần đăng nhập (giống website hãng bay): xác thực bằng mã đặt chỗ + họ hành
+// khách, bắt buộc ici_accepted === true (services/checkinService.js), chống dò mã bằng lib/checkinGuard.js. Toàn bộ rule ghi ghế (chuyến
+// hủy, khung giờ 24h-2h, ghế phải 'booked', chặn check-in 2 lần) nằm ở seatService.checkInSeat().
 
-import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import { auth } from "@/auth";
-import { requireActiveUser } from "@/lib/requireActiveUser";
-import { handleApiError } from "@/lib/apiError";
+import { withCheckinGuard } from "@/lib/checkinGuard";
 import { checkIn } from "@/services/checkinService";
 
 export async function POST(request, { params }) {
-  try {
+  return withCheckinGuard(request, "POST /api/flights/[id]/check-in", async (body) => {
     await dbConnect();
-
-    const session = await auth();
-    const user = await requireActiveUser(session);
-
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const { seat_number } = body ?? {};
-
-    if (!seat_number) {
-      return NextResponse.json({ message: "Thiếu seat_number." }, { status: 400 });
-    }
-
-    const boardingPass = await checkIn({
+    return checkIn({
       flightId: id,
-      seatNumber: seat_number,
-      userId: user._id,
+      seatNumber: body.seat_number,
+      bookingCode: body.booking_code,
+      passengerName: body.passenger_name,
+      iciAccepted: body.ici_accepted,
     });
-
-    return NextResponse.json(boardingPass);
-  } catch (err) {
-    return handleApiError(err, "POST /api/flights/[id]/check-in");
-  }
+  });
 }

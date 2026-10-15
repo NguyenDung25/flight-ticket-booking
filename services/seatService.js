@@ -11,13 +11,58 @@
 const crypto = require("crypto");
 const Flight = require("../models/Flight");
 const { isCheckInWindowOpen } = require("../lib/timezone");
-const { SEAT_HOLD_DURATION_MS, BOARDING_PASS_CODE_LENGTH } = require("../config/constants");
+const mongoose = require("mongoose");
+const {
+  SEAT_HOLD_DURATION_MS,
+  BOARDING_PASS_CODE_LENGTH,
+  MAX_HELD_SEATS_PER_USER,
+} = require("../config/constants");
 
 class SeatConflictError extends Error {
   constructor(message) {
     super(message);
     this.statusCode = 409; // Conflict — dùng để API route trả đúng mã lỗi
   }
+}
+
+/** seat_number từ client phải là chuỗi ngắn — chặn object toán tử ({"$ne":...}) lọt vào query. */
+const SEAT_NUMBER_RE = /^[0-9A-Za-z_-]{1,8}$/;
+function assertValidSeatNumber(seatNumber) {
+  if (typeof seatNumber !== "string" || !SEAT_NUMBER_RE.test(seatNumber)) {
+    const err = new Error("seat_number không hợp lệ.");
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
+/** Đếm ghế `held` CÒN HẠN của 1 user trên mọi chuyến (để giới hạn số ghế giữ cùng lúc). */
+async function countActiveHeldSeats(userId, now = new Date()) {
+  if (!mongoose.isValidObjectId(String(userId))) return 0;
+  const uid = new mongoose.Types.ObjectId(String(userId));
+  const rows = await Flight.aggregate([
+    { $match: { seats: { $elemMatch: { status: "held", held_by: uid, held_until: { $gte: now } } } } },
+    {
+      $project: {
+        n: {
+          $size: {
+            $filter: {
+              input: "$seats",
+              as: "s",
+              cond: {
+                $and: [
+                  { $eq: ["$$s.status", "held"] },
+                  { $eq: ["$$s.held_by", uid] },
+                  { $gte: ["$$s.held_until", now] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+    { $group: { _id: null, total: { $sum: "$n" } } },
+  ]);
+  return rows[0]?.total ?? 0;
 }
 
 // Bỏ ký tự dễ đọc/gõ nhầm khi soát vé tại cổng: I/1, O/0.
@@ -61,16 +106,39 @@ function randomBoardingPassCode() {
  *   bởi NGƯỜI KHÁC (không phải available, không phải của userId này)
  */
 async function holdSeat({ flightId, seatNumber, userId }) {
+  assertValidSeatNumber(seatNumber);
+  const now = new Date();
+
+  // Giới hạn số ghế giữ cùng lúc: gọi lại hold-seat cho ghế ĐANG giữ (gia hạn) thì không tính
+  // thêm; chỉ chặn khi lấy ghế MỚI mà đã đủ hạn mức (chống 1 người chiếm cả chuyến bay).
+  const active = await countActiveHeldSeats(userId, now);
+  if (active >= MAX_HELD_SEATS_PER_USER) {
+    const alreadyMine = await Flight.exists({
+      _id: flightId,
+      seats: { $elemMatch: { seat_number: seatNumber, status: "held", held_by: userId, held_until: { $gte: now } } },
+    });
+    if (!alreadyMine) {
+      const err = new SeatConflictError(
+        `Bạn đang giữ quá nhiều ghế (tối đa ${MAX_HELD_SEATS_PER_USER}). Hãy bỏ bớt ghế trước khi chọn thêm.`
+      );
+      err.statusCode = 429;
+      throw err;
+    }
+  }
+
+  const bookable = { status: "scheduled", departure_time: { $gt: now } }; // chưa hủy, chưa khởi hành
+
+  // Chỉ chiếm ghế TRỐNG hoặc ghế `held` đã QUÁ HẠN (coi như trống ngay, không phụ thuộc cron).
+  // Ghế đang được CHÍNH user này giữ còn hạn KHÔNG bị gia hạn: hold-seat gọi lại chỉ idempotent,
+  // nếu không 1 người có thể giữ ghế vô thời hạn bằng cách gọi lặp lại (phá cơ chế 30 phút).
   const updated = await Flight.findOneAndUpdate(
     {
       _id: flightId,
-      // Chuyến phải còn nhận đặt: chưa hủy và chưa khởi hành.
-      status: "scheduled",
-      departure_time: { $gt: new Date() },
+      ...bookable,
       seats: {
         $elemMatch: {
           seat_number: seatNumber,
-          $or: [{ status: "available" }, { status: "held", held_by: userId }],
+          $or: [{ status: "available" }, { status: "held", held_until: { $lt: now } }],
         },
       },
     },
@@ -78,28 +146,34 @@ async function holdSeat({ flightId, seatNumber, userId }) {
       $set: {
         "seats.$.status": "held",
         "seats.$.held_by": userId,
-        "seats.$.held_until": new Date(Date.now() + SEAT_HOLD_DURATION_MS),
+        "seats.$.held_until": new Date(now.getTime() + SEAT_HOLD_DURATION_MS),
       },
     },
     { returnDocument: "after" }
   );
+  if (updated) return updated;
 
-  if (!updated) {
-    // Phân biệt lý do để báo đúng: chuyến không còn nhận đặt vs ghế đã có người.
-    const flight = await Flight.findById(flightId).select("status departure_time").lean();
-    if (flight && (flight.status !== "scheduled" || new Date(flight.departure_time) <= new Date())) {
-      throw new SeatConflictError("Chuyến bay đã bị hủy hoặc đã khởi hành, không thể giữ ghế.");
-    }
-    throw new SeatConflictError(
-      `Ghế ${seatNumber} không còn trống — vui lòng chọn ghế khác.`
-    );
+  // Không chiếm được: có phải ghế mình đang giữ còn hạn (idempotent) không?
+  const mine = await Flight.findOne({
+    _id: flightId,
+    ...bookable,
+    seats: {
+      $elemMatch: { seat_number: seatNumber, status: "held", held_by: userId, held_until: { $gte: now } },
+    },
+  });
+  if (mine) return mine;
+
+  // Phân biệt lý do để báo đúng: chuyến không còn nhận đặt vs ghế đã có người.
+  const flight = await Flight.findById(flightId).select("status departure_time").lean();
+  if (flight && (flight.status !== "scheduled" || new Date(flight.departure_time) <= new Date())) {
+    throw new SeatConflictError("Chuyến bay đã bị hủy hoặc đã khởi hành, không thể giữ ghế.");
   }
-  return updated;
+  throw new SeatConflictError(`Ghế ${seatNumber} không còn trống — vui lòng chọn ghế khác.`);
 }
 
 /**
  * C5 — release-seat: nhả ghế đang held. Gọi khi khách bỏ chọn ghế, hoặc xóa
- * hành khách đã lỡ chọn ghế (C4, side-effect bắt buộc), hoặc khi Momo báo
+ * hành khách đã lỡ chọn ghế (C4, side-effect bắt buộc), hoặc khi VNPay báo
  * `failed` trước hết 30 phút (C6).
  *
  * `userId` là bắt buộc và phải khớp `held_by` hiện tại — chặn trường hợp 1
@@ -111,6 +185,7 @@ async function holdSeat({ flightId, seatNumber, userId }) {
  *   không có gì để nhả (ghế không held bởi đúng user này — no-op, KHÔNG ném lỗi)
  */
 async function releaseSeat({ flightId, seatNumber, userId }) {
+  assertValidSeatNumber(seatNumber);
   const updated = await Flight.findOneAndUpdate(
     {
       _id: flightId,
@@ -131,7 +206,7 @@ async function releaseSeat({ flightId, seatNumber, userId }) {
 }
 
 /**
- * C6 — chuyển ghế `held → booked` khi webhook Momo báo thanh toán thành
+ * C6 — chuyển ghế `held → booked` khi webhook VNPay báo thanh toán thành
  * công. Gọi 1 lần cho MỖI (flight_id, seat_number) trong
  * Booking.passengers[].seats[] — KHÔNG gộp thành updateMany vì cần biết
  * chính xác ghế nào thất bại để quyết định `payment_error_manual_refund`.
@@ -152,11 +227,11 @@ async function confirmSeatBooked({ flightId, seatNumber, userId }) {
 }
 
 /**
- * C6 — xác nhận TOÀN BỘ ghế của 1 booking khi Momo báo thành công.
+ * C6 — xác nhận TOÀN BỘ ghế của 1 booking khi VNPay báo thành công.
  *
  * QUAN TRỌNG (ghi chú y): nếu bất kỳ ghế nào trong danh sách thất bại (đã bị
  * cron nhả do quá hạn, hoặc bị người khác giữ/đặt trước), hàm KHÔNG tự rollback
- * các ghế đã confirm thành công trước đó — vì tiền đã bị trừ thật qua Momo,
+ * các ghế đã confirm thành công trước đó — vì tiền đã bị trừ thật qua VNPay,
  * rollback (nhả lại ghế đã booked) sẽ mất dấu vé mà khách đã trả tiền. Thay
  * vào đó, trả về danh sách ghế thất bại để route gọi hàm này set
  * `Booking.status = 'payment_error_manual_refund'` (KHÔNG set 'confirmed'),
@@ -172,6 +247,16 @@ async function confirmAllSeatsBooked({ seatRefs, userId }) {
     if (!ok) failedSeats.push({ flightId, seatNumber });
   }
   return { allSucceeded: failedSeats.length === 0, failedSeats };
+}
+
+/** Ghế đang `booked` bởi đúng user này? (phân biệt luồng thanh toán song song với mất ghế thật) */
+async function isSeatBookedBy({ flightId, seatNumber, userId }) {
+  assertValidSeatNumber(seatNumber);
+  const found = await Flight.exists({
+    _id: flightId,
+    seats: { $elemMatch: { seat_number: seatNumber, status: "booked", held_by: userId } },
+  });
+  return Boolean(found);
 }
 
 /**
@@ -316,9 +401,15 @@ async function releaseBookedSeatOwnedBy({ flightId, seatNumber, userId }) {
  *   giờ cho phép, ghế không thuộc user này, chưa `booked`, hoặc đã check-in rồi
  */
 async function checkInSeat({ flightId, seatNumber, userId }) {
+  assertValidSeatNumber(seatNumber);
   const flight = await Flight.findById(flightId);
   if (!flight) {
     throw new SeatConflictError("Không tìm thấy chuyến bay.");
+  }
+  // Chuyến đã bị hãng hủy (A1/A8): booking có thể vẫn `confirmed` cho tới khi admin chạy hủy hàng
+  // loạt, nhưng không được phát thẻ lên máy bay cho chuyến không bay.
+  if (flight.status === "cancelled") {
+    throw new SeatConflictError("Chuyến bay đã bị hủy, không thể check-in.");
   }
   if (!isCheckInWindowOpen(flight.departure_time)) {
     throw new SeatConflictError(
@@ -362,10 +453,14 @@ async function checkInSeat({ flightId, seatNumber, userId }) {
 
 module.exports = {
   SeatConflictError,
+  SEAT_NUMBER_RE,
+  assertValidSeatNumber,
+  countActiveHeldSeats,
   holdSeat,
   releaseSeat,
   confirmSeatBooked,
   confirmAllSeatsBooked,
+  isSeatBookedBy,
   releaseExpiredHolds,
   forceReleaseSeat,
   releaseBookedSeatOwnedBy,

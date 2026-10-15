@@ -1,42 +1,43 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Bảng màu dự án — chủ đề biển đảo Phú Quốc:
-   - sea   : xanh biển sâu, dùng cho chữ chính + hành động phụ
-   - sand  : be cát, dùng cho nền + đường viền nhạt
-   - coral : cam san hô, CHỈ dùng cho CTA chính (tìm chuyến, thanh toán)
-   - ink   : màu chữ trung tính
-
-   Mọi component trong components/ đã dùng sẵn các token này (sea-900,
-   sand-50, coral-500, text-ink...) — KHÔNG đổi tên token nếu chưa sửa đồng
-   loạt bên đó.
+   Bảng màu dự án — tông CAM ĐÀO theo ảnh khuyến mãi (cam rực + kem đào + nâu đậm):
+   TÊN token giữ nguyên (mọi component đã dùng sẵn sea-*, sand-*, coral-*, ink...) — chỉ đổi GIÁ TRỊ
+   để cả khu khách lẫn khu Admin đồng nhất từ MỘT chỗ. Ý nghĩa mới của từng nhóm:
+   - sea   : (tên cũ "xanh biển") nay là NÂU GẠCH ĐẬM — chữ chính, tiêu đề, nút phụ, viền nhấn
+   - sand  : kem đào — nền trang + đường viền nhạt
+   - coral : CAM RỰC — CTA chính (tìm chuyến, thanh toán), mục đang chọn, biểu đồ
+   - ink   : nâu đen trung tính cho chữ thường
+   Màu trang trí sáng hơn (cam nhạt, vàng "15%" trong ảnh) dùng thẳng các màu orange/amber mặc định
+   của Tailwind, KHÔNG dùng cho chữ nhỏ. Mọi cặp chữ/nền chức năng đạt tương phản WCAG AA (>= 4.5:1):
+   chữ trắng trên coral-500 = 4.5, trên coral-600 = 5.5, trên sea-500 = 6.4; sea-900 trên kem = 14.9.
 --------------------------------------------------------------------------- */
 @theme {
-  --color-sea-50: #eff8fb;
-  --color-sea-100: #d6edf4;
-  --color-sea-500: #1c7f9e;
-  --color-sea-700: #125872;
-  --color-sea-900: #0b3550;
+  --color-sea-50: #fff3e8;
+  --color-sea-100: #ffe2cb;
+  --color-sea-500: #9b3a2c;
+  --color-sea-700: #7a2a1c;
+  --color-sea-900: #3d1a0c;
 
-  --color-sand-50: #fdfaf5;
-  --color-sand-100: #f2e9dc;
-  --color-sand-200: #e4d5c0;
+  --color-sand-50: #fff9f3;
+  --color-sand-100: #f5e2d2;
+  --color-sand-200: #ebcdb3;
 
-  --color-coral-500: #e4633f;
-  --color-coral-600: #c74d2c;
+  --color-coral-500: #cf4c0a;
+  --color-coral-600: #b8420a;
 
-  --color-ink: #1d2430;
+  --color-ink: #2b1a12;
 
   /* Lỗi form (login/register C8, validate chọn ghế/thông tin hành khách sau
-     này) — đỏ gạch, KHÁC hẳn coral-500 (CTA) để không bị nhầm là nút bấm. */
-  --color-danger: #c0392b;
+     này) — đỏ hồng sẫm (crimson), KHÁC hẳn cam coral-500 (CTA) để không bị nhầm là nút bấm. */
+  --color-danger: #c0173f;
 
   /* StatusBadge.jsx (Booking.status: pending_payment/confirmed) đã dùng 2
      token này từ trước nhưng chưa từng được định nghĩa — badge trạng thái
      đang render KHÔNG MÀU ở mọi nơi dùng component đó (my-bookings, admin
-     bookings...). Vàng hổ phách/xanh lá, tách biệt hẳn sea (xanh biển) và
+     bookings...). Vàng đậm/xanh lá, tách biệt hẳn sea (nâu gạch) và
      coral (CTA cam) để không lẫn ý nghĩa. */
-  --color-warning: #c9971f;
+  --color-warning: #9a6a05;
   --color-success: #2f855a;
 
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -47,4 +48,24 @@
 body {
   background: var(--color-sand-50);
   color: var(--color-ink);
+}
+
+/* C10 — "In / Lưu PDF" thẻ lên máy bay: khi có 1 thẻ được đánh dấu data-print-target (xem
+   app/[locale]/check-in/BoardingPass.jsx), chỉ in đúng thẻ đó, giữ màu nền tiêu đề. */
+@media print {
+  body:has([data-print-target]) * {
+    visibility: hidden;
+  }
+  [data-print-target],
+  [data-print-target] * {
+    visibility: visible;
+  }
+  [data-print-target] {
+    position: absolute;
+    inset: 0 0 auto 0;
+    margin: 0 auto;
+    max-width: 720px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

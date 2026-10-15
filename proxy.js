@@ -7,7 +7,7 @@
 // Ghép 2 việc CHUNG 1 file vì Next.js chỉ gọi đúng 1 proxy cho mỗi request:
 // 1) next-intl — locale routing (C11) cho khu vực khách hàng.
 // 2) NextAuth — chặn sớm những route CẦN đăng nhập (C4/C5/C6 đặt vé & thanh
-//    toán, C9 quản lý vé, C10 check-in), redirect về đúng trang /login theo
+//    toán, C9 quản lý vé), redirect về đúng trang /login theo
 //    ĐÚNG locale hiện tại thay vì luôn về "/".
 //
 // Import `auth.config.js` (KHÔNG import `auth.js`) — xem comment trong
@@ -39,7 +39,9 @@ const localePrefixRe = new RegExp(`^/(${nonDefaultLocales.join("|")})(?=/|$)`);
 // Các nhóm route CẦN đăng nhập, KHÔNG tính locale prefix (regex bên dưới tự
 // cho phép prefix đứng trước). Cập nhật danh sách này khi thêm route mới
 // cần bảo vệ.
-const PROTECTED_SEGMENTS = ["booking", "payment", "my-bookings", "check-in"];
+// "check-in" KHÔNG nằm đây: check-in online xác thực bằng mã đặt chỗ + họ tên, không cần đăng nhập
+// (giống website hãng bay) — xem services/checkinService.js.
+const PROTECTED_SEGMENTS = ["booking", "payment", "my-bookings"];
 const protectedPathnameRe = new RegExp(
   `^(/(${nonDefaultLocales.join("|")}))?/(${PROTECTED_SEGMENTS.join("|")})(/.*)?$`
 );
