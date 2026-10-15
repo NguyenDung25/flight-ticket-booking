@@ -43,9 +43,19 @@ const FlightLegSchema = new Schema(
   { _id: false }
 );
 
+const ExtraPaymentSchema = new Schema(
+  {
+    trans_id: { type: String, required: true },
+    order_id: { type: String },
+    amount: { type: Number },
+    received_at: { type: Date },
+  },
+  { _id: false }
+);
+
 const PaymentSchema = new Schema(
   {
-    method: { type: String, default: "momo_atm" },
+    method: { type: String, default: "vnpay" },
     // KHÔNG đặt `default: null` — sparse unique index (bên dưới) chỉ loại
     // trừ document mà field HOÀN TOÀN VẮNG MẶT (undefined), không loại trừ
     // field có giá trị null tường minh. `default: null` khiến MỌI booking mới
@@ -57,11 +67,15 @@ const PaymentSchema = new Schema(
     transaction_id: { type: String }, // unique + sparse (ghi chú i)
     paid_at: { type: Date, default: null },
     payment_expires_at: { type: Date, default: null }, // = held_until − 5 phút (ghi chú y)
-    // orderId của LẦN GỌI MOMO GẦN NHẤT (services/paymentService.initiatePayment ghi).
-    // Dùng để hỏi lại Momo kết quả giao dịch khi IPN không về được (syncPaymentStatus).
+    // Mã đơn hàng (vnp_TxnRef) của LẦN TẠO THANH TOÁN VNPAY GẦN NHẤT + thời điểm tạo
+    // (vnp_CreateDate, dạng yyyyMMddHHmmss) — services/paymentService.initiatePayment ghi.
+    // Dùng để hỏi lại VNPay (querydr bắt buộc gửi đúng ngày tạo) ở syncPaymentStatus.
     // Cũng KHÔNG đặt default: null — không nằm trong index nên không bắt buộc, nhưng
     // giữ nhất quán với transaction_id: field chỉ tồn tại sau khi có giao dịch thật.
     last_order_id: { type: String },
+    last_order_date: { type: String },
+    // Khoản thanh toán THỪA (khách trả 2 lần cho 1 booking) — admin hoàn tay.
+    extra_payments: { type: [ExtraPaymentSchema], default: undefined },
   },
   { _id: false }
 );
@@ -106,6 +120,10 @@ const BookingSchema = new Schema(
       default: null,
     },
     refund_processed_at: { type: Date, default: null },
+
+    // C7 — lần gần nhất gửi email vé điện tử THÀNH CÔNG (null = chưa gửi được lần nào, VD SMTP chưa
+    // cấu hình). Trang kết quả thanh toán dựa vào đây để không báo "đã gửi email" khi thực ra chưa gửi.
+    ticket_emailed_at: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );

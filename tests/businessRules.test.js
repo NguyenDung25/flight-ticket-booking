@@ -71,22 +71,22 @@ test("computeManualRefund: từ chối số tiền sai", () => {
 
 // ---------------------------------------------------------------- C6: quyết định webhook
 test("decideWebhookAction: các nhánh", () => {
-  assert.equal(decideWebhookAction({ status: "pending_payment", resultCode: 0 }), "confirm");
-  assert.equal(decideWebhookAction({ status: "pending_payment", resultCode: 1006 }), "fail");
+  assert.equal(decideWebhookAction({ status: "pending_payment", paid: true }), "confirm");
+  assert.equal(decideWebhookAction({ status: "pending_payment", paid: false }), "fail");
   // Tiền đã trừ nhưng booking đã bị hủy trước đó -> phải báo admin hoàn tay (ghi chú y)
   assert.equal(
-    decideWebhookAction({ status: "cancelled", resultCode: 0, hasTransactionId: false }),
+    decideWebhookAction({ status: "cancelled", paid: true, hasTransactionId: false }),
     "late_payment_error"
   );
   // IPN gửi lại cho booking đã ghi nhận giao dịch -> no-op (idempotent)
   assert.equal(
-    decideWebhookAction({ status: "cancelled", resultCode: 0, hasTransactionId: true }),
+    decideWebhookAction({ status: "cancelled", paid: true, hasTransactionId: true }),
     "noop"
   );
-  assert.equal(decideWebhookAction({ status: "confirmed", resultCode: 0 }), "noop");
-  assert.equal(decideWebhookAction({ status: "refunded", resultCode: 0 }), "noop");
+  assert.equal(decideWebhookAction({ status: "confirmed", paid: true }), "noop");
+  assert.equal(decideWebhookAction({ status: "refunded", paid: true }), "noop");
   // Thất bại trên booking đã hủy: không có gì để làm
-  assert.equal(decideWebhookAction({ status: "cancelled", resultCode: 1006 }), "noop");
+  assert.equal(decideWebhookAction({ status: "cancelled", paid: false }), "noop");
 });
 
 // ---------------------------------------------------------------- C4: giấy tờ theo tuổi

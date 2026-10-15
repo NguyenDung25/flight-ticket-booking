@@ -11,6 +11,7 @@ const {
   MIN_ROUND_TRIP_TRANSIT_MS,
   MAX_PASSENGERS_PER_BOOKING,
   MAX_PASSENGER_AGE_YEARS,
+  PAYMENT_EXPIRY_BUFFER_MS,
 } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
@@ -53,6 +54,17 @@ function validatePassengerDateOfBirth(passenger, now = new Date()) {
  * KHÔNG ảnh hưởng amount — giá vé vẫn tính phẳng theo seat_class (mục 6, ngoài phạm vi).
  */
 function validatePassengerDocument(passenger) {
+  // Kiểu/độ dài: chặn object/mảng lọt vào (gây TypeError 500 ở .trim()) và chuỗi khổng lồ.
+  if (typeof passenger?.full_name !== "string" || !passenger.full_name.trim() || passenger.full_name.length > 100) {
+    throw new ValidationError("Họ tên hành khách phải là chuỗi từ 1 đến 100 ký tự.");
+  }
+  if (
+    passenger.document_id !== undefined &&
+    passenger.document_id !== null &&
+    (typeof passenger.document_id !== "string" || passenger.document_id.length > 30)
+  ) {
+    throw new ValidationError(`Số giấy tờ của hành khách "${passenger.full_name}" không hợp lệ.`);
+  }
   validatePassengerDateOfBirth(passenger);
   const age = ageInYears(passenger.date_of_birth);
 
@@ -204,18 +216,37 @@ function assertSeatClassMatches(flightDoc, seatNumber, claimedSeatClass) {
  * tạo booking với 1 seat_number đang `available` (chỉ cần đoán đúng
  * seat_class) mà KHÔNG cần gọi hold-seat trước — booking `pending_payment`
  * vẫn được tạo bình thường vì assertSeatClassMatches không quan tâm status
- * ghế. Lỗi chỉ lộ ra SAU KHI Momo đã trừ tiền thật, ở bước
+ * ghế. Lỗi chỉ lộ ra SAU KHI VNPay đã trừ tiền thật, ở bước
  * seatService.confirmSeatBooked (điều kiện status: held, held_by: userId sẽ
  * fail vì ghế chưa từng được hold) → booking rơi oan vào
  * `payment_error_manual_refund` dù đáng ra phải bị chặn ngay từ lúc tạo
  * booking, không phải đợi tới lúc thanh toán xong mới phát hiện.
  */
-function assertSeatIsHeldByUser(flightDoc, seatNumber, userId) {
+function assertSeatIsHeldByUser(flightDoc, seatNumber, userId, now = new Date()) {
   const seat = flightDoc.seats.find((s) => s.seat_number === seatNumber);
-  if (!seat || seat.status !== "held" || String(seat.held_by) !== String(userId)) {
+  // payment_expires_at = held_until − 5 phút (ghi chú y): ghế phải còn giữ > 5 phút nữa thì
+  // booking mới có thời gian thanh toán; held_until thiếu/sai cũng bị coi là không hợp lệ.
+  const heldUntil = seat?.held_until ? new Date(seat.held_until).getTime() : NaN;
+  const tooLate = !(heldUntil - PAYMENT_EXPIRY_BUFFER_MS > now.getTime());
+  if (!seat || seat.status !== "held" || String(seat.held_by) !== String(userId) || tooLate) {
     throw new ValidationError(
-      `Ghế ${seatNumber} chưa được bạn giữ hợp lệ (có thể đã hết hạn giữ ghế hoặc bị người khác giữ). Vui lòng chọn lại ghế.`,
+      `Ghế ${seatNumber} chưa được bạn giữ hợp lệ (có thể đã hết hạn/sắp hết hạn giữ ghế hoặc bị người khác giữ). Vui lòng chọn lại ghế.`,
       409
+    );
+  }
+}
+
+/**
+ * Vé khứ hồi: chặng về phải là chiều NGƯỢC của chặng đi (đi A→B thì về B→A). Trước đây server
+ * chỉ kiểm tra transit nên gọi API trực tiếp có thể ghép 2 chặng không liên quan.
+ */
+function validateRoundTripRoute(outboundFlight, returnFlight) {
+  if (
+    outboundFlight.origin_code !== returnFlight.dest_code ||
+    outboundFlight.dest_code !== returnFlight.origin_code
+  ) {
+    throw new ValidationError(
+      "Chặng về phải là chiều ngược lại của chặng đi (đi A→B thì về B→A). Vui lòng chọn lại chặng về."
     );
   }
 }
@@ -278,6 +309,7 @@ async function validateBookingCreation({ passengers, legs, userId }) {
   if (legs.length === 2) {
     const outbound = legs.find((l) => l.leg === "outbound");
     const returnLeg = legs.find((l) => l.leg === "return");
+    validateRoundTripRoute(outbound.flightDoc, returnLeg.flightDoc);
     validateRoundTripTransit(outbound.flightDoc, returnLeg.flightDoc);
   }
 
@@ -321,6 +353,7 @@ module.exports = {
   validateRoundTripTransit,
   assertSeatClassMatches,
   assertSeatIsHeldByUser,
+  validateRoundTripRoute,
   computeLegAmount,
   validateBookingCreation,
 };

@@ -1,7 +1,8 @@
-# scripts/start-ngrok.ps1
+﻿# scripts/start-ngrok.ps1
 #
 # Mở tunnel ngrok tới app đang chạy ở localhost và TỰ ghi NEXT_PUBLIC_BASE_URL vào
-# .env.local (để Momo gọi ngược IPN về được). Không lưu/in token ra file.
+# .env.local (để VNPay gọi ngược IPN về được — nhớ khai báo IPN URL
+# <địa chỉ ngrok>/api/payments/vnpay-ipn ở trang quản trị merchant VNPay). Không lưu/in token ra file.
 #
 # Chạy (PowerShell, trong thư mục dự án):
 #   powershell -ExecutionPolicy Bypass -File scripts\start-ngrok.ps1
@@ -52,4 +53,5 @@ Write-Host ""
 Write-Host "Xong. Địa chỉ công khai: $url" -ForegroundColor Green
 Write-Host "Đã ghi NEXT_PUBLIC_BASE_URL vào .env.local."
 Write-Host "BƯỚC TIẾP: restart 'npm run dev', rồi MỞ WEB BẰNG ĐỊA CHỈ TRÊN (không dùng localhost)."
-Write-Host "Theo dõi Momo gọi về tại: http://127.0.0.1:4040"
+Write-Host "IPN URL cần khai báo với VNPay: $url/api/payments/vnpay-ipn"
+Write-Host "Theo dõi VNPay gọi về tại: http://127.0.0.1:4040"

@@ -142,10 +142,26 @@ async function issueTicket({ bookingId, resend = false }) {
     );
   }
 
-  const isFirstIssue = !booking.booking_code;
+  let isFirstIssue = !booking.booking_code;
   if (isFirstIssue) {
-    booking.booking_code = await generateUniqueBookingCode();
-    await booking.save();
+    // Gán mã ATOMIC (chỉ khi chưa có): 2 lần gọi đồng thời (IPN + trang kết quả) không sinh 2 mã
+    // và không gửi email vé 2 lần; bên thua dùng lại mã bên thắng đã ghi.
+    const code = await generateUniqueBookingCode();
+    const claimed = await Booking.findOneAndUpdate(
+      { _id: booking._id, status: "confirmed", booking_code: { $exists: false } },
+      { $set: { booking_code: code } },
+      { returnDocument: "after" }
+    );
+    if (claimed) {
+      booking.booking_code = claimed.booking_code;
+    } else {
+      isFirstIssue = false;
+      const fresh = await Booking.findById(bookingId);
+      if (!fresh || !fresh.booking_code) {
+        throw new TicketError("Không xuất được vé, vui lòng thử lại.", 409);
+      }
+      booking.booking_code = fresh.booking_code;
+    }
   }
 
   const ticketData = await buildTicketData(booking);
@@ -166,6 +182,13 @@ async function issueTicket({ bookingId, resend = false }) {
         console.error("Gửi email vé điện tử thất bại:", err.message);
       }
     }
+  }
+
+  // Ghi lại để trang kết quả thanh toán báo đúng "đã gửi email" hay chưa. Lỗi ghi không ảnh hưởng vé.
+  if (emailSent) {
+    await Booking.updateOne({ _id: booking._id }, { $set: { ticket_emailed_at: new Date() } }).catch((err) =>
+      console.error("Không ghi được ticket_emailed_at:", err.message)
+    );
   }
 
   return { booking, ticketData, emailSent };

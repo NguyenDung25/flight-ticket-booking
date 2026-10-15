@@ -19,7 +19,13 @@ import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
 import { validateBookingCreation } from "@/services/bookingValidationService";
 import { applyPromotion, computeDiscountAmount } from "@/services/promotionService";
-import { PAYMENT_EXPIRY_BUFFER_MS } from "@/config/constants";
+import {
+  PAYMENT_EXPIRY_BUFFER_MS,
+  MAX_PENDING_BOOKINGS_PER_USER,
+  PAYMENT_MIN_AMOUNT,
+  PAYMENT_MAX_AMOUNT,
+} from "@/config/constants";
+import Promotion from "@/models/Promotion";
 
 /**
  * payment.payment_expires_at (ghi chú y) = held_until CỦA GHẾ GIỮ SỚM NHẤT
@@ -139,6 +145,35 @@ export async function POST(request) {
       userId: user._id,
     });
 
+    // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế): (1) mỗi user tối
+    // đa MAX_PENDING_BOOKINGS_PER_USER booking đang chờ; (2) không tạo booking thứ 2 chứa CÙNG
+    // ghế với 1 booking đang chờ (khách phải thanh toán/hủy booking cũ — trả kèm id để UI dẫn tới).
+    const nowTs = new Date();
+    const livePending = { user_id: user._id, status: "pending_payment", payment_expires_at: { $gt: nowTs } };
+    const seatKeys = passengers.flatMap((p) =>
+      (p.seats ?? []).map((s) => ({ flight_id: s.flight_id, seat_number: s.seat_number }))
+    );
+    const dupBooking = await Booking.findOne(
+      { ...livePending, passengers: { $elemMatch: { seats: { $elemMatch: { $or: seatKeys } } } } },
+      "_id"
+    );
+    if (dupBooking) {
+      return NextResponse.json(
+        {
+          message:
+            "Bạn đã có một booking đang chờ thanh toán chứa các ghế này. Hãy thanh toán hoặc hủy booking đó trước.",
+          existing_booking_id: String(dupBooking._id),
+        },
+        { status: 409 }
+      );
+    }
+    if ((await Booking.countDocuments(livePending)) >= MAX_PENDING_BOOKINGS_PER_USER) {
+      return NextResponse.json(
+        { message: `Bạn có quá nhiều booking đang chờ thanh toán (tối đa ${MAX_PENDING_BOOKINGS_PER_USER}). Hãy thanh toán hoặc hủy bớt.` },
+        { status: 429 }
+      );
+    }
+
     const flightLegs = legs.map((l) => ({
       flight_id: l.flightDoc._id,
       leg: l.leg,
@@ -164,7 +199,19 @@ export async function POST(request) {
     // KHÔNG cần transaction/lock phức tạp.
     let promotion = null;
     let total_amount = totalAmountBeforeDiscount;
-    if (promotion_code) {
+
+    // Mã khuyến mãi bị tăng used_count TRƯỚC khi tạo booking (atomic, ghi chú p). Nếu sau đó việc tạo
+    // booking không thành (lỗi, hoặc số tiền ngoài giới hạn VNPay) thì phải trả lại lượt vừa lấy — khác
+    // với trường hợp booking đã tạo rồi bị hủy (ghi chú p: không hoàn lại, có chủ đích).
+    const rollbackPromotion = async () => {
+      if (promotion) {
+        await Promotion.updateOne({ _id: promotion._id, used_count: { $gt: 0 } }, { $inc: { used_count: -1 } });
+      }
+    };
+    if (promotion_code !== undefined && promotion_code !== null && promotion_code !== "") {
+      if (typeof promotion_code !== "string") {
+        return NextResponse.json({ message: "promotion_code không hợp lệ." }, { status: 400 });
+      }
       promotion = await applyPromotion(promotion_code);
       const discountAmount = computeDiscountAmount(promotion, totalAmountBeforeDiscount);
 
@@ -194,22 +241,40 @@ export async function POST(request) {
       total_amount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
     }
 
+    // VNPay chỉ nhận 5.000đ – dưới 1 tỷ đồng/giao dịch: báo lỗi NGAY (kèm trả lượt mã) thay vì tạo booking
+    // không thể thanh toán, treo ghế tới hết hạn (VD mã giảm 100% → tổng 0đ).
+    if (total_amount < PAYMENT_MIN_AMOUNT || total_amount > PAYMENT_MAX_AMOUNT) {
+      await rollbackPromotion();
+      return NextResponse.json(
+        {
+          message: `Tổng tiền ${total_amount.toLocaleString("vi-VN")}đ nằm ngoài giới hạn thanh toán VNPay (${PAYMENT_MIN_AMOUNT.toLocaleString("vi-VN")}–${PAYMENT_MAX_AMOUNT.toLocaleString("vi-VN")}đ).`,
+        },
+        { status: 400 }
+      );
+    }
+
     const heldUntil = earliestHeldUntil(flightDocs, passengers);
     const payment_expires_at = heldUntil
       ? new Date(heldUntil.getTime() - PAYMENT_EXPIRY_BUFFER_MS)
       : null;
 
-    const booking = await Booking.create({
-      user_id: user._id,
-      trip_type,
-      locale: user.preferred_language,
-      flights: flightLegs,
-      passengers,
-      promotion_id: promotion ? promotion._id : null,
-      total_amount,
-      status: "pending_payment",
-      payment: { payment_expires_at },
-    });
+    let booking;
+    try {
+      booking = await Booking.create({
+        user_id: user._id,
+        trip_type,
+        locale: user.preferred_language,
+        flights: flightLegs,
+        passengers,
+        promotion_id: promotion ? promotion._id : null,
+        total_amount,
+        status: "pending_payment",
+        payment: { payment_expires_at },
+      });
+    } catch (createErr) {
+      await rollbackPromotion();
+      throw createErr;
+    }
 
     return NextResponse.json(booking, { status: 201 });
   } catch (err) {

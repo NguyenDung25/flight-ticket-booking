@@ -11,6 +11,7 @@
 // mọi page.js khác trong khu Admin.
 
 import dbConnect from "@/lib/mongodb";
+import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 // Side-effect import cho populate("user_id") — cùng lý do đã ghi chú ở
@@ -35,6 +36,7 @@ const STATUS_LABELS = {
 };
 
 export default async function AdminRefundsPage() {
+  await guardAdminPage();
   await dbConnect();
   const bookingDocs = await Booking.find(
     { status: { $in: ["refunded", "payment_error_manual_refund"] } },
@@ -60,6 +62,25 @@ export default async function AdminRefundsPage() {
       ? new Date(b.refund_processed_at).toISOString()
       : null,
   }));
+
+  // Booking bị khách thanh toán 2 lần (payment.extra_payments) — cần hoàn khoản thừa bên VNPay.
+  const dupDocs = await Booking.find(
+    { "payment.extra_payments.0": { $exists: true } },
+    "booking_code user_id total_amount payment.extra_payments"
+  )
+    .populate("user_id", "email full_name")
+    .limit(200)
+    .lean();
+  const duplicates = dupDocs.flatMap((b) =>
+    b.payment.extra_payments.map((e) => ({
+      key: `${b._id}-${e.trans_id}`,
+      booking_code: b.booking_code,
+      email: b.user_id?.email ?? "(đã xóa tài khoản)",
+      trans_id: e.trans_id,
+      amount: e.amount,
+      received_at: e.received_at ? new Date(e.received_at).toISOString() : null,
+    }))
+  );
 
   const manualErrorCount = refunds.filter((r) => r.status === "payment_error_manual_refund").length;
 
@@ -137,6 +158,40 @@ export default async function AdminRefundsPage() {
           <p className="px-4 py-6 text-sm text-ink/50">Chưa có booking nào được hoàn tiền.</p>
         )}
       </div>
+
+      {duplicates.length > 0 && (
+        <div className="rounded-xl border border-danger/40 bg-white p-4">
+          <h2 className="font-medium text-danger">
+            {duplicates.length} khoản thanh toán TRÙNG cần hoàn tay trên VNPay
+          </h2>
+          <table className="mt-3 w-full text-left text-sm">
+            <thead className="text-xs uppercase text-ink/60">
+              <tr>
+                <th className="py-2 pr-4">Mã vé</th>
+                <th className="py-2 pr-4">Khách hàng</th>
+                <th className="py-2 pr-4">Mã giao dịch thừa</th>
+                <th className="py-2 pr-4">Số tiền</th>
+                <th className="py-2">Thời điểm</th>
+              </tr>
+            </thead>
+            <tbody>
+              {duplicates.map((d) => (
+                <tr key={d.key} className="border-t border-sand-100">
+                  <td className="py-2 pr-4 font-mono text-xs">{d.booking_code ?? "—"}</td>
+                  <td className="py-2 pr-4">{d.email}</td>
+                  <td className="py-2 pr-4 font-mono text-xs">{d.trans_id}</td>
+                  <td className="py-2 pr-4">{CURRENCY_FORMATTER.format(d.amount ?? 0)}đ</td>
+                  <td className="py-2 text-ink/60">
+                    {d.received_at
+                      ? new Date(d.received_at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
