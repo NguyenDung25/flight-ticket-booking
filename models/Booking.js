@@ -94,6 +94,13 @@ const BookingSchema = new Schema(
     passengers: { type: [PassengerSchema], default: [] },
 
     promotion_id: { type: Schema.Types.ObjectId, ref: "Promotion", default: null },
+
+    // Người liên hệ của booking (lib/bookingContact.js) — vé điện tử gửi về contact.email. Booking cũ
+    // tạo trước khi có field này thì không có (gửi về email tài khoản như trước).
+    contact: {
+      type: new Schema({ email: { type: String }, phone: { type: String } }, { _id: false }),
+      default: undefined,
+    },
     total_amount: { type: Number, required: true },
 
     status: {

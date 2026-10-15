@@ -26,6 +26,7 @@ import {
   PAYMENT_MAX_AMOUNT,
 } from "@/config/constants";
 import Promotion from "@/models/Promotion";
+import { normalizeContact } from "@/lib/bookingContact";
 
 /**
  * payment.payment_expires_at (ghi chú y) = held_until CỦA GHẾ GIỮ SỚM NHẤT
@@ -61,6 +62,8 @@ export async function POST(request) {
 
     const body = await request.json().catch(() => ({}));
     const { trip_type, flights, passengers, promotion_code } = body ?? {};
+    // Người liên hệ (email nhận vé điện tử + số điện thoại) — bắt buộc với booking mới.
+    const contact = normalizeContact(body?.contact);
 
     if (!["one_way", "round_trip"].includes(trip_type)) {
       return NextResponse.json(
@@ -266,6 +269,7 @@ export async function POST(request) {
         locale: user.preferred_language,
         flights: flightLegs,
         passengers,
+        contact,
         promotion_id: promotion ? promotion._id : null,
         total_amount,
         status: "pending_payment",

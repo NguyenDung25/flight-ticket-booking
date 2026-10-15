@@ -21,6 +21,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
+import { normalizeContactEmail, normalizePhone } from "@/lib/bookingContact";
 import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
@@ -82,6 +83,7 @@ async function apiCall(url, body) {
 
 export default function PassengersForm({
   locale,
+  defaultContactEmail = "",
   tripType,
   initialPassengerCount,
   outboundFlight,
@@ -120,14 +122,18 @@ export default function PassengersForm({
   );
   const [seatBusy, setSeatBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Người liên hệ: email nhận vé điện tử (mặc định email tài khoản) + số điện thoại.
+  const [contact, setContact] = useState(
+    () => savedSession?.contact ?? { email: defaultContactEmail, phone: "" }
+  );
 
   // Auto-save passengers + seats vào sessionStorage mỗi khi thay đổi.
   // Đặt SAU khi cả 3 state đã khai báo — const không hoist, dùng trước khai
   // báo sẽ gây ReferenceError runtime.
   useEffect(() => {
-    savePfSession({ passengers, outboundSeats, returnSeats });
+    savePfSession({ passengers, outboundSeats, returnSeats, contact });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [passengers, outboundSeats, returnSeats]);
+  }, [passengers, outboundSeats, returnSeats, contact]);
   const [errorMessage, setErrorMessage] = useState(null);
   // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng, nhưng khách
   // vừa bấm ghế ở sơ đồ phía trên -> thường không thấy. Tự cuộn tới lỗi mỗi
@@ -278,6 +284,9 @@ export default function PassengersForm({
 
   function validate() {
     if (passengers.length === 0) return t("errorMinPassengers");
+    // Cùng luật với server (lib/bookingContact.js) — báo sớm trước khi tạo booking.
+    if (!normalizeContactEmail(contact.email)) return t("errorContactEmail");
+    if (!normalizePhone(contact.phone)) return t("errorContactPhone");
 
     const seenDocumentIds = new Map(); // document_id (trim) -> full_name người đầu tiên khai số đó
 
@@ -375,6 +384,7 @@ export default function PassengersForm({
           // falsy nên thực ra vô hại — chỉ để tránh key rác không cần thiết
           // trong request body).
           promotion_code: promotionCode.trim() || undefined,
+          contact: { email: contact.email.trim(), phone: contact.phone.trim() },
         });
         bookingId = booking._id;
         setCreatedBookingId(bookingId);
@@ -562,6 +572,33 @@ export default function PassengersForm({
             {errorMessage}
           </p>
         )}
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-sea-900">{t("contactTitle")}</p>
+          <p className="mt-0.5 text-xs text-ink/60">{t("contactHint")}</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <Input
+              id="contact-email"
+              type="email"
+              label={t("contactEmail")}
+              value={contact.email}
+              onChange={(e) => setContact((c) => ({ ...c, email: e.target.value }))}
+              autoComplete="email"
+              maxLength={254}
+              disabled={disabled}
+            />
+            <Input
+              id="contact-phone"
+              type="tel"
+              label={t("contactPhone")}
+              placeholder={t("contactPhonePlaceholder")}
+              value={contact.phone}
+              onChange={(e) => setContact((c) => ({ ...c, phone: e.target.value }))}
+              autoComplete="tel"
+              maxLength={20}
+              disabled={disabled}
+            />
+          </div>
+        </div>
         <div className="mb-4">
           <Input
             label={t("promotionCodeLabel")}

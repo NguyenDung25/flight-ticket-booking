@@ -101,6 +101,7 @@ async function buildTicketData(booking) {
   return {
     booking_id: String(booking._id),
     booking_code: booking.booking_code,
+    contact: booking.contact ? { email: booking.contact.email, phone: booking.contact.phone } : null,
     trip_type: booking.trip_type,
     locale: booking.locale,
     total_amount: booking.total_amount,
@@ -176,7 +177,9 @@ async function issueTicket({ bookingId, resend = false }) {
       console.error(`Không tìm thấy User ${booking.user_id} để gửi vé điện tử.`);
     } else {
       try {
-        await emailClient.sendTicketEmail({ to: user.email, ticketData });
+        // Gửi về email LIÊN HỆ của booking (khách nhập lúc đặt, có thể đặt hộ người khác); booking cũ
+        // chưa có contact thì gửi về email tài khoản như trước.
+        await emailClient.sendTicketEmail({ to: booking.contact?.email || user.email, ticketData });
         emailSent = true;
       } catch (err) {
         console.error("Gửi email vé điện tử thất bại:", err.message);

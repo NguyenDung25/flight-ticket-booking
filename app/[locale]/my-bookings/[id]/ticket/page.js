@@ -134,6 +134,15 @@ export default async function TicketPage({ params }) {
           })}
         </div>
 
+        {ticketData.contact && (
+          <div className="mt-5 border-t border-sand-100 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">{t("contactTitle")}</p>
+            <p className="mt-1 text-sm text-ink">
+              {ticketData.contact.email} · {ticketData.contact.phone}
+            </p>
+          </div>
+        )}
+
         <div className="mt-5 border-t border-sand-100 pt-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">
             {t("passengersTitle")}

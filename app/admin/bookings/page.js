@@ -45,6 +45,7 @@ export default async function AdminBookingsPage() {
     booking_code: b.booking_code,
     customerEmail: b.user_id?.email ?? "(đã xóa tài khoản)",
     customerName: b.user_id?.full_name ?? "—",
+    contact: b.contact ? `${b.contact.email} · ${b.contact.phone}` : null,
     trip_type: b.trip_type,
     passengerCount: b.passengers?.length ?? 0,
     total_amount: b.total_amount,
@@ -82,6 +83,7 @@ export default async function AdminBookingsPage() {
                 <td className="px-4 py-3">
                   <div>{b.customerName}</div>
                   <div className="text-xs text-ink/60">{b.customerEmail}</div>
+                  {b.contact && <div className="text-xs text-ink/60">Liên hệ: {b.contact}</div>}
                 </td>
                 <td className="px-4 py-3">
                   {b.trip_type === "round_trip" ? "Khứ hồi" : "Một chiều"}

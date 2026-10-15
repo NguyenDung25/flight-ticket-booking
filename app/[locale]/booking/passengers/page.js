@@ -106,6 +106,7 @@ export default async function BookingPassengersPage({ params, searchParams }) {
   return (
     <PassengersForm
       locale={locale}
+      defaultContactEmail={session.user.email ?? ""}
       tripType={tripType}
       initialPassengerCount={passengerCount}
       outboundFlight={toPlainFlight(outbound, session.user.id)}
