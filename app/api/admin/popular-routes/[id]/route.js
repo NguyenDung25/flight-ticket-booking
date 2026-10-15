@@ -8,14 +8,21 @@ import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import { updateRoute, deleteRoute } from "@/services/popularRouteService";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     const body = (await request.json().catch(() => null)) ?? {};
-    return NextResponse.json(await updateRoute(id, body));
+    const updated = await updateRoute(id, body);
+    await logAdminAction(admin, {
+      action: "popular_route.update", targetType: "popular_route", targetId: id,
+      summary: "Sửa 1 tuyến phổ biến (ẩn/hiện, thứ tự)",
+      details: { active: body?.active, sort_order: body?.sort_order },
+    });
+    return NextResponse.json(updated);
   } catch (err) {
     return handleApiError(err, "PATCH /api/admin/popular-routes/[id]");
   }
@@ -24,9 +31,14 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
-    return NextResponse.json(await deleteRoute(id));
+    const result = await deleteRoute(id);
+    await logAdminAction(admin, {
+      action: "popular_route.delete", targetType: "popular_route", targetId: id,
+      summary: "Xóa 1 tuyến phổ biến",
+    });
+    return NextResponse.json(result);
   } catch (err) {
     return handleApiError(err, "DELETE /api/admin/popular-routes/[id]");
   }

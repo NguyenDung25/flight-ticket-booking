@@ -27,6 +27,7 @@ import { handleApiError } from "@/lib/apiError";
 import Promotion from "@/models/Promotion";
 import Booking from "@/models/Booking";
 import { dayRangeVN } from "@/lib/timezone";
+import { logAdminAction } from "@/lib/adminLog";
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -37,7 +38,7 @@ function badRequest(message) {
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) return badRequest("ID khuyến mãi không hợp lệ.");
@@ -78,6 +79,11 @@ export async function PATCH(request, { params }) {
     }
 
     await promotion.save(); // pre-validate: valid_until phải sau valid_from
+    await logAdminAction(admin, {
+      action: "promotion.update", targetType: "promotion", targetId: id,
+      summary: `Sửa mã khuyến mãi ${promotion.code}`,
+      details: { discount_percent: promotion.discount_percent, valid_until: promotion.valid_until, usage_limit: promotion.usage_limit },
+    });
     return NextResponse.json(promotion);
   } catch (err) {
     return handleApiError(err, "PATCH /api/admin/promotions/[id]");
@@ -87,7 +93,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) return badRequest("ID khuyến mãi không hợp lệ.");
@@ -106,6 +112,10 @@ export async function DELETE(_request, { params }) {
     if (!deleted) {
       return NextResponse.json({ message: "Không tìm thấy mã khuyến mãi." }, { status: 404 });
     }
+    await logAdminAction(admin, {
+      action: "promotion.delete", targetType: "promotion", targetId: id,
+      summary: `Xóa mã khuyến mãi ${deleted.code}`,
+    });
     return NextResponse.json({ message: "Đã xóa mã khuyến mãi.", id });
   } catch (err) {
     return handleApiError(err, "DELETE /api/admin/promotions/[id]");

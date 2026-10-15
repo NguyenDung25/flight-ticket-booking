@@ -19,6 +19,7 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Promotion from "@/models/Promotion";
 import { dayRangeVN } from "@/lib/timezone";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function GET() {
   try {
@@ -35,7 +36,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const body = await request.json().catch(() => null);
     const { code, discount_percent, valid_from, valid_until, usage_limit } = body ?? {};
@@ -72,6 +73,10 @@ export async function POST(request) {
       // 2 dạng "không giới hạn" mà Promotion.incrementUsage() đã xử lý
       // (ghi chú p ở models/Promotion.js), KHÔNG được lưu thành 0 hay NaN.
       usage_limit: usage_limit === "" || usage_limit === undefined ? null : Number(usage_limit),
+    });
+    await logAdminAction(admin, {
+      action: "promotion.create", targetType: "promotion", targetId: promotion._id,
+      summary: `Tạo mã khuyến mãi ${promotion.code} (giảm ${promotion.discount_percent}%)`,
     });
     return NextResponse.json(promotion, { status: 201 });
   } catch (err) {

@@ -33,6 +33,7 @@ import { validatePatch, changedSensitiveFields } from "@/lib/flightPatchRules";
 // ở services/flightService.js — cùng 1 lớp bug).
 import "@/models/Airline";
 import "@/models/Aircraft";
+import { logAdminAction } from "@/lib/adminLog";
 
 const EDITABLE_FIELDS = [
   "flight_number",
@@ -66,7 +67,7 @@ export async function GET(_request, { params }) {
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const { id } = await params;
     const body = await request.json();
@@ -147,6 +148,11 @@ export async function PATCH(request, { params }) {
           "Chuyến đã chuyển 'cancelled' nhưng vẫn còn booking hiệu lực. Hãy bấm 'Hủy chuyến & xử lý vé liên quan' (A8) để hoàn tiền cho khách.";
       }
     }
+    await logAdminAction(admin, {
+      action: "flight.update", targetType: "flight", targetId: id,
+      summary: `Sửa chuyến ${flight.flight_number}${updates.status === "cancelled" ? " (chuyển trạng thái hủy)" : ""}`,
+      details: { fields: Object.keys(updates).join(", ") },
+    });
     return NextResponse.json(body2);
   } catch (err) {
     return handleApiError(err, "PATCH /api/admin/flights/[id]");
@@ -163,7 +169,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const { id } = await params;
 
@@ -173,6 +179,10 @@ export async function DELETE(_request, { params }) {
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
+    await logAdminAction(admin, {
+      action: "flight.delete", targetType: "flight", targetId: id,
+      summary: `Xóa chuyến ${flight.flight_number} (${flight.origin_code} → ${flight.dest_code})`,
+    });
     return NextResponse.json({ message: "Đã xóa chuyến bay.", id });
   } catch (err) {
     return handleApiError(err, "DELETE /api/admin/flights/[id]");

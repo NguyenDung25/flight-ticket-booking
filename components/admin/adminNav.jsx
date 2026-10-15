@@ -97,6 +97,16 @@ export const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/admin/logs",
+    label: "Nhật ký thao tác",
+    icon: (
+      <svg {...svgProps}>
+        <path d="M6 3h9l4 4v14H6z" />
+        <path d="M15 3v4h4M9 12h7M9 16h7M9 8h3" />
+      </svg>
+    ),
+  },
 ];
 
 export function isActive(pathname, href) {

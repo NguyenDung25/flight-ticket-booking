@@ -17,6 +17,7 @@ import { handleApiError } from "@/lib/apiError";
 import Aircraft from "@/models/Aircraft";
 import { assertValidSeatMapTemplate } from "@/lib/seatMapValidation";
 import Flight from "@/models/Flight";
+import { logAdminAction } from "@/lib/adminLog";
 
 const SEAT_CLASSES = ["economy", "business"];
 
@@ -30,7 +31,7 @@ function assertValidId(id) {
 async function update(request, { params }, context) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     assertValidId(id);
 
@@ -80,6 +81,11 @@ async function update(request, { params }, context) {
       throw new ActiveUserError("Không tìm thấy máy bay.", 404);
     }
 
+    await logAdminAction(admin, {
+      action: "aircraft.update", targetType: "aircraft", targetId: id,
+      summary: `Sửa máy bay ${aircraft.name}`,
+      details: { name: aircraft.name, total_seats: aircraft.total_seats },
+    });
     return NextResponse.json(aircraft);
   } catch (err) {
     return handleApiError(err, context);
@@ -97,7 +103,7 @@ export async function PATCH(request, ctx) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     assertValidId(id);
 
@@ -115,6 +121,10 @@ export async function DELETE(_request, { params }) {
     }
 
     await aircraft.deleteOne();
+    await logAdminAction(admin, {
+      action: "aircraft.delete", targetType: "aircraft", targetId: id,
+      summary: `Xóa máy bay ${aircraft.name}`,
+    });
     return NextResponse.json({ deleted: true });
   } catch (err) {
     return handleApiError(err, "DELETE /api/admin/aircraft/[id]");

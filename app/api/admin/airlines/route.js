@@ -8,6 +8,7 @@ import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Airline from "@/models/Airline";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function GET() {
   try {
@@ -24,7 +25,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const body = await request.json();
     const { code, name } = body ?? {};
@@ -37,6 +38,10 @@ export async function POST(request) {
     }
 
     const airline = await Airline.create({ code: code.toUpperCase(), name });
+    await logAdminAction(admin, {
+      action: "airline.create", targetType: "airline", targetId: airline._id,
+      summary: `Thêm hãng bay ${airline.code}`,
+    });
     return NextResponse.json(airline, { status: 201 });
   } catch (err) {
     return handleApiError(err, "POST /api/admin/airlines");

@@ -16,11 +16,12 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { ActiveUserError } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
 import { resolveManualRefund } from "@/services/cancellationService";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) {
       throw new ActiveUserError("ID booking không hợp lệ.", 400);
@@ -37,6 +38,11 @@ export async function PATCH(request, { params }) {
       note: body.note,
     });
 
+    await logAdminAction(admin, {
+      action: "booking.manual_refund", targetType: "booking", targetId: id,
+      summary: `Hoàn tiền tay ${Number(booking.refund_amount).toLocaleString("vi-VN")}đ cho booking ${booking.booking_code || id}`,
+      details: { refund_amount: booking.refund_amount, fee: booking.cancellation_fee_amount, note: body.note ?? null },
+    });
     return NextResponse.json({
       booking: {
         id: String(booking._id),

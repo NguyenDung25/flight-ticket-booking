@@ -10,6 +10,7 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Aircraft from "@/models/Aircraft";
 import { assertValidSeatMapTemplate } from "@/lib/seatMapValidation";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function GET() {
   try {
@@ -26,7 +27,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const body = await request.json();
     const { name, total_seats, seat_map_template } = body ?? {};
@@ -53,6 +54,10 @@ export async function POST(request) {
 
     assertValidSeatMapTemplate(seat_map_template);
     const aircraft = await Aircraft.create({ name, total_seats, seat_map_template });
+    await logAdminAction(admin, {
+      action: "aircraft.create", targetType: "aircraft", targetId: aircraft._id,
+      summary: `Thêm máy bay ${aircraft.name} (${aircraft.total_seats} ghế)`,
+    });
     return NextResponse.json(aircraft, { status: 201 });
   } catch (err) {
     return handleApiError(err, "POST /api/admin/aircraft");

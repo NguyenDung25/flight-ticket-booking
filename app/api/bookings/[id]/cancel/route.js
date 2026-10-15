@@ -26,6 +26,7 @@ import { handleApiError } from "@/lib/apiError";
 import { ActiveUserError } from "@/lib/requireActiveUser";
 import Booking from "@/models/Booking";
 import { cancelBooking } from "@/services/cancellationService";
+import { logAdminAction } from "@/lib/adminLog";
 
 const DEFAULT_CANCEL_REASON = "Khách tự hủy vé.";
 
@@ -66,6 +67,15 @@ export async function PATCH(request, { params }) {
     }
 
     const booking = await cancelBooking({ bookingId: id, cancelReason });
+
+    // Admin hủy THAY khách (A3) -> ghi nhật ký thao tác admin.
+    if (!isOwner) {
+      await logAdminAction(user, {
+        action: "booking.cancel", targetType: "booking", targetId: id,
+        summary: `Hủy vé thay khách, booking ${booking.booking_code || id}`,
+        details: { reason: rawReason, status: booking.status, refund_amount: booking.refund_amount },
+      });
+    }
 
     return NextResponse.json(booking);
   } catch (err) {

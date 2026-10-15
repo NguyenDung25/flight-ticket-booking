@@ -21,11 +21,12 @@ import { handleApiError } from "@/lib/apiError";
 import { ActiveUserError } from "@/lib/requireActiveUser";
 import Flight from "@/models/Flight";
 import { cancelBookingsForFlight } from "@/services/cancellationService";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function POST(request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
@@ -55,6 +56,11 @@ export async function POST(request, { params }) {
       cancelReason: `[Hủy chuyến A8] ${reason}`,
     });
 
+    await logAdminAction(admin, {
+      action: "flight.cancel_bulk", targetType: "flight", targetId: id,
+      summary: `Hủy chuyến ${flight.flight_number} và xử lý ${affectedBookingIds.length} booking liên quan`,
+      details: { reason, affected_booking_count: affectedBookingIds.length },
+    });
     return NextResponse.json({
       flight_id: id,
       affected_booking_count: affectedBookingIds.length,

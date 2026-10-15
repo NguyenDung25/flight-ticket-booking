@@ -16,6 +16,7 @@ import Aircraft from "@/models/Aircraft";
 // tình cờ đi kèm file khác đã nạp Airline model (cùng lớp bug với
 // services/flightService.js, xem comment đầy đủ ở đó).
 import "@/models/Airline";
+import { logAdminAction } from "@/lib/adminLog";
 
 export async function GET(request) {
   try {
@@ -40,7 +41,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
 
     const body = await request.json();
     const {
@@ -94,6 +95,11 @@ export async function POST(request) {
       seats,
     });
 
+    await logAdminAction(admin, {
+      action: "flight.create", targetType: "flight", targetId: flight._id,
+      summary: `Tạo chuyến ${flight.flight_number} (${flight.origin_code} → ${flight.dest_code})`,
+      details: { departure_time: flight.departure_time },
+    });
     return NextResponse.json(flight, { status: 201 });
   } catch (err) {
     return handleApiError(err, "POST /api/admin/flights");

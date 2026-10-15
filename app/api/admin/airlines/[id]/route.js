@@ -16,6 +16,7 @@ import { ActiveUserError } from "@/lib/requireActiveUser";
 import { handleApiError } from "@/lib/apiError";
 import Airline from "@/models/Airline";
 import Flight from "@/models/Flight";
+import { logAdminAction } from "@/lib/adminLog";
 
 function assertValidId(id) {
   if (!mongoose.isValidObjectId(id)) {
@@ -26,7 +27,7 @@ function assertValidId(id) {
 async function update(request, { params }, context) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     assertValidId(id);
 
@@ -48,6 +49,11 @@ async function update(request, { params }, context) {
       throw new ActiveUserError("Không tìm thấy hãng bay.", 404);
     }
 
+    await logAdminAction(admin, {
+      action: "airline.update", targetType: "airline", targetId: id,
+      summary: `Sửa hãng bay ${airline.code}`,
+      details: { code: airline.code, name_vi: airline.name?.vi, name_en: airline.name?.en },
+    });
     return NextResponse.json(airline);
   } catch (err) {
     return handleApiError(err, context);
@@ -65,7 +71,7 @@ export async function PATCH(request, ctx) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    const admin = await requireAdminUser();
     const { id } = await params;
     assertValidId(id);
 
@@ -83,6 +89,10 @@ export async function DELETE(_request, { params }) {
     }
 
     await airline.deleteOne();
+    await logAdminAction(admin, {
+      action: "airline.delete", targetType: "airline", targetId: id,
+      summary: `Xóa hãng bay ${airline.code}`,
+    });
     return NextResponse.json({ deleted: true });
   } catch (err) {
     return handleApiError(err, "DELETE /api/admin/airlines/[id]");
