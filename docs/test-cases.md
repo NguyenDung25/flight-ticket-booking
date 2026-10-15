@@ -2,7 +2,7 @@
 
 > Dùng cho Chương 4 (Kiểm thử). Cột **Kết quả thực tế** và **Đạt?** để trống — điền sau khi bạn chạy thử trên máy demo.
 >
-> - **Tự động**: chạy `npm test` (133 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). Cột "Tự động" ghi tên nhóm test tương ứng.
+> - **Tự động**: chạy `npm test` (153 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). Cột "Tự động" ghi tên nhóm test tương ứng.
 > - **Chuẩn bị chung**: `npm run seed`, `npm run seed:test`, chạy `npm run dev` + `npm run cron`; test thanh toán chạy được trên `localhost`; riêng test IPN thì bật ngrok và khai báo IPN URL (README mục 6b).
 > - Tài khoản: admin / khách demo do `npm run seed` in ra.
 
@@ -152,3 +152,10 @@
 | TC-100 | Thẻ lên máy bay có QR + in | Check-in thành công, quét mã QR bằng điện thoại, bấm "In / Lưu PDF" | QR đọc ra `DELAYX|mã|chuyến|ngày|chặng|ghế|tên|mã thẻ`; bản in chỉ có thẻ lên máy bay; thẻ có hướng dẫn hành lý/an ninh | `thẻ lên máy bay: ... QR` | | |
 | TC-101 | Chọn hành khách và chặng bay | Booking 2 khách: ở trang "Dữ liệu đặt chỗ" chọn chặng, tick 1 hoặc cả 2 khách, nhấn "Tiếp tục" | Chỉ tick được khách của chặng đang chọn và còn trong khung giờ; khách đã làm thủ tục hiện "Đã làm thủ tục"; chưa tick ai thì không bấm được "Tiếp tục" | — | | |
 | TC-102 | Quy định ICI | Ở bước Quy định, chưa tick đồng ý; tick rồi bấm "Đồng ý & Tiếp tục"; gọi API check-in thiếu `ici_accepted` | Chưa tick: nút bị khóa. Tick: phát thẻ cho mọi khách đã chọn. API thiếu đồng ý → 422, không check-in | `checkIn: chưa đồng ý quy định ICI` | | |
+| TC-103 | Sửa họ tên | Vào Tài khoản, đổi họ tên, Lưu | Báo đã cập nhật; tên trên header đổi ngay, không cần đăng nhập lại | — | | |
+| TC-104 | Đổi mật khẩu | Nhập sai mật khẩu hiện tại; rồi nhập đúng + mật khẩu mới | Sai: báo lỗi, không đổi. Đúng: bị đăng xuất, về trang đăng nhập có thông báo; mật khẩu cũ không đăng nhập được nữa | `changePassword` | | |
+| TC-105 | Phiên cũ hết hiệu lực | Đăng nhập cùng tài khoản trên 2 trình duyệt, đổi mật khẩu ở trình duyệt 1, thao tác ở trình duyệt 2 | Trình duyệt 2 bị yêu cầu đăng nhập lại | `phiên đăng nhập cấp TRƯỚC lần đổi mật khẩu` | | |
+| TC-106 | Quên mật khẩu | Nhập email đã đăng ký và email không tồn tại | Cả 2 đều hiện cùng 1 thông báo; email có thật nhận link (chưa có SMTP: link in ở log server) | `requestPasswordReset` | | |
+| TC-107 | Đặt lại mật khẩu | Mở link, đặt mật khẩu mới; mở lại đúng link lần 2 | Lần 1 thành công, đăng nhập được bằng mật khẩu mới; lần 2 báo link không hợp lệ/hết hạn | `resetPassword` | | |
+| TC-108 | Thông tin liên hệ khi đặt vé | Đặt vé: để trống SĐT / SĐT sai; rồi nhập email khác email tài khoản + SĐT đúng | Thiếu/sai: báo lỗi, không tạo booking. Đúng: booking lưu contact, trang vé hiện người liên hệ, email vé gửi về email liên hệ | `normalizeContact` | | |
+| TC-109 | Nhật ký thao tác admin | Admin khóa/mở khóa 1 tài khoản, hủy vé thay khách, sửa 1 chuyến bay; mở Admin → Nhật ký thao tác | Mỗi thao tác 1 dòng (thời điểm, email admin, mô tả, chi tiết); lọc theo nhóm đúng | `logAdminAction` | | |

@@ -129,13 +129,13 @@ Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ
 ## 10. Kiểm thử
 
 ```bash
-npm test       # 138 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
+npm test       # 153 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
 npm run lint   # ESLint theo bộ luật của Next.js
 npm run build  # build production — nên chạy 1 lần trước khi demo/bảo vệ
 ```
 
 - Test tự động dùng bản giả của DB (stub) cho luồng thanh toán/race, **không thay thế** test với MongoDB thật. Script `scripts/integration-seat-cancel.js` chạy với MongoDB thật (xem chú thích đầu file; **không** trỏ vào DB có dữ liệu thật).
-- Bảng test case thủ công cho Chương 4 (102 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
+- Bảng test case thủ công cho Chương 4 (109 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
 
 ## 11. Một số hành vi cần biết khi demo
 
@@ -143,7 +143,9 @@ npm run build  # build production — nên chạy 1 lần trước khi demo/bả
 - **Thanh toán đến muộn**: nếu VNPay báo thành công nhưng booking đã bị hủy (quá hạn/khách hủy), booking chuyển `payment_error_manual_refund` để admin hoàn tay.
 - **Hoàn tiền tay**: ở trang Admin → Booking, booking `payment_error_manual_refund` có nút "Hoàn tiền tay" (nhập số tiền đã chuyển trả khách). Hệ thống chỉ ghi nhận số tiền, chưa gọi API hoàn tiền của VNPay.
 - **Check-in online** (`/check-in`): không cần đăng nhập — nhập mã đặt chỗ + họ của 1 hành khách, chọn chặng và hành khách, đồng ý quy định ICI, nhận thẻ lên máy bay có mã QR. Nhập sai 5 lần thì bị khóa tra cứu 15 phút (lưu trong bộ nhớ — restart server là mở khóa).
-- **Email vé**: cần `SMTP_USER`/`SMTP_PASS` (Gmail App Password). Chưa cấu hình thì trang kết quả thanh toán báo "chưa gửi được qua email" thay vì báo đã gửi.
+- **Email vé**: cần `SMTP_USER`/`SMTP_PASS` (Gmail App Password). Chưa cấu hình thì trang kết quả thanh toán báo "chưa gửi được qua email" thay vì báo đã gửi. Vé gửi về **email liên hệ** khách nhập lúc đặt vé.
+- **Tài khoản** (`/account`): sửa họ tên, đổi mật khẩu (đăng xuất mọi thiết bị). **Quên mật khẩu** (`/forgot-password`): chưa cấu hình SMTP thì link đặt lại mật khẩu được in ra log server (`[email] Chưa cấu hình SMTP — link đặt lại mật khẩu ...`).
+- **Nhật ký thao tác admin** (`/admin/logs`): mọi thao tác thay đổi dữ liệu của admin (hủy vé thay khách, hoàn tiền tay, khóa user, sửa/hủy chuyến...).
 - **Ngôn ngữ**: thông báo lỗi từ server được dịch sang tiếng Anh ở giao diện EN (`lib/apiMessages.js` — thêm bản dịch khi thêm thông báo lỗi mới).
 - **Hãng bay / máy bay**: sửa và xóa ngay trên bảng. Xóa bị chặn nếu còn chuyến bay đang dùng. Sửa sơ đồ ghế máy bay chỉ áp dụng cho chuyến tạo sau.
 

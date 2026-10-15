@@ -2,7 +2,7 @@
 
 > Dựa trên [`chuc-nang-he-thong.md`](chuc-nang-he-thong.md). Database MongoDB **standalone** (không replica set) → mọi ràng buộc "toàn vẹn" đều xử lý bằng **update atomic + validate ở tầng service**, không dùng multi-document transaction.
 
-## 0. Tổng quan 8 collection & quan hệ
+## 0. Tổng quan 9 collection & quan hệ
 
 | Collection | Vai trò | Tham chiếu tới |
 |---|---|---|
@@ -14,6 +14,7 @@
 | `Booking` | Đơn đặt vé (nhúng `passengers[]`, `payment`) | `User`, `Flight`, `Promotion` |
 | `Promotion` | Mã khuyến mãi | — |
 | `PopularRoute` | Tuyến bay phổ biến hiển thị ở trang chủ (kèm ảnh nền) | `Airport.code` (origin/dest) |
+| `AdminLog` | Nhật ký thao tác của quản trị viên (chỉ ghi thêm) | `User` (admin) |
 
 Nguyên tắc nhúng (embed) vs tham chiếu (ref):
 - **Ghế nhúng trong `Flight.seats[]`** — ghi chú (c): giữ/nhả ghế là 1 update atomic trên 1 document, không cần transaction, hợp với MongoDB standalone.
@@ -34,6 +35,10 @@ Nguyên tắc nhúng (embed) vs tham chiếu (ref):
   role: String,                // enum: 'customer' | 'admin', default 'customer'
   is_blocked: Boolean,         // default false — check lại trực tiếp từ DB mỗi hành động nhạy cảm (ghi chú q)
   preferred_language: String,  // enum: 'vi' | 'en', default 'vi' — C11
+  password_changed_at: Date,   // lần đổi/đặt lại mật khẩu gần nhất — phiên đăng nhập cấp trước đó hết hiệu lực (C8b)
+  password_reset_token_hash: String, // SHA-256 của token quên mật khẩu (select: false), null khi không có
+  password_reset_expires: Date,      // hạn dùng token (30 phút)
+  password_reset_requested_at: Date, // chống gửi lại link liên tục (60 giây / email)
   created_at: Date,
   updated_at: Date,
 }
@@ -256,6 +261,10 @@ flight.seats = structuredClone(aircraft.seat_map_template).map(s => ({
   ],
 
   promotion_id: ObjectId,          // ref: Promotion — null nếu không dùng mã
+  contact: {                       // người liên hệ (C4) — vé điện tử gửi về contact.email
+    email: String,                 // đã chuẩn hóa chữ thường
+    phone: String,                 // 9–15 chữ số, cho phép + ở đầu
+  },
   total_amount: Number,            // = Σ flights[].amount (giảm giá đã chia xuống từng chặng theo tỷ lệ — ghi chú am)
 
   status: String,
@@ -414,6 +423,28 @@ db.promotions.updateOne(
 
 ---
 
+## 7c. `AdminLog`
+
+*Bổ sung khi triển khai (A9). Chỉ ghi thêm — không có API sửa/xóa.*
+
+```js
+{
+  _id: ObjectId,
+  admin_id: ObjectId,       // ref: User (role admin)
+  admin_email: String,      // chụp lại lúc thao tác
+  action: String,           // enum, VD 'booking.cancel', 'booking.manual_refund', 'user.block', 'flight.cancel_bulk'...
+  target_type: String,      // 'flight' | 'booking' | 'user' | 'promotion' | 'aircraft' | 'airline' | 'popular_route'
+  target_id: String,        // id đối tượng bị tác động (null nếu không có)
+  summary: String,          // mô tả ngắn tiếng Việt
+  details: Object,          // chi tiết rút gọn (bỏ mật khẩu/token, mảng chỉ ghi số phần tử)
+  created_at: Date,
+}
+```
+
+**Index:** `{ created_at: -1 }`, `{ action: 1, created_at: -1 }`, `{ target_type: 1, target_id: 1 }`.
+
+---
+
 ## 8. Bảng tổng hợp Index
 
 | Collection | Index | Loại |
@@ -429,6 +460,8 @@ db.promotions.updateOne(
 | `Promotion` | `{ code: 1 }` | unique |
 | `PopularRoute` | `{ origin_code: 1, dest_code: 1 }` | unique |
 | `PopularRoute` | `{ sort_order: 1 }` | single |
+| `User` | `{ password_reset_token_hash: 1 }` | sparse |
+| `AdminLog` | `{ created_at: -1 }`, `{ action: 1, created_at: -1 }`, `{ target_type: 1, target_id: 1 }` | single / compound |
 
 ## 9. Bảng tổng hợp Enum
 
