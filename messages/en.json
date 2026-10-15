@@ -17,7 +17,8 @@
     "language": "Language",
     "adminPanel": "Admin panel",
     "promotions": "Promotions",
-    "cancellationPolicy": "Cancellation policy"
+    "cancellationPolicy": "Cancellation policy",
+    "account": "Account"
   },
   "Common": {
     "loading": "Loading...",
@@ -43,7 +44,22 @@
     "invalidCredentials": "Incorrect email or password.",
     "tooManyAttempts": "Too many failed attempts. Please try again in 15 minutes.",
     "accountBlocked": "This account has been blocked.",
-    "emailInUse": "This email is already in use."
+    "emailInUse": "This email is already in use.",
+    "forgotPassword": "Forgot password?",
+    "forgotTitle": "Forgot password",
+    "forgotHint": "Enter the email you registered with and we will send you a link to choose a new password.",
+    "sendResetLink": "Send reset link",
+    "sending": "Sending...",
+    "forgotSent": "If this email is registered, we have sent a password reset link (valid for 30 minutes). Please check your inbox, including Spam.",
+    "forgotError": "Could not send the request, please try again.",
+    "backToLogin": "Back to login",
+    "resetTitle": "Reset password",
+    "resetButton": "Set new password",
+    "resetError": "Could not reset the password, please try again.",
+    "resetLinkInvalid": "This password reset link is invalid or has expired.",
+    "requestNewLink": "Request a new reset link",
+    "passwordChangedNotice": "Password changed. Please log in again with your new password.",
+    "passwordResetNotice": "Your new password is set. Please log in."
   },
   "Home": {
     "title": "Find the right flight for you",
@@ -153,7 +169,14 @@
     "processing": "Processing...",
     "selectingSeatFor": "Selecting seat for",
     "seatStatusBusinessClass": "Business class (blue outline)",
-    "continuePendingConfirm": "Press OK to continue paying for that booking (its passenger details are the ones you entered earlier)."
+    "continuePendingConfirm": "Press OK to continue paying for that booking (its passenger details are the ones you entered earlier).",
+    "contactTitle": "Contact details",
+    "contactHint": "Your Electronic Ticket Receipt will be sent to this email; the phone number is used if the airline needs to reach you (e.g. schedule changes).",
+    "contactEmail": "Email for the ticket",
+    "contactPhone": "Phone number",
+    "contactPhonePlaceholder": "e.g. 0912 345 678",
+    "errorContactEmail": "Please enter a valid contact email.",
+    "errorContactPhone": "Please enter a valid contact phone number (9–15 digits)."
   },
   "Payment": {
     "title": "Payment",
@@ -290,7 +313,8 @@
     "resendButton": "Resend by email",
     "resending": "Sending...",
     "resendSuccess": "The Electronic Ticket Receipt was resent by email.",
-    "resendError": "Could not send the email, please try again later."
+    "resendError": "Could not send the email, please try again later.",
+    "contactTitle": "Contact"
   },
   "Promotions": {
     "title": "Promotions",
@@ -333,5 +357,24 @@
     "promoCode": "Promo code uses are not returned when a booking is cancelled.",
     "refundProcess": "The refund amount is recorded immediately and shown in \"My bookings\"; the transfer back to you is handled by customer support.",
     "noChange": "Changing a booking (date, time or flight) is not supported yet: if needed, cancel under this policy and make a new booking."
+  },
+  "Account": {
+    "title": "My account",
+    "memberSince": "Member since {date}",
+    "profileTitle": "Personal details",
+    "email": "Login email",
+    "fullName": "Full name",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "profileSaved": "Your name has been updated.",
+    "saveError": "Could not save, please try again.",
+    "passwordTitle": "Change password",
+    "passwordHint": "After changing your password you will be signed out on all devices and need to log in again with the new password.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changePassword": "Change password",
+    "passwordMismatch": "The passwords do not match.",
+    "passwordTooShort": "Password must be at least 6 characters."
   }
 }

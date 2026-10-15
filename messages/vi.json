@@ -17,7 +17,8 @@
     "language": "Ngôn ngữ",
     "adminPanel": "Trang quản trị",
     "promotions": "Khuyến mãi",
-    "cancellationPolicy": "Chính sách hủy vé"
+    "cancellationPolicy": "Chính sách hủy vé",
+    "account": "Tài khoản"
   },
   "Common": {
     "loading": "Đang tải...",
@@ -43,7 +44,22 @@
     "invalidCredentials": "Email hoặc mật khẩu không đúng.",
     "tooManyAttempts": "Bạn đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.",
     "accountBlocked": "Tài khoản đã bị khóa.",
-    "emailInUse": "Email đã được sử dụng."
+    "emailInUse": "Email đã được sử dụng.",
+    "forgotPassword": "Quên mật khẩu?",
+    "forgotTitle": "Quên mật khẩu",
+    "forgotHint": "Nhập email đã đăng ký, chúng tôi sẽ gửi link để bạn đặt mật khẩu mới.",
+    "sendResetLink": "Gửi link đặt lại mật khẩu",
+    "sending": "Đang gửi...",
+    "forgotSent": "Nếu email này đã đăng ký tài khoản, chúng tôi đã gửi link đặt lại mật khẩu (hiệu lực 30 phút). Vui lòng kiểm tra hộp thư, cả mục Spam.",
+    "forgotError": "Không gửi được yêu cầu, vui lòng thử lại.",
+    "backToLogin": "Quay lại đăng nhập",
+    "resetTitle": "Đặt lại mật khẩu",
+    "resetButton": "Đặt mật khẩu mới",
+    "resetError": "Không đặt lại được mật khẩu, vui lòng thử lại.",
+    "resetLinkInvalid": "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
+    "requestNewLink": "Gửi lại link đặt lại mật khẩu",
+    "passwordChangedNotice": "Đã đổi mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới.",
+    "passwordResetNotice": "Đã đặt mật khẩu mới. Vui lòng đăng nhập."
   },
   "Home": {
     "title": "Tìm chuyến bay phù hợp với bạn",
@@ -153,7 +169,14 @@
     "processing": "Đang xử lý...",
     "selectingSeatFor": "Đang chọn ghế cho",
     "seatStatusBusinessClass": "Hạng thương gia (viền xanh)",
-    "continuePendingConfirm": "Bấm OK để tiếp tục thanh toán booking đó (thông tin hành khách là thông tin bạn đã nhập trước đó)."
+    "continuePendingConfirm": "Bấm OK để tiếp tục thanh toán booking đó (thông tin hành khách là thông tin bạn đã nhập trước đó).",
+    "contactTitle": "Thông tin liên hệ",
+    "contactHint": "Vé điện tử sẽ được gửi tới email này; số điện thoại dùng khi hãng cần liên hệ (VD đổi lịch bay).",
+    "contactEmail": "Email nhận vé",
+    "contactPhone": "Số điện thoại",
+    "contactPhonePlaceholder": "VD: 0912 345 678",
+    "errorContactEmail": "Vui lòng nhập email liên hệ hợp lệ.",
+    "errorContactPhone": "Vui lòng nhập số điện thoại liên hệ hợp lệ (9–15 chữ số)."
   },
   "Payment": {
     "title": "Thanh toán",
@@ -290,7 +313,8 @@
     "resendButton": "Gửi lại qua email",
     "resending": "Đang gửi...",
     "resendSuccess": "Đã gửi lại vé điện tử qua email.",
-    "resendError": "Không gửi được email, vui lòng thử lại sau."
+    "resendError": "Không gửi được email, vui lòng thử lại sau.",
+    "contactTitle": "Người liên hệ"
   },
   "Promotions": {
     "title": "Khuyến mãi",
@@ -333,5 +357,24 @@
     "promoCode": "Lượt dùng mã khuyến mãi không được hoàn lại khi hủy vé.",
     "refundProcess": "Số tiền hoàn được ghi nhận ngay khi hủy và hiển thị trong \"Vé của tôi\"; việc chuyển tiền về tài khoản do bộ phận chăm sóc khách hàng xử lý.",
     "noChange": "Hệ thống chưa hỗ trợ đổi vé (đổi ngày giờ, đổi chuyến): nếu cần, vui lòng hủy theo chính sách trên và đặt vé mới."
+  },
+  "Account": {
+    "title": "Tài khoản của tôi",
+    "memberSince": "Thành viên từ {date}",
+    "profileTitle": "Thông tin cá nhân",
+    "email": "Email đăng nhập",
+    "fullName": "Họ và tên",
+    "save": "Lưu thay đổi",
+    "saving": "Đang lưu...",
+    "profileSaved": "Đã cập nhật họ tên.",
+    "saveError": "Không lưu được, vui lòng thử lại.",
+    "passwordTitle": "Đổi mật khẩu",
+    "passwordHint": "Sau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi mọi thiết bị và cần đăng nhập lại bằng mật khẩu mới.",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Nhập lại mật khẩu mới",
+    "changePassword": "Đổi mật khẩu",
+    "passwordMismatch": "Mật khẩu nhập lại không khớp.",
+    "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự."
   }
 }

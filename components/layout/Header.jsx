@@ -42,10 +42,11 @@ export default async function Header() {
   const isAdmin = session?.user?.role === "admin";
   const adminLink = isAdmin ? { href: "/admin", label: t("adminPanel"), plain: true } : null;
 
+  const accountLink = { href: "/account", label: t("account") };
   const mobileLinks = session?.user
     ? adminLink
-      ? [...navLinks, adminLink]
-      : navLinks
+      ? [...navLinks, accountLink, adminLink]
+      : [...navLinks, accountLink]
     : [...navLinks, { href: "/register", label: t("register") }];
 
   return (
@@ -87,12 +88,13 @@ export default async function Header() {
                   hiện `name` nếu auth.js có set (xem callbacks.session ở
                   auth.js), fallback về `email` vì đó là field CHẮC CHẮN luôn
                   có (models/User.js bắt buộc, name thì không). */}
-              <span
-                title={session.user.email}
-                className="hidden max-w-[10rem] truncate text-sm text-ink/70 sm:inline"
+              <Link
+                href="/account"
+                title={`${t("account")} — ${session.user.email}`}
+                className="hidden max-w-[10rem] truncate text-sm text-ink/70 hover:text-coral-600 hover:underline sm:inline"
               >
                 {session.user.name || session.user.email}
-              </span>
+              </Link>
               <form action={signOutAction}>
                 <Button type="submit" variant="ghost">
                   {t("logout")}

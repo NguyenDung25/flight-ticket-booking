@@ -18,6 +18,15 @@ const UserSchema = new Schema(
     role: { type: String, enum: ["customer", "admin"], default: "customer" },
     is_blocked: { type: Boolean, default: false },
     preferred_language: { type: String, enum: ["vi", "en"], default: "vi" }, // C11
+
+    // Tài khoản — đổi / quên mật khẩu (services/accountService.js).
+    // Lần đổi mật khẩu gần nhất: phiên đăng nhập (JWT) cấp TRƯỚC thời điểm này bị coi là hết hiệu
+    // lực (lib/requireActiveUser.js) — đổi mật khẩu là đăng xuất mọi thiết bị khác.
+    password_changed_at: { type: Date, default: null },
+    // Chỉ lưu SHA-256 của token đặt lại mật khẩu (token gốc chỉ nằm trong link gửi email).
+    password_reset_token_hash: { type: String, default: null, select: false },
+    password_reset_expires: { type: Date, default: null, select: false },
+    password_reset_requested_at: { type: Date, default: null, select: false },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
@@ -26,5 +35,6 @@ const UserSchema = new Schema(
 // cho việc check findOne({ email }) ở tầng service trước khi insert, vì cần
 // trả lỗi rõ ràng (409) thay vì để MongoDB ném lỗi duplicate key thô.
 UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ password_reset_token_hash: 1 }, { sparse: true });
 
 module.exports = mongoose.models.User || mongoose.model("User", UserSchema);

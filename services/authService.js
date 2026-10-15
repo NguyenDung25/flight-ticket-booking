@@ -34,13 +34,49 @@ class AuthError extends Error {
 }
 
 /**
+ * Quy tắc mật khẩu mới — dùng chung cho đăng ký, đổi mật khẩu, đặt lại mật khẩu
+ * (services/accountService.js): chuỗi, tối thiểu 6 ký tự, tối đa 72 byte (giới hạn của bcrypt).
+ * @throws {AuthError} 400
+ */
+function assertValidNewPassword(password) {
+  if (typeof password !== "string") {
+    throw new AuthError("Mật khẩu phải là chuỗi.", 400);
+  }
+  if (password.length < 6) {
+    throw new AuthError("Mật khẩu phải có ít nhất 6 ký tự.", 400);
+  }
+  if (password.length > 128 || Buffer.byteLength(password, "utf8") > BCRYPT_MAX_PASSWORD_BYTES) {
+    throw new AuthError(
+      `Mật khẩu quá dài (tối đa ${BCRYPT_MAX_PASSWORD_BYTES} byte, ký tự có dấu tính nhiều byte).`,
+      400
+    );
+  }
+}
+
+/** Họ tên đã trim, 1–FULL_NAME_MAX_LENGTH ký tự. @throws {AuthError} 400 */
+function normalizeFullName(fullName) {
+  const name = typeof fullName === "string" ? fullName.trim() : "";
+  if (name.length < 1 || name.length > FULL_NAME_MAX_LENGTH) {
+    throw new AuthError(`Họ tên phải từ 1 đến ${FULL_NAME_MAX_LENGTH} ký tự.`, 400);
+  }
+  return name;
+}
+
+/**
  * Bỏ `password_hash` trước khi trả User ra ngoài service — KHÔNG BAO GIỜ để
  * hash mật khẩu lọt ra route/response/session, kể cả khi đã hash (giảm bề
  * mặt rò rỉ nếu response bị log hoặc lộ qua lỗi khác).
  */
 function sanitizeUser(userDoc) {
   const obj = userDoc.toObject ? userDoc.toObject() : userDoc;
-  const { password_hash, ...safe } = obj;
+  // Bỏ cả dữ liệu đặt lại mật khẩu (token hash, hạn dùng) — chỉ dùng nội bộ services/accountService.js.
+  const {
+    password_hash,
+    password_reset_token_hash,
+    password_reset_expires,
+    password_reset_requested_at,
+    ...safe
+  } = obj;
   return safe;
 }
 
@@ -69,10 +105,7 @@ async function registerUser({ email, password, full_name, preferred_language }) 
   if (typeof email !== "string" || typeof password !== "string" || typeof full_name !== "string") {
     throw new AuthError("email, password, full_name phải là chuỗi.", 400);
   }
-  full_name = full_name.trim();
-  if (full_name.length < 1 || full_name.length > FULL_NAME_MAX_LENGTH) {
-    throw new AuthError(`Họ tên phải từ 1 đến ${FULL_NAME_MAX_LENGTH} ký tự.`, 400);
-  }
+  full_name = normalizeFullName(full_name);
   const allowedLanguages = User.schema.path("preferred_language")?.enumValues;
   if (preferred_language !== undefined && preferred_language !== null && preferred_language !== "") {
     if (typeof preferred_language !== "string" || (allowedLanguages && !allowedLanguages.includes(preferred_language))) {
@@ -85,15 +118,7 @@ async function registerUser({ email, password, full_name, preferred_language }) 
   if (!EMAIL_RE.test(email.trim())) {
     throw new AuthError("Địa chỉ email không hợp lệ.", 400);
   }
-  if (password.length < 6) {
-    throw new AuthError("Mật khẩu phải có ít nhất 6 ký tự.", 400);
-  }
-  if (password.length > 128 || Buffer.byteLength(password, "utf8") > BCRYPT_MAX_PASSWORD_BYTES) {
-    throw new AuthError(
-      `Mật khẩu quá dài (tối đa ${BCRYPT_MAX_PASSWORD_BYTES} byte, ký tự có dấu tính nhiều byte).`,
-      400
-    );
-  }
+  assertValidNewPassword(password);
 
   await dbConnect();
 
@@ -165,6 +190,9 @@ async function verifyCredentials({ email, password }) {
 
 module.exports = {
   AuthError,
+  assertValidNewPassword,
+  normalizeFullName,
+  sanitizeUser,
   registerUser,
   verifyCredentials,
 };

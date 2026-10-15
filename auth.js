@@ -16,7 +16,7 @@ import authConfig from "./auth.config";
 import dbConnect from "./lib/mongodb";
 import { verifyCredentials, AuthError } from "./services/authService";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -64,14 +64,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
+    // `trigger === "update"`: gọi unstable_update() sau khi khách sửa họ tên ở trang Tài khoản — cập
+    // nhật tên hiển thị trên header mà không bắt đăng nhập lại.
     // Nhúng thêm role/id vào JWT lúc đăng nhập (chỉ chạy khi `user` tồn tại,
     // tức đúng lần authorize() thành công — các lần refresh JWT sau đó
     // `user` sẽ undefined, giữ nguyên token cũ).
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.preferred_language = user.preferred_language;
+        // Thời điểm đăng nhập — so với User.password_changed_at để vô hiệu hóa phiên cũ sau khi
+        // đổi/đặt lại mật khẩu (lib/requireActiveUser.js).
+        token.auth_at = Date.now();
+      }
+      if (trigger === "update" && typeof session?.user?.name === "string") {
+        token.name = session.user.name;
       }
       return token;
     },
@@ -85,6 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.preferred_language = token.preferred_language;
+        session.user.auth_at = token.auth_at ?? null;
       }
       return session;
     },

@@ -41,7 +41,7 @@ const localePrefixRe = new RegExp(`^/(${nonDefaultLocales.join("|")})(?=/|$)`);
 // cần bảo vệ.
 // "check-in" KHÔNG nằm đây: check-in online xác thực bằng mã đặt chỗ + họ tên, không cần đăng nhập
 // (giống website hãng bay) — xem services/checkinService.js.
-const PROTECTED_SEGMENTS = ["booking", "payment", "my-bookings"];
+const PROTECTED_SEGMENTS = ["booking", "payment", "my-bookings", "account"];
 const protectedPathnameRe = new RegExp(
   `^(/(${nonDefaultLocales.join("|")}))?/(${PROTECTED_SEGMENTS.join("|")})(/.*)?$`
 );

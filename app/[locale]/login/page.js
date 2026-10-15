@@ -12,7 +12,7 @@ import LoginForm from "./LoginForm";
 
 export default async function LoginPage({ params, searchParams }) {
   const { locale } = await params;
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, changed, reset } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("Auth");
 
@@ -23,9 +23,21 @@ export default async function LoginPage({ params, searchParams }) {
           {t("loginTitle")}
         </h1>
 
+        {(changed === "1" || reset === "1") && (
+          <p role="status" className="mt-4 rounded-lg bg-sea-700/10 px-3 py-2 text-sm text-sea-900">
+            {changed === "1" ? t("passwordChangedNotice") : t("passwordResetNotice")}
+          </p>
+        )}
+
         <div className="mt-6">
           <LoginForm callbackUrl={callbackUrl || "/"} />
         </div>
+
+        <p className="mt-3 text-right text-sm">
+          <Link href="/forgot-password" className="font-medium text-sea-500 hover:underline">
+            {t("forgotPassword")}
+          </Link>
+        </p>
 
         <p className="mt-6 text-center text-sm text-ink/70">
           {t("noAccount")}{" "}
