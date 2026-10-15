@@ -90,7 +90,7 @@ export default async function HomePage({ params }) {
         <div className="pointer-events-none absolute -bottom-16 -right-16 h-64 w-64 rounded-full bg-white/20 blur-2xl" />
 
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <span className="rounded-full border border-white/40 bg-white/15 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-white">
+          <span className="font-display text-3xl font-extrabold uppercase tracking-[0.25em] text-white drop-shadow-md sm:text-4xl">
             DelayX
           </span>
           <h1 className="font-display max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">

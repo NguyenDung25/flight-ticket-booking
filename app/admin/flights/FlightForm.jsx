@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { nowVN } from "@/lib/timezone";
 
 const emptyForm = {
   flight_number: "",
@@ -60,6 +61,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         loading: false,
         error: null,
         schedules: data.schedules,
+        cached: data.cached === true,
         note: data.schedules.length === 0 ? "AirLabs không có lịch bay cho tuyến này — hãy nhập tay." : null,
       });
     } catch (err) {
@@ -68,12 +70,14 @@ export default function FlightForm({ airlines, aircraft, airports }) {
   }
 
   // Chọn 1 lịch bay -> tự điền số hiệu, hãng (nếu hệ thống đã có hãng đó) và giờ.
-  // Nếu admin ĐÃ chọn ngày khởi hành thì giữ ngày đó, chỉ lấy giờ/thời lượng từ
-  // AirLabs (lịch của AirLabs lặp hằng ngày, ngày trong kết quả không có ý
-  // nghĩa). Cộng/trừ trên chuỗi "…Z" (UTC giả) để không lệ thuộc múi giờ máy.
+  // Nếu admin ĐÃ chọn ngày khởi hành thì giữ ngày đó; chưa chọn thì mặc định NGÀY MAI (giờ VN) —
+  // AirLabs trả lịch của hôm nay, lấy nguyên ngày đó dễ ra chuyến có giờ đã qua. Chỉ lấy giờ/thời
+  // lượng từ AirLabs. Cộng/trừ trên chuỗi "…Z" (UTC giả) để không lệ thuộc múi giờ máy.
   function applySchedule(s) {
     const durationMs = new Date(`${s.arr_vn}:00Z`) - new Date(`${s.dep_vn}:00Z`);
-    const datePart = form.departure_time ? form.departure_time.slice(0, 10) : s.dep_vn.slice(0, 10);
+    const datePart = form.departure_time
+      ? form.departure_time.slice(0, 10)
+      : nowVN().add(1, "day").format("YYYY-MM-DD");
     const dep = new Date(`${datePart}T${s.dep_vn.slice(11)}:00Z`);
     const arr = new Date(dep.getTime() + durationMs);
     const matchedAirline = airlines.find(
@@ -264,7 +268,14 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         {lookup.error && <p className="text-xs text-danger">{lookup.error}</p>}
         {lookup.note && <p className="text-xs text-ink/60">{lookup.note}</p>}
         {lookup.schedules && lookup.schedules.length > 0 && (
-          <div className="flex max-h-44 flex-col gap-1 overflow-y-auto">
+          <p className="text-[11px] text-ink/50">
+            {lookup.schedules.length} chuyến sắp khởi hành theo AirLabs — AirLabs chỉ trả các chuyến từ giờ
+            hiện tại trở đi (đã bỏ chuyến codeshare
+            {lookup.cached ? "; kết quả đã lưu, không tốn lượt gọi AirLabs" : ""}).
+          </p>
+        )}
+        {lookup.schedules && lookup.schedules.length > 0 && (
+          <div className="flex max-h-60 flex-col gap-1 overflow-y-auto">
             {lookup.schedules.map((s) => (
               <button
                 key={`${s.flight_iata}-${s.dep_vn}`}
