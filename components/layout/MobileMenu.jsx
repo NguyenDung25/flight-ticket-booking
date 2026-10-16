@@ -7,10 +7,13 @@
 // giữ locale khi điều hướng — cùng convention với Header.jsx.
 
 import { useState } from "react";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
+import { hideCurrentPage } from "./navFilter";
 
 export default function MobileMenu({ links }) {
   const [open, setOpen] = useState(false);
+  // Ẩn mục menu của chính trang đang mở (navFilter.js).
+  const visibleLinks = hideCurrentPage(links, usePathname());
 
   return (
     <div className="lg:hidden">
@@ -39,7 +42,7 @@ export default function MobileMenu({ links }) {
       {open && (
         <div className="absolute left-0 right-0 top-[calc(100%+1px)] z-50 border-b border-sand-100 bg-sand-50/95 px-6 py-4 shadow-md backdrop-blur lg:hidden">
           <nav className="flex flex-col gap-4">
-            {links.map((l) =>
+            {visibleLinks.map((l) =>
               l.plain ? (
                 // Đích nằm NGOÀI [locale] (VD /admin) -> <a> thường, không prefix locale.
                 <a

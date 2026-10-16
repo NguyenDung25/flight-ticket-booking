@@ -15,6 +15,7 @@ import { auth } from "@/auth";
 import { Link } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import MobileMenu from "./MobileMenu";
+import DesktopNav from "./DesktopNav";
 import { signOutAction } from "./authActions";
 import Button from "../ui/Button";
 
@@ -62,13 +63,8 @@ export default async function Header() {
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-sea-900 lg:flex">
-          {navLinks.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-coral-600">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Mục menu của trang đang mở được ẩn đi (DesktopNav / MobileMenu, xem navFilter.js). */}
+        <DesktopNav links={navLinks} />
 
         <div className="flex items-center gap-3">
           <LanguageSwitcher />
