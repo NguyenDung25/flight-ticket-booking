@@ -14,7 +14,7 @@
 // LƯU Ý: /search (trang kết quả) CHƯA làm (Bước 3) — bấm submit lúc này sẽ
 // ra 404, đúng như /my-bookings lúc Bước 0/1, không phải lỗi.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { normalizeBookingCode, normalizePassengerName } from "@/lib/bookingCode";
@@ -56,12 +56,27 @@ export default function SearchForm({ airports, locale }) {
     try { sessionStorage.setItem(key, value); } catch {}
   }
 
-  const [tripType, setTripType] = useState(() => readSession("sf_tripType", "one_way"));
-  const [origin, setOrigin] = useState(() => readSession("sf_origin", ""));
-  const [destination, setDestination] = useState(() => readSession("sf_destination", ""));
-  const [departureDate, setDepartureDate] = useState(() => readSession("sf_departureDate", todayISO()));
-  const [returnDate, setReturnDate] = useState(() => readSession("sf_returnDate", ""));
-  const [passengerCount, setPassengerCount] = useState(() => readSession("sf_passengerCount", "1"));
+  const [tripType, setTripType] = useState("one_way");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [departureDate, setDepartureDate] = useState(todayISO);
+  const [returnDate, setReturnDate] = useState("");
+  const [passengerCount, setPassengerCount] = useState("1");
+
+  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
+  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
+  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setTripType(readSession("sf_tripType", "one_way"));
+      setOrigin(readSession("sf_origin", ""));
+      setDestination(readSession("sf_destination", ""));
+      setDepartureDate(readSession("sf_departureDate", todayISO()));
+      setReturnDate(readSession("sf_returnDate", ""));
+      setPassengerCount(readSession("sf_passengerCount", "1"));
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
   const [formError, setFormError] = useState(null);
   // Tab của ô tìm kiếm: đặt vé | quản lý đặt chỗ | làm thủ tục (như trang các hãng bay).
   const [mode, setMode] = useState("book");

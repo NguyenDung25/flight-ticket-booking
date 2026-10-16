@@ -13,7 +13,7 @@
 // API nào chỉ có ở server (chỉ dùng lib/timezone + next-intl Link, cả 2 đều
 // chạy được ở browser).
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import FlightCard from "./FlightCard";
 
@@ -75,10 +75,24 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
     try { sessionStorage.setItem(FILTER_KEY + "_" + key, JSON.stringify(value)); } catch {}
   }
 
-  const [maxPrice, setMaxPrice] = useState(() => readFilter("maxPrice", maxPriceOverall));
-  const [selectedSlots, setSelectedSlots] = useState(() => readFilter("slots", []));
-  const [selectedAirlines, setSelectedAirlines] = useState(() => readFilter("airlines", []));
-  const [sortBy, setSortBy] = useState(() => readFilter("sort", "time"));
+  const [maxPrice, setMaxPrice] = useState(maxPriceOverall);
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [selectedAirlines, setSelectedAirlines] = useState([]);
+  const [sortBy, setSortBy] = useState("time");
+
+  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
+  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
+  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setMaxPrice(readFilter("maxPrice", maxPriceOverall));
+      setSelectedSlots(readFilter("slots", []));
+      setSelectedAirlines(readFilter("airlines", []));
+      setSortBy(readFilter("sort", "time"));
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggleSlot(id) {
     setSelectedSlots((prev) => {

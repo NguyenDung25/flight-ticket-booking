@@ -115,33 +115,46 @@ export default function PassengersForm({
     try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch {}
   }
 
-  const savedSession = readPfSession(SESSION_KEY, null);
-
   const [passengers, setPassengers] = useState(() =>
-    savedSession?.passengers ?? Array.from({ length: initialPassengerCount }, emptyPassenger)
+    Array.from({ length: initialPassengerCount }, emptyPassenger)
   );
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const [outboundSeats, setOutboundSeats] = useState(
-    savedSession?.outboundSeats ?? outboundFlight.seats
-  );
-  const [returnSeats, setReturnSeats] = useState(
-    savedSession?.returnSeats ?? (returnFlight ? returnFlight.seats : [])
-  );
+  const [outboundSeats, setOutboundSeats] = useState(outboundFlight.seats);
+  const [returnSeats, setReturnSeats] = useState(returnFlight ? returnFlight.seats : []);
   const [seatBusy, setSeatBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Người liên hệ: email nhận vé điện tử (mặc định email tài khoản) + số điện thoại.
-  const [contact, setContact] = useState(
-    () => savedSession?.contact ?? { email: defaultContactEmail, phone: "" }
-  );
+  const [contact, setContact] = useState({ email: defaultContactEmail, phone: "" });
+  // true sau khi đã khôi phục từ sessionStorage — trước đó KHÔNG tự lưu, kẻo giá trị mặc định ghi đè dữ liệu cũ.
+  const [restored, setRestored] = useState(false);
+
+  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
+  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
+  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  useEffect(() => {
+    const saved = readPfSession(SESSION_KEY, null);
+    const id = setTimeout(() => {
+      if (saved) {
+        if (saved.passengers) setPassengers(saved.passengers);
+        if (saved.outboundSeats) setOutboundSeats(saved.outboundSeats);
+        if (saved.returnSeats) setReturnSeats(saved.returnSeats);
+        if (saved.contact) setContact(saved.contact);
+      }
+      setRestored(true);
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-save passengers + seats vào sessionStorage mỗi khi thay đổi.
   // Đặt SAU khi cả 3 state đã khai báo — const không hoist, dùng trước khai
   // báo sẽ gây ReferenceError runtime.
   useEffect(() => {
+    if (!restored) return;
     savePfSession({ passengers, outboundSeats, returnSeats, contact });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [passengers, outboundSeats, returnSeats, contact]);
+  }, [restored, passengers, outboundSeats, returnSeats, contact]);
   const [errorMessage, setErrorMessage] = useState(null);
   // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng, nhưng khách
   // vừa bấm ghế ở sơ đồ phía trên -> thường không thấy. Tự cuộn tới lỗi mỗi

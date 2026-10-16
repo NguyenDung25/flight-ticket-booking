@@ -2,7 +2,7 @@
 
 // app/[locale]/register/RegisterForm.jsx
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -24,8 +24,19 @@ export default function RegisterForm() {
 
   // Lưu name/email vào sessionStorage để không mất khi đổi ngôn ngữ.
   // Không lưu password — không bao giờ lưu password vào storage.
-  const [fullName, setFullName] = useState(() => readReg("fullName"));
-  const [email, setEmail] = useState(() => readReg("email"));
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
+  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
+  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setFullName(readReg("fullName"));
+      setEmail(readReg("email"));
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
