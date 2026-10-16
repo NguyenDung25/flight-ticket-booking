@@ -11,7 +11,7 @@
 //
 // API liên quan: POST /api/check-in/lookup, POST /api/flights/[id]/check-in
 
-const { checkedBaggageAllowance } = require("../lib/ancillaries");
+const { checkedBaggageAllowance, DEFAULT_PRICING } = require("../lib/ancillaries");
 const Booking = require("../models/Booking");
 const Flight = require("../models/Flight");
 const User = require("../models/User");
@@ -86,7 +86,8 @@ function buildCheckInItems(booking) {
         boardingTime: boardingTimeFor(flight.departure_time),
         seatNumber: seatRef.seat_number,
         seatClass: seatRef.seat_class,
-        checkedBaggageKg: checkedBaggageAllowance(seatRef.seat_class, seatRef.baggage_kg),
+        checkedBaggageKg: seatRef.checked_baggage_kg ?? checkedBaggageAllowance(seatRef.seat_class, seatRef.baggage_kg),
+        carryOnKg: seatRef.carry_on_kg ?? DEFAULT_PRICING.carry_on_kg,
         meal: seatRef.meal === true,
         passengerName: passenger.full_name,
         checkedIn: seatDoc.checked_in === true,

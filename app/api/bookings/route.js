@@ -28,6 +28,7 @@ import {
 } from "@/config/constants";
 import Promotion from "@/models/Promotion";
 import { normalizeContact } from "@/lib/bookingContact";
+import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 
 /**
  * payment.payment_expires_at (ghi chú y) = held_until CỦA GHẾ GIỮ SỚM NHẤT
@@ -147,6 +148,7 @@ export async function POST(request) {
       passengers,
       legs,
       userId: user._id,
+      pricing: await getAncillaryPricing(), // bảng giá dịch vụ bổ sung admin đang áp dụng
     });
 
     // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế): (1) mỗi user tối

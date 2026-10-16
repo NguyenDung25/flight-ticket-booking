@@ -278,13 +278,14 @@ function computeLegAmount(passengers, flightId, basePriceByFlightId) {
 /**
  * Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế THẬT — ghi đè
  * baggage_kg/meal/addons_amount trong passengers[] (giá client gửi lên, nếu có, bị bỏ qua).
- * Gọi SAU assertSeatClassMatches để seat_class đã chắc chắn đúng.
+ * Gọi SAU assertSeatClassMatches để seat_class đã chắc chắn đúng. `pricing` = bảng giá hiện hành
+ * (services/ancillaryPricingService.js); bỏ trống -> bảng giá mặc định.
  */
-function applyAddons(passengers) {
+function applyAddons(passengers, pricing) {
   for (const passenger of passengers) {
     for (const seat of passenger.seats) {
       try {
-        Object.assign(seat, priceAddons(seat, seat.seat_class));
+        Object.assign(seat, priceAddons(seat, seat.seat_class, pricing));
       } catch (err) {
         if (err instanceof AncillaryError) throw new ValidationError(err.message, err.statusCode);
         throw err;
@@ -301,8 +302,9 @@ function applyAddons(passengers) {
  * @param {Array} params.passengers - dữ liệu hành khách client gửi lên
  * @param {Array} params.legs - [{ flightDoc, leg: 'outbound'|'return' }]
  * @param {String} params.userId - chủ booking, dùng đối chiếu held_by (MỚI THÊM)
+ * @param {Object} [params.pricing] - bảng giá dịch vụ bổ sung (lib/ancillaries.js)
  */
-async function validateBookingCreation({ passengers, legs, userId }) {
+async function validateBookingCreation({ passengers, legs, userId, pricing }) {
   // 0) Số lượng hợp lệ + chuyến còn đặt được (chưa hủy, chưa khởi hành)
   if (!Array.isArray(passengers) || passengers.length < 1) {
     throw new ValidationError("Booking phải có ít nhất 1 hành khách.");
@@ -348,7 +350,7 @@ async function validateBookingCreation({ passengers, legs, userId }) {
   }
 
   // 3b) Dịch vụ bổ sung — giá tính ở server theo hạng ghế thật
-  applyAddons(passengers);
+  applyAddons(passengers, pricing);
 
   // 4) Tính amount từng chặng (dùng lại ở nơi gọi để build flights[] của Booking)
   const basePriceByFlightId = Object.fromEntries(

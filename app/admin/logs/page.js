@@ -24,6 +24,7 @@ const GROUPS = [
   { key: "aircraft", label: "Máy bay" },
   { key: "airline", label: "Hãng bay" },
   { key: "popular_route", label: "Tuyến phổ biến" },
+  { key: "ancillary", label: "Dịch vụ bổ sung" },
 ];
 
 const ACTION_LABELS = {
@@ -38,6 +39,7 @@ const ACTION_LABELS = {
   "user.delete": "Xóa tài khoản",
   "promotion.create": "Tạo mã khuyến mãi",
   "promotion.update": "Sửa mã khuyến mãi",
+  "ancillary.update": "Sửa giá hành lý & suất ăn",
   "promotion.delete": "Xóa mã khuyến mãi",
   "aircraft.create": "Thêm máy bay",
   "aircraft.update": "Sửa máy bay",

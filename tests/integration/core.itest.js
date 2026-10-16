@@ -1,7 +1,7 @@
 // tests/integration/core.itest.js — test TÍCH HỢP chạy trên MongoDB THẬT (không stub DB): các thao tác
 // cần tính atomic của MongoDB — giữ ghế, tranh ghế, cron nhả ghế, hủy vé đồng thời, IPN + trang kết quả
 // chạy song song, check-in đồng thời, hạn mức mã khuyến mãi, token đặt lại mật khẩu dùng 1 lần, xác thực
-// email, nhật ký admin.
+// email, bảng giá dịch vụ bổ sung, nhật ký admin.
 //
 // Chạy: npm run test:integration   (cần MongoDB đang chạy, mặc định mongodb://127.0.0.1:27017)
 // - Mỗi lần chạy tạo 1 database RIÊNG tên "ftb-integration-<thời điểm>" rồi XÓA khi xong — không đụng
@@ -33,6 +33,9 @@ const vnpayClient = require("../../lib/vnpayClient");
 const emailClient = require("../../lib/emailClient");
 const { logAdminAction } = require("../../lib/adminLog");
 const { requireVerifiedEmail } = require("../../lib/requireVerifiedEmail");
+const pricingService = require("../../services/ancillaryPricingService");
+const { applyAddons } = require("../../services/bookingValidationService");
+const { DEFAULT_PRICING } = require("../../lib/ancillaries");
 
 const HOUR = 3600 * 1000;
 const sent = { tickets: 0 };
@@ -245,6 +248,37 @@ test("xác thực email: tài khoản mới bị chặn đặt vé; gửi lại 
   assert.equal(fresh.email_verified, true);
   assert.doesNotThrow(() => requireVerifiedEmail(fresh));
   assert.equal((await rejects(() => account.createEmailVerification({ userId: u._id, force: true })))?.statusCode, 409);
+});
+
+test("bảng giá dịch vụ bổ sung: admin đổi giá chỉ áp dụng booking mới; dữ liệu sai bị từ chối, giữ giá cũ", async () => {
+  assert.deepEqual(await pricingService.getAncillaryPricing(), DEFAULT_PRICING); // chưa lưu -> mặc định
+
+  // Booking đặt theo giá cũ (20kg + suất ăn phổ thông).
+  const u = await makeUser();
+  const f = await makeFlight();
+  const passengers = [{ full_name: "A", document_type: "cccd", document_id: "001090000001", date_of_birth: new Date("1990-01-01"),
+    seats: [{ flight_id: f._id, seat_number: "1A", seat_class: "economy", baggage_kg: 20, meal: true }] }];
+  applyAddons(passengers, await pricingService.getAncillaryPricing());
+  const oldAddons = passengers[0].seats[0].addons_amount;
+  const b = await Booking.create({ ...bookingDoc(u, f, "1A"), passengers, total_amount: 1_000_000 + oldAddons,
+    flights: [{ flight_id: f._id, leg: "outbound", amount: 1_000_000 + oldAddons }] });
+
+  const raw = { ...DEFAULT_PRICING, carry_on_kg: 10, baggage_packages: [{ kg: 20, price: 999_000 }], meal_price: { economy: 1_000, business: 0 } };
+  await pricingService.updateAncillaryPricing({ raw, adminId: u._id });
+  const now = await pricingService.getAncillaryPricing();
+  assert.equal(now.baggage_packages[0].price, 999_000);
+  assert.equal(now.carry_on_kg, 10);
+
+  // Booking cũ giữ nguyên giá + số kg lúc đặt.
+  const fresh = await Booking.findById(b._id).lean();
+  assert.equal(fresh.passengers[0].seats[0].addons_amount, oldAddons);
+  assert.equal(fresh.passengers[0].seats[0].carry_on_kg, 7);
+  assert.equal(fresh.passengers[0].seats[0].checked_baggage_kg, 20);
+
+  // Dữ liệu sai -> 400, bảng giá trong DB không đổi.
+  const err = await rejects(() => pricingService.updateAncillaryPricing({ raw: { ...raw, carry_on_kg: -3 }, adminId: u._id }));
+  assert.equal(err?.statusCode, 400);
+  assert.equal((await pricingService.getAncillaryPricing()).carry_on_kg, 10);
 });
 
 test("nhật ký admin: ghi vào collection AdminLog thật", async () => {

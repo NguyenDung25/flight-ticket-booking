@@ -2,7 +2,7 @@
 
 > Dựa trên [`chuc-nang-he-thong.md`](chuc-nang-he-thong.md). Database MongoDB **standalone** (không replica set) → mọi ràng buộc "toàn vẹn" đều xử lý bằng **update atomic + validate ở tầng service**, không dùng multi-document transaction.
 
-## 0. Tổng quan 9 collection & quan hệ
+## 0. Tổng quan 10 collection & quan hệ
 
 | Collection | Vai trò | Tham chiếu tới |
 |---|---|---|
@@ -15,6 +15,7 @@
 | `Promotion` | Mã khuyến mãi | — |
 | `PopularRoute` | Tuyến bay phổ biến hiển thị ở trang chủ (kèm ảnh nền) | `Airport.code` (origin/dest) |
 | `AdminLog` | Nhật ký thao tác của quản trị viên (chỉ ghi thêm) | `User` (admin) |
+| `Setting` | Cấu hình admin sửa trên giao diện (key → value), VD bảng giá dịch vụ bổ sung | `User` (admin sửa gần nhất) |
 
 Nguyên tắc nhúng (embed) vs tham chiếu (ref):
 - **Ghế nhúng trong `Flight.seats[]`** — ghi chú (c): giữ/nhả ghế là 1 update atomic trên 1 document, không cần transaction, hợp với MongoDB standalone.
@@ -263,6 +264,8 @@ flight.seats = structuredClone(aircraft.seat_map_template).map(s => ({
           baggage_kg: Number,     // hành lý ký gửi MUA THÊM: 0 | 15 | 20 | 25 | 30 (chưa gồm phần miễn phí theo hạng)
           meal: Boolean,          // suất ăn (thương gia luôn true, không tính tiền)
           addons_amount: Number,  // giá dịch vụ của khách này trên chặng này — server tính (lib/ancillaries.js)
+          carry_on_kg: Number,    // hành lý xách tay TẠI LÚC ĐẶT (booking cũ không có -> mặc định 7)
+          checked_baggage_kg: Number, // tổng ký gửi được mang TẠI LÚC ĐẶT = đã gồm theo hạng + mua thêm
         }
       ],
     }
@@ -453,6 +456,27 @@ db.promotions.updateOne(
 
 ---
 
+## 7d. `Setting`
+
+*Bổ sung khi triển khai (A10).* Cấu hình admin sửa trên giao diện. Hiện có 1 key: `ancillary_pricing` (bảng giá hành lý & suất ăn).
+
+```js
+{
+  _id: ObjectId,
+  key: String,              // unique, VD 'ancillary_pricing'
+  value: Object,            // ancillary_pricing: { carry_on_kg, included_checked_kg: { economy, business },
+                            //   baggage_packages: [{ kg, price }], meal_price: { economy, business },
+                            //   meal_included: { economy, business } }
+  updated_by: ObjectId,     // ref: User (admin sửa gần nhất)
+  created_at: Date,
+  updated_at: Date,
+}
+```
+
+**Index:** `{ key: 1 }` unique. Giá trị luôn được kiểm tra ở `services/ancillaryPricingService.js` trước khi ghi; đọc ra cũng kiểm tra lại, hỏng thì dùng bảng giá mặc định.
+
+---
+
 ## 8. Bảng tổng hợp Index
 
 | Collection | Index | Loại |
@@ -470,6 +494,7 @@ db.promotions.updateOne(
 | `PopularRoute` | `{ sort_order: 1 }` | single |
 | `User` | `{ password_reset_token_hash: 1 }` | sparse |
 | `AdminLog` | `{ created_at: -1 }`, `{ action: 1, created_at: -1 }`, `{ target_type: 1, target_id: 1 }` | single / compound |
+| `Setting` | `{ key: 1 }` | unique |
 
 ## 9. Bảng tổng hợp Enum
 

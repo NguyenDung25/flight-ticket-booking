@@ -129,8 +129,8 @@ Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ
 ## 10. Kiểm thử
 
 ```bash
-npm test       # 161 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
-npm run test:integration  # 11 test với MongoDB THẬT (giữ ghế/race, hủy vé, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, xác thực email, nhật ký admin)
+npm test       # 164 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
+npm run test:integration  # 12 test với MongoDB THẬT (giữ ghế/race, hủy vé, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, xác thực email, bảng giá dịch vụ bổ sung, nhật ký admin)
 npm run test:e2e          # build production + 6 kịch bản giao diện trên Chrome (Playwright)
 npm run lint   # ESLint theo bộ luật của Next.js
 npm run build  # build production — nên chạy 1 lần trước khi demo/bảo vệ
@@ -138,7 +138,7 @@ npm run build  # build production — nên chạy 1 lần trước khi demo/bả
 
 - `npm test` dùng bản giả của DB (stub) cho luồng thanh toán/race. `npm run test:integration` chạy các luồng đó trên MongoDB thật: mặc định `mongodb://127.0.0.1:27017` (đổi bằng biến `INTEGRATION_MONGO_URL`), mỗi lần tạo 1 database riêng `ftb-integration-<thời gian>` rồi **xóa đi khi chạy xong** — không đụng DB của app, không gửi email thật.
 - `npm run test:e2e` chạy app bản production ở cổng 3100 với database riêng `ftb-e2e` (seed lúc bắt đầu, xóa khi xong), tắt SMTP và chặn trang VNPay (chỉ kiểm tra URL thanh toán có đúng số tiền). Dùng Google Chrome cài sẵn trên máy, không cần `npx playwright install`.
-- Bảng test case thủ công cho Chương 4 (111 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
+- Bảng test case thủ công cho Chương 4 (112 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
 
 ## 11. Một số hành vi cần biết khi demo
 
@@ -148,7 +148,7 @@ npm run build  # build production — nên chạy 1 lần trước khi demo/bả
 - **Check-in online** (`/check-in`): không cần đăng nhập — nhập mã đặt chỗ + họ của 1 hành khách, chọn chặng và hành khách, đồng ý quy định ICI, nhận thẻ lên máy bay có mã QR. Nhập sai 5 lần thì bị khóa tra cứu 15 phút (lưu trong bộ nhớ — restart server là mở khóa).
 - **Email vé**: cần `SMTP_USER`/`SMTP_PASS` (Gmail App Password). Chưa cấu hình thì trang kết quả thanh toán báo "chưa gửi được qua email" thay vì báo đã gửi. Vé gửi về **email liên hệ** khách nhập lúc đặt vé.
 - **Xác thực email**: tài khoản **đăng ký mới** phải bấm link trong email mới được đặt vé (tài khoản seed/demo coi như đã xác thực). Chưa cấu hình SMTP thì link in ra log server (`[email] Chưa cấu hình SMTP — link xác thực email ...`); gửi lại ở trang Tài khoản.
-- **Hành lý & suất ăn**: chọn theo từng hành khách, từng chặng ở bước nhập hành khách (xách tay 7kg; ký gửi mua thêm 15–30kg; thương gia đã gồm 30kg + suất ăn). Giá dịch vụ do server tính và cộng vào tiền chặng — hủy vé thì hoàn theo cùng mốc phí.
+- **Hành lý & suất ăn**: chọn theo từng hành khách, từng chặng ở bước nhập hành khách (mặc định: xách tay 7kg; ký gửi mua thêm 15–30kg; thương gia đã gồm 30kg + suất ăn). Giá dịch vụ do server tính và cộng vào tiền chặng — hủy vé thì hoàn theo cùng mốc phí. Admin sửa bảng giá ở **Admin → Dịch vụ bổ sung** (`/admin/ancillaries`); giá mới chỉ áp dụng cho booking tạo sau đó.
 - **Tài khoản** (`/account`): sửa họ tên, đổi mật khẩu (đăng xuất mọi thiết bị). **Quên mật khẩu** (`/forgot-password`): chưa cấu hình SMTP thì link đặt lại mật khẩu được in ra log server (`[email] Chưa cấu hình SMTP — link đặt lại mật khẩu ...`).
 - **Nhật ký thao tác admin** (`/admin/logs`): mọi thao tác thay đổi dữ liệu của admin (hủy vé thay khách, hoàn tiền tay, khóa user, sửa/hủy chuyến...).
 - **Ngôn ngữ**: thông báo lỗi từ server được dịch sang tiếng Anh ở giao diện EN (`lib/apiMessages.js` — thêm bản dịch khi thêm thông báo lỗi mới).

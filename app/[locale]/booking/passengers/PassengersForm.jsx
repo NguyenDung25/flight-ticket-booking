@@ -23,15 +23,7 @@ import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
 import { normalizeContactEmail, normalizePhone } from "@/lib/bookingContact";
 import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
-import {
-  BAGGAGE_PACKAGES,
-  CARRY_ON_KG,
-  MEAL_INCLUDED,
-  MEAL_PRICE,
-  baggageOptions,
-  checkedBaggageAllowance,
-  priceAddons,
-} from "@/lib/ancillaries";
+import { baggageOptions, baggagePrice, checkedBaggageAllowance, priceAddons } from "@/lib/ancillaries";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
@@ -98,6 +90,7 @@ async function apiCall(url, body) {
 
 export default function PassengersForm({
   locale,
+  pricing, // bảng giá dịch vụ bổ sung hiện hành (admin sửa được) — server tính lại khi tạo booking
   defaultContactEmail = "",
   tripType,
   initialPassengerCount,
@@ -306,7 +299,12 @@ export default function PassengersForm({
   // Hạng ghế để tính giá dịch vụ: chưa chọn ghế thì tạm tính như hạng phổ thông.
   function addonsFor(p, leg) {
     const seatClass = seatClassOf(leg, p.seatByLeg[leg]) ?? "economy";
-    return { seatClass, ...priceAddons(p.addonsByLeg?.[leg] ?? emptyAddons(), seatClass) };
+    try {
+      return { seatClass, ...priceAddons(p.addonsByLeg?.[leg] ?? emptyAddons(), seatClass, pricing) };
+    } catch {
+      // Gói đã chọn không còn trong bảng giá (admin vừa sửa) -> coi như không mua thêm.
+      return { seatClass, ...priceAddons(emptyAddons(), seatClass, pricing) };
+    }
   }
 
   function updatePassengerField(index, field, value) {
@@ -577,7 +575,7 @@ export default function PassengersForm({
                         {leg === "outbound" ? t("seatLegOutbound") : t("seatLegReturn")}
                       </p>
                       <p className="text-xs text-ink/60">
-                        {t("baggageIncluded", { carryOn: CARRY_ON_KG, checked: checkedBaggageAllowance(a.seatClass, 0) })}
+                        {t("baggageIncluded", { carryOn: pricing.carry_on_kg, checked: checkedBaggageAllowance(a.seatClass, 0, pricing) })}
                       </p>
                       <Select
                         label={t("baggageLabel")}
@@ -585,15 +583,15 @@ export default function PassengersForm({
                         onChange={(e) => updatePassengerAddons(index, leg, { baggage_kg: Number(e.target.value) })}
                         onFocus={() => setActiveIndex(index)}
                         disabled={disabled}
-                        options={baggageOptions().map((kg) => ({
+                        options={baggageOptions(pricing).map((kg) => ({
                           value: String(kg),
                           label:
                             kg === 0
                               ? t("baggageNone")
-                              : t("baggageOption", { kg, price: CURRENCY_FORMATTER.format(BAGGAGE_PACKAGES[kg]) }),
+                              : t("baggageOption", { kg, price: CURRENCY_FORMATTER.format(baggagePrice(kg, pricing)) }),
                         }))}
                       />
-                      {MEAL_INCLUDED[a.seatClass] ? (
+                      {pricing.meal_included[a.seatClass] ? (
                         <p className="text-xs text-sea-700">✓ {t("mealIncluded")}</p>
                       ) : (
                         <label className="flex items-center gap-2 text-sm text-ink">
@@ -604,7 +602,7 @@ export default function PassengersForm({
                             disabled={disabled}
                             className="h-4 w-4 accent-coral-500"
                           />
-                          {t("mealOption", { price: CURRENCY_FORMATTER.format(MEAL_PRICE[a.seatClass]) })}
+                          {t("mealOption", { price: CURRENCY_FORMATTER.format(pricing.meal_price[a.seatClass]) })}
                         </label>
                       )}
                     </div>

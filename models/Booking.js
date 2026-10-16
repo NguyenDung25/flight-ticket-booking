@@ -18,6 +18,10 @@ const PassengerSeatSchema = new Schema(
     baggage_kg: { type: Number, default: 0 }, // hành lý ký gửi MUA THÊM (chưa gồm phần miễn phí theo hạng)
     meal: { type: Boolean, default: false },
     addons_amount: { type: Number, default: 0 },
+    // Số kg TẠI LÚC ĐẶT (admin đổi bảng giá sau đó không làm đổi vé đã bán). Booking cũ không có ->
+    // tính theo bảng giá mặc định.
+    carry_on_kg: { type: Number },
+    checked_baggage_kg: { type: Number }, // tổng ký gửi được mang = đã gồm theo hạng + mua thêm
   },
   { _id: false }
 );

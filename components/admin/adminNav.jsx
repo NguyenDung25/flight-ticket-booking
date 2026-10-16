@@ -88,6 +88,16 @@ export const NAV_ITEMS = [
     ),
   },
   {
+    href: "/admin/ancillaries",
+    label: "Dịch vụ bổ sung",
+    icon: (
+      <svg {...svgProps}>
+        <rect x="5" y="7" width="14" height="13" rx="2" />
+        <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M9 11v6M15 11v6" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/refunds",
     label: "Hoàn tiền",
     icon: (

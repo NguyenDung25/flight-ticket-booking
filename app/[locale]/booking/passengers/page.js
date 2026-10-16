@@ -20,6 +20,7 @@ import { getFlightDetail, FlightError } from "@/services/flightService";
 import { Link } from "@/i18n/navigation";
 import User from "@/models/User";
 import PassengersForm from "./PassengersForm";
+import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 
 /**
  * Mongoose doc -> plain JSON an toàn để truyền qua Client Component.
@@ -122,6 +123,7 @@ export default async function BookingPassengersPage({ params, searchParams }) {
   return (
     <PassengersForm
       locale={locale}
+      pricing={JSON.parse(JSON.stringify(await getAncillaryPricing()))}
       defaultContactEmail={session.user.email ?? ""}
       tripType={tripType}
       initialPassengerCount={passengerCount}

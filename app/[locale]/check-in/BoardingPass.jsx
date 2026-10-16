@@ -6,7 +6,6 @@
 // tại sân bay. Nhãn theo `Booking.locale` (lib/boardingPass.js), KHÔNG theo ngôn ngữ giao diện —
 // cùng quy tắc với vé điện tử (C7).
 
-import { CARRY_ON_KG } from "@/lib/ancillaries";
 import { useMemo, useRef } from "react";
 import Button from "@/components/ui/Button";
 import { toVN } from "@/lib/timezone";
@@ -66,7 +65,7 @@ export default function BoardingPass({ item }) {
             <div className="col-span-2">
               <PassField
                 label={L.baggage}
-                value={`${L.baggage_value(CARRY_ON_KG, item.checkedBaggageKg ?? 0)}${item.meal ? ` · ${L.meal}` : ""}`}
+                value={`${L.baggage_value(item.carryOnKg ?? 7, item.checkedBaggageKg ?? 0)}${item.meal ? ` · ${L.meal}` : ""}`}
               />
             </div>
             <PassField label={L.departure} value={departure.format("HH:mm DD/MM/YYYY")} />
