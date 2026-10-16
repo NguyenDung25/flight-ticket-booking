@@ -74,7 +74,9 @@ export async function GET(request) {
 
     // Bỏ chuyến codeshare, bỏ trùng, sắp theo giờ VN, KHÔNG cắt bớt (lib/airlabsSchedules.js).
     const schedules = normalizeSchedules(payload?.response);
-    setCachedSchedules(dep, arr, schedules);
+    // Không lưu kết quả RỖNG: AirLabs chỉ trả các chuyến còn lại trong ngày, tra lúc tối muộn có thể ra
+    // 0 chuyến — lưu lại thì sáng hôm sau tra tiếp vẫn nhận kết quả rỗng cũ suốt 6 giờ.
+    if (schedules.length > 0) setCachedSchedules(dep, arr, schedules);
 
     return NextResponse.json({ schedules, cached: false });
   } catch (err) {

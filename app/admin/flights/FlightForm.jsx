@@ -62,7 +62,10 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         error: null,
         schedules: data.schedules,
         cached: data.cached === true,
-        note: data.schedules.length === 0 ? "AirLabs không có lịch bay cho tuyến này — hãy nhập tay." : null,
+        note:
+          data.schedules.length === 0
+            ? "AirLabs không còn chuyến nào của tuyến này trong hôm nay (hoặc tuyến không có chuyến bay thẳng) — hãy nhập tay, hoặc tra lại vào sáng mai."
+            : null,
       });
     } catch (err) {
       setLookup({ loading: false, error: err.message, schedules: null, note: null });
@@ -269,8 +272,8 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         {lookup.note && <p className="text-xs text-ink/60">{lookup.note}</p>}
         {lookup.schedules && lookup.schedules.length > 0 && (
           <p className="text-[11px] text-ink/50">
-            {lookup.schedules.length} chuyến sắp khởi hành theo AirLabs — AirLabs chỉ trả các chuyến từ giờ
-            hiện tại trở đi (đã bỏ chuyến codeshare
+            {lookup.schedules.length} chuyến theo AirLabs — AirLabs chỉ trả các chuyến còn lại trong hôm nay,
+            kể cả chuyến vừa cất cánh (đã bỏ chuyến codeshare
             {lookup.cached ? "; kết quả đã lưu, không tốn lượt gọi AirLabs" : ""}).
           </p>
         )}
