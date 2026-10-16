@@ -121,3 +121,48 @@ test("trang cần đăng nhập chuyển về trang đăng nhập", async ({ pag
   await page.goto("/my-bookings");
   await expect(page).toHaveURL(/\/login/);
 });
+
+test("check-in online trọn luồng: mã + họ -> chọn khách -> đồng ý ICI -> thẻ lên máy bay có hành lý + QR", async ({ page }) => {
+  // Booking CKE2EA (đã thanh toán, ký gửi 20kg + suất ăn) trên chuyến VN910 cách ~10 giờ — e2e/seed-checkin.cjs.
+  await page.goto("/check-in");
+  await page.getByLabel("Mã đặt chỗ (mã vé điện tử)").fill("cke2ea");
+  await page.getByLabel("Họ của hành khách").fill("trần");
+  await page.getByRole("button", { name: "Tìm vé" }).click();
+
+  await expect(page.getByText("Dữ liệu đặt chỗ")).toBeVisible();
+  await page.getByRole("radio").first().check();
+  await page.getByRole("checkbox", { name: /Tran Thi Checkin/ }).check();
+  await page.getByRole("button", { name: "Tiếp tục" }).click();
+
+  await page.getByRole("checkbox", { name: /Tôi đã đọc, hiểu và đồng ý/ }).check();
+  await page.getByRole("button", { name: "Đồng ý & Tiếp tục" }).click();
+
+  await expect(page.getByText("Thẻ lên máy bay").first()).toBeVisible();
+  await expect(page.getByText("Xách tay 7kg · Ký gửi 20kg · Suất ăn")).toBeVisible();
+  await expect(page.getByText(/Có hành lý ký gửi/)).toBeVisible();
+  await expect(page.getByText(/Chỉ có hành lý xách tay/)).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "Mã QR thẻ lên máy bay" })).toBeVisible();
+});
+
+test("admin sửa bảng giá dịch vụ bổ sung: chặn dữ liệu sai, giá mới hiện ở bước đặt vé, có nhật ký", async ({ page }) => {
+  // Đặt CUỐI file: test này đổi bảng giá của database E2E.
+  await login(page, { email: "admin@example.com", password: "Admin@123" });
+  await page.goto("/admin/ancillaries");
+  await expect(page.getByRole("heading", { name: "Dịch vụ bổ sung", level: 1 })).toBeVisible();
+
+  // Trùng số kg -> báo lỗi, không lưu.
+  await page.getByLabel("Gói 2: số kg").fill("15");
+  await page.getByRole("button", { name: "Lưu bảng giá" }).click();
+  await expect(errorAlert(page)).toHaveText("Có 2 gói hành lý cùng 15kg.");
+
+  await page.getByLabel("Gói 2: số kg").fill("20");
+  await page.getByLabel("Gói 2: giá").fill("270000");
+  await page.getByRole("button", { name: "Lưu bảng giá" }).click();
+  await expect(page.getByText("Đã lưu bảng giá.")).toBeVisible();
+
+  await page.goto(`/booking/passengers?tripType=one_way&passengerCount=1&outboundFlightId=${vn200Id}`);
+  await expect(page.getByRole("option", { name: "+20kg — 270.000đ" })).toHaveCount(1);
+
+  await page.goto("/admin/logs?group=ancillary");
+  await expect(page.getByText("Sửa giá hành lý & suất ăn").first()).toBeVisible();
+});

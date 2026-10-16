@@ -85,7 +85,7 @@ Giao diện khách hàng hỗ trợ **2 ngôn ngữ (Tiếng Việt / English)**
 | **Đầu vào** | `email`, `password`, `full_name` (khi đăng ký) |
 | **Đầu ra** | Session/token xác thực, `role: customer` mặc định |
 | **API liên quan** | `POST /api/auth/register`, NextAuth `/api/auth/[...nextauth]` |
-| **Ghi chú kỹ thuật** | Mật khẩu hash bằng bcrypt; không cho tự chọn role; kiểm tra thêm `is_blocked` khi đăng nhập; `preferred_language` lưu ngôn ngữ ưa thích. `POST /api/auth/register` kiểm tra `User.findOne({ email })` — nếu đã tồn tại (dù `is_blocked: true` hay `false`) thì từ chối, trả lỗi "Email đã được sử dụng"; `email` cần index `unique` ở tầng schema làm lớp bảo vệ cuối chống race-condition đăng ký trùng. |
+| **Ghi chú kỹ thuật** | Mật khẩu hash bằng bcrypt; không cho tự chọn role; kiểm tra thêm `is_blocked` khi đăng nhập; `preferred_language` lưu ngôn ngữ ưa thích. `POST /api/auth/register` kiểm tra `User.findOne({ email })` — nếu đã tồn tại (dù `is_blocked: true` hay `false`) thì từ chối, trả lỗi "Email đã được sử dụng"; `email` cần index `unique` ở tầng schema làm lớp bảo vệ cuối chống race-condition đăng ký trùng. **Giới hạn đăng ký 5 lần / 15 phút / IP** (`lib/registerGuard.js`, cả form lẫn API, quá giới hạn trả 429) — mỗi lần đăng ký gửi 1 email xác thực thật (C8c), không chặn thì form đăng ký bị lợi dụng để gửi mail hàng loạt. |
 
 ### C8b. Tài khoản: hồ sơ, đổi mật khẩu, quên mật khẩu *(bổ sung khi triển khai)*
 
@@ -177,7 +177,7 @@ Giao diện khách hàng hỗ trợ **2 ngôn ngữ (Tiếng Việt / English)**
 
 | | |
 |---|---|
-| **Mô tả** | Tạo mã giảm giá, thiết lập % giảm, thời hạn hiệu lực, giới hạn lượt dùng. |
+| **Mô tả** | Tạo mã giảm giá, thiết lập % giảm, thời hạn hiệu lực, giới hạn lượt dùng. **Mã chỉ giảm trên giá vé** — tiền dịch vụ bổ sung (hành lý ký gửi, suất ăn) không được giảm; số tiền giảm chia xuống từng chặng theo tỷ lệ giá vé của chặng (`promotionService.applyDiscountToLegs`) để giữ bất biến `total_amount = Σ flights[].amount`. |
 | **API liên quan** | `POST/PUT/DELETE /api/admin/promotions` |
 
 ### A6. Thống kê & báo cáo doanh thu
