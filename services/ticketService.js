@@ -6,6 +6,7 @@
 //
 // API liên quan: GET /api/bookings/[id]/ticket
 
+const { checkedBaggageAllowance } = require("../lib/ancillaries");
 const crypto = require("crypto");
 const Booking = require("../models/Booking");
 const Flight = require("../models/Flight");
@@ -95,6 +96,10 @@ async function buildTicketData(booking) {
       flight_id: s.flight_id,
       seat_number: s.seat_number,
       seat_class: s.seat_class,
+      // Dịch vụ bổ sung (booking cũ không có -> 0kg mua thêm, không suất ăn).
+      baggage_kg: s.baggage_kg || 0,
+      checked_baggage_kg: checkedBaggageAllowance(s.seat_class, s.baggage_kg),
+      meal: s.meal === true,
     })),
   }));
 

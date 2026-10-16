@@ -6,6 +6,7 @@
 // tại sân bay. Nhãn theo `Booking.locale` (lib/boardingPass.js), KHÔNG theo ngôn ngữ giao diện —
 // cùng quy tắc với vé điện tử (C7).
 
+import { CARRY_ON_KG } from "@/lib/ancillaries";
 import { useMemo, useRef } from "react";
 import Button from "@/components/ui/Button";
 import { toVN } from "@/lib/timezone";
@@ -62,6 +63,12 @@ export default function BoardingPass({ item }) {
             <PassField label={L.from} value={item.originCode} strong />
             <PassField label={L.to} value={item.destCode} strong />
             <PassField label={L.seat_class} value={item.seatClass === "business" ? L.business : L.economy} />
+            <div className="col-span-2">
+              <PassField
+                label={L.baggage}
+                value={`${L.baggage_value(CARRY_ON_KG, item.checkedBaggageKg ?? 0)}${item.meal ? ` · ${L.meal}` : ""}`}
+              />
+            </div>
             <PassField label={L.departure} value={departure.format("HH:mm DD/MM/YYYY")} />
             <PassField label={L.boarding_time} value={boarding.format("HH:mm")} strong />
             <div>
@@ -79,8 +86,7 @@ export default function BoardingPass({ item }) {
         <div className="border-t border-dashed border-sea-700/30 px-4 py-3 text-xs text-ink/70">
           <p className="font-semibold text-sea-900">{L.guide_title}</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
-            <li>{L.guide_no_bag}</li>
-            <li>{L.guide_with_bag}</li>
+            <li>{(item.checkedBaggageKg ?? 0) > 0 ? L.guide_with_bag : L.guide_no_bag}</li>
             <li>{L.guide_arrive}</li>
             <li>{L.gate_note}</li>
           </ul>

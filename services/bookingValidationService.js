@@ -6,6 +6,7 @@
 
 const Flight = require("../models/Flight");
 const { ageInYears, toVN } = require("../lib/timezone");
+const { priceAddons, AncillaryError } = require("../lib/ancillaries");
 const {
   MIN_AGE_REQUIRE_ID_DOCUMENT,
   MIN_ROUND_TRIP_TRANSIT_MS,
@@ -267,10 +268,29 @@ function computeLegAmount(passengers, flightId, basePriceByFlightId) {
       (s) => String(s.flight_id) === String(flightId)
     );
     if (seatOnThisLeg) {
-      amount += basePrice[seatOnThisLeg.seat_class];
+      // addons_amount do applyAddons() tính ở server (không phải giá client gửi).
+      amount += basePrice[seatOnThisLeg.seat_class] + (seatOnThisLeg.addons_amount || 0);
     }
   }
   return amount;
+}
+
+/**
+ * Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế THẬT — ghi đè
+ * baggage_kg/meal/addons_amount trong passengers[] (giá client gửi lên, nếu có, bị bỏ qua).
+ * Gọi SAU assertSeatClassMatches để seat_class đã chắc chắn đúng.
+ */
+function applyAddons(passengers) {
+  for (const passenger of passengers) {
+    for (const seat of passenger.seats) {
+      try {
+        Object.assign(seat, priceAddons(seat, seat.seat_class));
+      } catch (err) {
+        if (err instanceof AncillaryError) throw new ValidationError(err.message, err.statusCode);
+        throw err;
+      }
+    }
+  }
 }
 
 /**
@@ -327,6 +347,9 @@ async function validateBookingCreation({ passengers, legs, userId }) {
     }
   }
 
+  // 3b) Dịch vụ bổ sung — giá tính ở server theo hạng ghế thật
+  applyAddons(passengers);
+
   // 4) Tính amount từng chặng (dùng lại ở nơi gọi để build flights[] của Booking)
   const basePriceByFlightId = Object.fromEntries(
     legs.map((l) => [String(l.flightDoc._id), l.flightDoc.base_price])
@@ -355,5 +378,6 @@ module.exports = {
   assertSeatIsHeldByUser,
   validateRoundTripRoute,
   computeLegAmount,
+  applyAddons,
   validateBookingCreation,
 };

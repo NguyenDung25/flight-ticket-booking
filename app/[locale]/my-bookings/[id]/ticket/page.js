@@ -170,6 +170,8 @@ export default async function TicketPage({ params }) {
                           s.seat_class === "business"
                             ? tFlightDetail("businessLabel")
                             : tFlightDetail("economyLabel")
+                        } · ${t("checkedBaggage", { kg: s.checked_baggage_kg ?? 0 })}${
+                          s.meal ? ` · ${t("mealLabel")}` : ""
                         })`
                     )
                     .join(" · ")}

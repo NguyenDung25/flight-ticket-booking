@@ -13,6 +13,11 @@ const PassengerSeatSchema = new Schema(
     flight_id: { type: Schema.Types.ObjectId, ref: "Flight", required: true }, // 1 phần tử / chặng
     seat_number: { type: String, required: true },
     seat_class: { type: String, enum: ["economy", "business"], required: true }, // gắn theo TỪNG khách (ghi chú m)
+    // Dịch vụ bổ sung của khách này trên chặng này (lib/ancillaries.js) — server tự tính giá, ghi lại
+    // giá lúc đặt. addons_amount đã được cộng vào flights[].amount của chặng.
+    baggage_kg: { type: Number, default: 0 }, // hành lý ký gửi MUA THÊM (chưa gồm phần miễn phí theo hạng)
+    meal: { type: Boolean, default: false },
+    addons_amount: { type: Number, default: 0 },
   },
   { _id: false }
 );
@@ -38,7 +43,8 @@ const FlightLegSchema = new Schema(
   {
     flight_id: { type: Schema.Types.ObjectId, ref: "Flight", required: true },
     leg: { type: String, enum: ["outbound", "return"], required: true },
-    amount: { type: Number, required: true }, // Σ giá theo seat_class từng khách trên chặng này (ghi chú t)
+    amount: { type: Number, required: true }, // Σ giá theo seat_class + dịch vụ bổ sung từng khách trên chặng này (ghi chú t)
+    addons_amount: { type: Number, default: 0 }, // phần dịch vụ bổ sung trong amount (trước giảm giá)
   },
   { _id: false }
 );

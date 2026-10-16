@@ -181,7 +181,15 @@
     "contactPhone": "Phone number",
     "contactPhonePlaceholder": "e.g. 0912 345 678",
     "errorContactEmail": "Please enter a valid contact email.",
-    "errorContactPhone": "Please enter a valid contact phone number (9–15 digits)."
+    "errorContactPhone": "Please enter a valid contact phone number (9–15 digits).",
+    "addonsTitle": "Baggage & extras",
+    "baggageIncluded": "Included: {carryOn}kg carry-on, {checked}kg checked",
+    "baggageLabel": "Extra checked baggage",
+    "baggageNone": "No extra baggage",
+    "baggageOption": "+{kg}kg — {price} VND",
+    "mealOption": "In-flight meal (+{price} VND)",
+    "mealIncluded": "Meal included with Business class",
+    "fareAndAddons": "Fare {fare} VND + extras {addons} VND"
   },
   "Payment": {
     "title": "Payment",
@@ -319,7 +327,9 @@
     "resending": "Sending...",
     "resendSuccess": "The Electronic Ticket Receipt was resent by email.",
     "resendError": "Could not send the email, please try again later.",
-    "contactTitle": "Contact"
+    "contactTitle": "Contact",
+    "checkedBaggage": "{kg}kg checked",
+    "mealLabel": "meal"
   },
   "Promotions": {
     "title": "Promotions",

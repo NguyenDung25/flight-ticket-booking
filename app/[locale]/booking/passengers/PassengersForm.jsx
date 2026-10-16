@@ -23,6 +23,15 @@ import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
 import { normalizeContactEmail, normalizePhone } from "@/lib/bookingContact";
 import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
+import {
+  BAGGAGE_PACKAGES,
+  CARRY_ON_KG,
+  MEAL_INCLUDED,
+  MEAL_PRICE,
+  baggageOptions,
+  checkedBaggageAllowance,
+  priceAddons,
+} from "@/lib/ancillaries";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
@@ -62,7 +71,13 @@ function emptyPassenger() {
     document_id: "",
     date_of_birth: "",
     seatByLeg: { outbound: null, return: null },
+    // Dịch vụ bổ sung theo chặng (lib/ancillaries.js) — giá thật do server tính lại khi tạo booking.
+    addonsByLeg: { outbound: emptyAddons(), return: emptyAddons() },
   };
+}
+
+function emptyAddons() {
+  return { baggage_kg: 0, meal: false };
 }
 
 async function apiCall(url, body) {
@@ -278,6 +293,22 @@ export default function PassengersForm({
     }
   }
 
+  function updatePassengerAddons(index, leg, patch) {
+    setPassengers((prev) =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+        const current = p.addonsByLeg?.[leg] ?? emptyAddons();
+        return { ...p, addonsByLeg: { ...(p.addonsByLeg ?? {}), [leg]: { ...current, ...patch } } };
+      })
+    );
+  }
+
+  // Hạng ghế để tính giá dịch vụ: chưa chọn ghế thì tạm tính như hạng phổ thông.
+  function addonsFor(p, leg) {
+    const seatClass = seatClassOf(leg, p.seatByLeg[leg]) ?? "economy";
+    return { seatClass, ...priceAddons(p.addonsByLeg?.[leg] ?? emptyAddons(), seatClass) };
+  }
+
   function updatePassengerField(index, field, value) {
     setPassengers((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   }
@@ -357,6 +388,8 @@ export default function PassengersForm({
               flight_id: outboundFlight._id,
               seat_number: p.seatByLeg.outbound,
               seat_class: seatClassOf("outbound", p.seatByLeg.outbound),
+              baggage_kg: p.addonsByLeg?.outbound?.baggage_kg ?? 0,
+              meal: p.addonsByLeg?.outbound?.meal === true,
             },
           ];
           if (returnFlight) {
@@ -364,6 +397,8 @@ export default function PassengersForm({
               flight_id: returnFlight._id,
               seat_number: p.seatByLeg.return,
               seat_class: seatClassOf("return", p.seatByLeg.return),
+              baggage_kg: p.addonsByLeg?.return?.baggage_kg ?? 0,
+              meal: p.addonsByLeg?.return?.meal === true,
             });
           }
           return {
@@ -418,7 +453,7 @@ export default function PassengersForm({
     }
   }
 
-  const totalAmount = passengers.reduce((sum, p) => {
+  const fareTotal = passengers.reduce((sum, p) => {
     let amount = 0;
     if (p.seatByLeg.outbound) {
       amount += outboundFlight.base_price[seatClassOf("outbound", p.seatByLeg.outbound)] ?? 0;
@@ -428,6 +463,12 @@ export default function PassengersForm({
     }
     return sum + amount;
   }, 0);
+  const addonsTotal = passengers.reduce(
+    (sum, p) =>
+      sum + addonsFor(p, "outbound").addons_amount + (returnFlight ? addonsFor(p, "return").addons_amount : 0),
+    0
+  );
+  const totalAmount = fareTotal + addonsTotal;
 
   const disabled = seatBusy || submitting;
 
@@ -524,6 +565,53 @@ export default function PassengersForm({
                 </span>
               )}
             </div>
+
+            <div className="mt-4 border-t border-sand-100 pt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">{t("addonsTitle")}</p>
+              <div className={`mt-2 grid gap-3 ${returnFlight ? "sm:grid-cols-2" : ""}`}>
+                {(returnFlight ? ["outbound", "return"] : ["outbound"]).map((leg) => {
+                  const a = addonsFor(p, leg);
+                  return (
+                    <div key={leg} className="flex flex-col gap-2 rounded-lg bg-sand-50 p-3">
+                      <p className="text-xs font-medium text-ink">
+                        {leg === "outbound" ? t("seatLegOutbound") : t("seatLegReturn")}
+                      </p>
+                      <p className="text-xs text-ink/60">
+                        {t("baggageIncluded", { carryOn: CARRY_ON_KG, checked: checkedBaggageAllowance(a.seatClass, 0) })}
+                      </p>
+                      <Select
+                        label={t("baggageLabel")}
+                        value={String(p.addonsByLeg?.[leg]?.baggage_kg ?? 0)}
+                        onChange={(e) => updatePassengerAddons(index, leg, { baggage_kg: Number(e.target.value) })}
+                        onFocus={() => setActiveIndex(index)}
+                        disabled={disabled}
+                        options={baggageOptions().map((kg) => ({
+                          value: String(kg),
+                          label:
+                            kg === 0
+                              ? t("baggageNone")
+                              : t("baggageOption", { kg, price: CURRENCY_FORMATTER.format(BAGGAGE_PACKAGES[kg]) }),
+                        }))}
+                      />
+                      {MEAL_INCLUDED[a.seatClass] ? (
+                        <p className="text-xs text-sea-700">✓ {t("mealIncluded")}</p>
+                      ) : (
+                        <label className="flex items-center gap-2 text-sm text-ink">
+                          <input
+                            type="checkbox"
+                            checked={p.addonsByLeg?.[leg]?.meal === true}
+                            onChange={(e) => updatePassengerAddons(index, leg, { meal: e.target.checked })}
+                            disabled={disabled}
+                            className="h-4 w-4 accent-coral-500"
+                          />
+                          {t("mealOption", { price: CURRENCY_FORMATTER.format(MEAL_PRICE[a.seatClass]) })}
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </Card>
         ))}
 
@@ -614,6 +702,14 @@ export default function PassengersForm({
             <p className="text-xl font-semibold text-coral-600">
               {CURRENCY_FORMATTER.format(totalAmount)}đ
             </p>
+            {addonsTotal > 0 && (
+              <p className="text-xs text-ink/60">
+                {t("fareAndAddons", {
+                  fare: CURRENCY_FORMATTER.format(fareTotal),
+                  addons: CURRENCY_FORMATTER.format(addonsTotal),
+                })}
+              </p>
+            )}
             {promotionCode.trim() && (
               <p className="mt-1 text-xs text-coral-600 font-medium">{t("promotionAppliedNote")}</p>
             )}

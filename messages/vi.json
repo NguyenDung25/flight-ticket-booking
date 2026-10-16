@@ -181,7 +181,15 @@
     "contactPhone": "Số điện thoại",
     "contactPhonePlaceholder": "VD: 0912 345 678",
     "errorContactEmail": "Vui lòng nhập email liên hệ hợp lệ.",
-    "errorContactPhone": "Vui lòng nhập số điện thoại liên hệ hợp lệ (9–15 chữ số)."
+    "errorContactPhone": "Vui lòng nhập số điện thoại liên hệ hợp lệ (9–15 chữ số).",
+    "addonsTitle": "Hành lý & dịch vụ bổ sung",
+    "baggageIncluded": "Đã gồm: xách tay {carryOn}kg, ký gửi {checked}kg",
+    "baggageLabel": "Mua thêm hành lý ký gửi",
+    "baggageNone": "Không mua thêm",
+    "baggageOption": "+{kg}kg — {price}đ",
+    "mealOption": "Suất ăn trên máy bay (+{price}đ)",
+    "mealIncluded": "Suất ăn đã gồm trong vé thương gia",
+    "fareAndAddons": "Giá vé {fare}đ + dịch vụ {addons}đ"
   },
   "Payment": {
     "title": "Thanh toán",
@@ -319,7 +327,9 @@
     "resending": "Đang gửi...",
     "resendSuccess": "Đã gửi lại vé điện tử qua email.",
     "resendError": "Không gửi được email, vui lòng thử lại sau.",
-    "contactTitle": "Người liên hệ"
+    "contactTitle": "Người liên hệ",
+    "checkedBaggage": "ký gửi {kg}kg",
+    "mealLabel": "suất ăn"
   },
   "Promotions": {
     "title": "Khuyến mãi",

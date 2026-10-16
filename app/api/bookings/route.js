@@ -178,10 +178,18 @@ export async function POST(request) {
       );
     }
 
+    // passengers[].seats[] đã được validateBookingCreation ghi baggage_kg/meal/addons_amount (giá server).
+    const addonsByFlight = {};
+    for (const p of passengers) {
+      for (const s of p.seats) {
+        addonsByFlight[String(s.flight_id)] = (addonsByFlight[String(s.flight_id)] || 0) + (s.addons_amount || 0);
+      }
+    }
     const flightLegs = legs.map((l) => ({
       flight_id: l.flightDoc._id,
       leg: l.leg,
       amount: amounts[String(l.flightDoc._id)],
+      addons_amount: addonsByFlight[String(l.flightDoc._id)] || 0,
     }));
     const totalAmountBeforeDiscount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
 
