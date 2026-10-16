@@ -45,7 +45,7 @@ export default async function MyBookingsPage({ params }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="w-full max-w-3xl">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
       </div>
       <BookingList initialBookings={plainBookings} locale={locale} />
     </div>

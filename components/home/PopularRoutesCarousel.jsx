@@ -29,7 +29,7 @@ function Chevron({ dir }) {
 }
 
 const ARROW =
-  "absolute top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-coral-600 shadow-md transition-opacity hover:bg-sea-50 disabled:pointer-events-none disabled:opacity-0";
+  "absolute top-[6.5rem] z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-sand-200 bg-white text-ink transition-opacity hover:border-ink/40 disabled:pointer-events-none disabled:opacity-0";
 
 export default function PopularRoutesCarousel({ cards, labels }) {
   const listRef = useRef(null);
@@ -80,54 +80,47 @@ export default function PopularRoutesCarousel({ cards, labels }) {
         onScroll={updateEdges}
         tabIndex={0}
         aria-label={labels.region}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory items-stretch gap-4 overflow-x-auto scroll-smooth px-1 pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {cards.map((c) => (
           <li
             key={c.key}
             className="w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-[31%] xl:w-[24%]"
           >
-            <article className="relative flex h-[27rem] flex-col justify-between overflow-hidden rounded-2xl bg-sea-900 text-white shadow-md sm:h-[30rem]">
-              <RouteArt motif={c.art.motif} sky={c.art.sky} id={c.key} />
-              {c.imageSrc && (
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${c.imageSrc})` }}
-                />
-              )}
-              {/* lớp tối để chữ trắng luôn đọc được trên mọi ảnh/hình nền */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/5 to-black/75"
-              />
-
-              <div className="relative flex justify-end p-3">
-                <span className="rounded-full bg-black/55 px-3 py-1 text-sm font-medium">
-                  {c.index}/{c.total}
-                </span>
+            {/* Thẻ tuyến: ảnh phía trên, thông tin trên nền trắng — cả thẻ là 1 liên kết. */}
+            <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-sand-100 bg-white transition-colors hover:border-sand-200">
+              <div className="relative h-52 overflow-hidden bg-sea-100">
+                <RouteArt motif={c.art.motif} sky={c.art.sky} id={c.key} />
+                {c.imageSrc && (
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.03]"
+                    style={{ backgroundImage: `url(${c.imageSrc})` }}
+                  />
+                )}
               </div>
-
-              <h3 className="relative px-5 text-xl font-bold leading-snug drop-shadow-md">{c.title}</h3>
-
-              <div className="relative flex flex-col gap-3 p-4 pt-2">
-                <div className="text-right drop-shadow">
+              <div className="flex flex-1 flex-col gap-1 p-4">
+                <h3 className="text-base font-semibold leading-snug text-ink">
+                  {/* after: phủ cả thẻ -> bấm bất kỳ đâu trên thẻ đều mở trang tìm chuyến của tuyến */}
+                  <Link
+                    href={c.href}
+                    aria-label={`${labels.buyNow}: ${c.title}`}
+                    className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-coral-500"
+                  >
+                    {c.title}
+                  </Link>
+                </h3>
+                <p className="text-sm text-ink/60">{c.nextLabel}</p>
+                <p className="mt-auto pt-3 text-sm text-ink/60">
                   {c.priceText ? (
                     <>
-                      <p className="text-sm">{labels.from}</p>
-                      <p className="text-2xl font-bold">{c.priceText}*</p>
+                      {labels.oneWay} · {labels.from.toLowerCase()}{" "}
+                      <span className="whitespace-nowrap text-lg font-bold text-ink">{c.priceText}*</span>
                     </>
-                  ) : null}
-                  <p className="text-sm">{c.nextLabel}</p>
-                  <p className="text-sm">{labels.oneWay}</p>
-                </div>
-                <Link
-                  href={c.href}
-                  aria-label={`${labels.buyNow}: ${c.title}`}
-                  className="block rounded-xl bg-coral-500 px-4 py-3.5 text-center text-base font-semibold text-white transition-colors hover:bg-coral-600 after:absolute after:inset-0 after:content-['']"
-                >
-                  {labels.buyNow}
-                </Link>
+                  ) : (
+                    labels.oneWay
+                  )}
+                </p>
               </div>
             </article>
           </li>

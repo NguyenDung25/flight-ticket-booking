@@ -10,7 +10,7 @@
 //   4) Thẻ lên máy bay (QR, In / Lưu PDF)
 // Họ tên/mã gửi trong body, không đưa lên URL.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -63,6 +63,9 @@ function Stepper({ step, t }) {
   );
 }
 
+/** Khóa sessionStorage chứa họ hành khách do tab "Làm thủ tục" ở trang chủ chuyển sang. */
+export const CHECKIN_PREFILL_KEY = "ci_prefill_name";
+
 export default function CheckInLookup({ initialCode = "" }) {
   const t = useTranslations("CheckIn");
   const [step, setStep] = useState("search");
@@ -102,17 +105,16 @@ export default function CheckInLookup({ initialCode = "" }) {
     setStep("select");
   }
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    const normalizedCode = normalizeBookingCode(code);
+  async function runLookup(rawCode, rawName) {
+    const normalizedCode = normalizeBookingCode(rawCode);
     if (!normalizedCode) return setError(t("codeInvalid"));
-    if (!normalizePassengerName(name)) return setError(t("nameRequired"));
+    if (!normalizePassengerName(rawName)) return setError(t("nameRequired"));
     setError(null);
     setLoading(true);
     try {
-      const found = await lookup(normalizedCode, name);
+      const found = await lookup(normalizedCode, rawName);
       setCode(normalizedCode);
-      setAuth({ bookingCode: normalizedCode, passengerName: name });
+      setAuth({ bookingCode: normalizedCode, passengerName: rawName });
       openSelect(found);
     } catch (err) {
       setError(err.message);
@@ -120,6 +122,30 @@ export default function CheckInLookup({ initialCode = "" }) {
       setLoading(false);
     }
   }
+
+  function handleSearch(e) {
+    e.preventDefault();
+    runLookup(code, name);
+  }
+
+  // Đến từ tab "Làm thủ tục" ở trang chủ: mã đặt chỗ trong ?code=, họ hành khách để trong sessionStorage
+  // (KHÔNG đưa họ tên lên URL) -> điền sẵn và tra cứu luôn, rồi xóa khỏi sessionStorage.
+  // Chạy trong setTimeout (không setState trực tiếp trong effect); xóa sessionStorage lúc thực sự dùng —
+  // StrictMode chạy effect 2 lần, lần đầu bị hủy (clearTimeout) thì lần sau vẫn đọc được.
+  useEffect(() => {
+    let prefillName = "";
+    try {
+      prefillName = sessionStorage.getItem(CHECKIN_PREFILL_KEY) ?? "";
+    } catch {}
+    if (!initialCode || !prefillName) return undefined;
+    const id = setTimeout(() => {
+      try { sessionStorage.removeItem(CHECKIN_PREFILL_KEY); } catch {}
+      setName(prefillName);
+      runLookup(initialCode, prefillName);
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggleSeat(item) {
     setSelected((prev) => {
@@ -191,7 +217,7 @@ export default function CheckInLookup({ initialCode = "" }) {
               placeholder={t("codePlaceholder")}
               autoComplete="off"
               maxLength={12}
-              className="font-mono uppercase tracking-widest"
+              className="font-monost"
             />
             <Input
               id="passenger-name"
@@ -218,7 +244,7 @@ export default function CheckInLookup({ initialCode = "" }) {
 
       {step === "select" && (
         <Card className="w-full max-w-3xl p-5">
-          <h2 className="font-display text-lg font-semibold text-sea-900">{t("selectTitle")}</h2>
+          <h2 className="text-lg font-bold tracking-tight text-ink">{t("selectTitle")}</h2>
           <p className="mt-1 text-sm text-ink/60">{t("selectHint", { code: auth.bookingCode })}</p>
 
           {groups.length === 0 && <p className="mt-4 text-sm text-ink/60">{t("noItems")}</p>}
@@ -306,7 +332,7 @@ export default function CheckInLookup({ initialCode = "" }) {
 
       {step === "rules" && (
         <Card className="w-full max-w-3xl p-5">
-          <h2 className="font-display text-lg font-semibold text-sea-900">{t("iciTitle")}</h2>
+          <h2 className="text-lg font-bold tracking-tight text-ink">{t("iciTitle")}</h2>
           <p className="mt-1 text-sm text-ink/60">{t("iciIntro")}</p>
           <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-ink/80">
             {ICI_RULES.map((k) => (

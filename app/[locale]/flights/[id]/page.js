@@ -125,7 +125,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
 
         <div className="mt-4 flex items-center gap-4">
           <div>
-            <p className="font-display text-2xl font-semibold text-ink">
+            <p className="text-2xl font-semibold text-ink">
               {departure.format("HH:mm")}
             </p>
             <p className="text-sm text-ink/60">{flight.origin_code}</p>
@@ -136,7 +136,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
             <p className="text-xs text-ink/60">{formatDuration(departure, arrival)}</p>
           </div>
           <div>
-            <p className="font-display text-2xl font-semibold text-ink">
+            <p className="text-2xl font-semibold text-ink">
               {arrival.format("HH:mm")}
             </p>
             <p className="text-sm text-ink/60">{flight.dest_code}</p>

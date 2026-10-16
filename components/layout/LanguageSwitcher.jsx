@@ -56,7 +56,7 @@ export default function LanguageSwitcher() {
       aria-label={t("language")}
       value={locale}
       onChange={handleChange}
-      className="rounded-lg border border-sand-100 bg-sand-50 px-2 py-1.5 text-sm text-ink"
+      className="h-9 rounded-lg border border-sand-100 bg-white px-2 text-sm text-ink hover:border-sand-200"
     >
       {routing.locales.map((l) => (
         <option key={l} value={l}>

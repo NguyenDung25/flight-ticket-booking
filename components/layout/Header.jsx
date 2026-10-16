@@ -51,14 +51,15 @@ export default async function Header() {
     : [...navLinks, { href: "/register", label: t("register") }];
 
   return (
-    <header className="relative border-b border-sand-100 bg-sand-50/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+    <header className="relative border-b border-sand-100 bg-white">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6 xl:gap-6">
         <div className="flex items-center gap-2">
           {/* Hamburger — chỉ hiện < lg (chính MobileMenu tự có class
               "lg:hidden" trên root của nó; 5 mục menu không đủ chỗ ở khổ md), đặt bên trái brand cho quen tay
               (giống đa số app mobile). */}
           <MobileMenu links={mobileLinks} />
-          <Link href="/" className="font-display text-xl font-semibold text-sea-900">
+          {/* Tên web là liên kết về trang chủ (không dùng biểu tượng riêng). */}
+          <Link href="/" className="text-xl font-bold tracking-tight text-ink hover:text-coral-600">
             {tBrand("name")}
           </Link>
         </div>
@@ -74,7 +75,7 @@ export default async function Header() {
                 <NextLink
                   href="/admin"
                   prefetch={false}
-                  className="hidden rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white lg:inline-flex"
+                  className="hidden h-9 items-center whitespace-nowrap rounded-lg border border-sand-200 px-3 text-xs font-semibold text-ink transition-colors hover:border-ink/40 lg:inline-flex"
                 >
                   {t("adminPanel")}
                 </NextLink>
@@ -87,12 +88,12 @@ export default async function Header() {
               <Link
                 href="/account"
                 title={`${t("account")} — ${session.user.email}`}
-                className="hidden max-w-[10rem] truncate text-sm text-ink/70 hover:text-coral-600 hover:underline sm:inline"
+                className="hidden max-w-[10rem] truncate text-sm font-medium text-ink hover:text-coral-600 xl:inline"
               >
                 {session.user.name || session.user.email}
               </Link>
               <form action={signOutAction}>
-                <Button type="submit" variant="ghost">
+                <Button type="submit" variant="ghost" className="whitespace-nowrap px-3">
                   {t("logout")}
                 </Button>
               </form>
@@ -101,13 +102,13 @@ export default async function Header() {
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-sea-900 hover:text-coral-600"
+                className="text-sm font-medium text-ink hover:text-coral-600"
               >
                 {t("login")}
               </Link>
               <Link
                 href="/register"
-                className="hidden rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white hover:bg-coral-600 sm:inline-flex"
+                className="hidden h-10 items-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-sea-700 sm:inline-flex"
               >
                 {t("register")}
               </Link>

@@ -38,7 +38,7 @@ function departureHourVN(isoString) {
   return Number(hour) % 24;
 }
 
-export default function FilterableFlightList({ flights, locale, leg, searchContext }) {
+export default function FilterableFlightList({ flights, locale, leg, searchContext, dateLabel = "" }) {
   // useTranslations (hook CLIENT-safe của next-intl) — KHÔNG nhận `t` qua
   // props từ page.js: getTranslations() phía server trả về 1 HÀM, mà hàm
   // không truyền được qua ranh giới Server Component -> Client Component
@@ -78,6 +78,7 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
   const [maxPrice, setMaxPrice] = useState(() => readFilter("maxPrice", maxPriceOverall));
   const [selectedSlots, setSelectedSlots] = useState(() => readFilter("slots", []));
   const [selectedAirlines, setSelectedAirlines] = useState(() => readFilter("airlines", []));
+  const [sortBy, setSortBy] = useState(() => readFilter("sort", "time"));
 
   function toggleSlot(id) {
     setSelectedSlots((prev) => {
@@ -117,99 +118,123 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
     return true;
   });
 
+  // Sắp xếp: mặc định theo giờ bay (server đã sắp sẵn), hoặc giá phổ thông thấp nhất.
+  const sorted =
+    sortBy === "price"
+      ? [...filtered].sort((a, b) => a.base_price.economy - b.base_price.economy || new Date(a.departure_time) - new Date(b.departure_time))
+      : filtered;
+
   const isFilterActive =
     maxPrice !== maxPriceOverall || selectedSlots.length > 0 || selectedAirlines.length > 0;
 
   if (flights.length === 0) {
-    return <p className="text-sm text-ink/60">{t("noResults")}</p>;
+    return (
+      <p className="rounded-xl border border-sand-100 bg-white p-6 text-sm text-ink/70">{t("noResults")}</p>
+    );
   }
 
+  const checkboxRow = "flex cursor-pointer items-center gap-2.5 text-sm text-ink";
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start gap-6 rounded-xl border border-sand-100 bg-white p-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-ink/60">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      {/* Bộ lọc: cột trái trên màn hình lớn, khối trên cùng trên điện thoại */}
+      <aside
+        aria-label={t("filtersTitle")}
+        className="flex flex-col gap-5 rounded-xl border border-sand-100 bg-white p-5 lg:w-64 lg:shrink-0"
+      >
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-base font-bold text-ink">{t("filtersTitle")}</h2>
+          {isFilterActive && (
+            <button type="button" onClick={resetFilters} className="text-sm font-medium text-sea-500 hover:underline">
+              {t("filterResetButton")}
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor={`price-${leg}`} className="text-sm font-semibold text-ink">
             {t("filterPriceLabel", { price: new Intl.NumberFormat("vi-VN").format(maxPrice) })}
           </label>
           <input
+            id={`price-${leg}`}
             type="range"
             min={minPrice}
             max={maxPriceOverall}
             step={Math.max(1000, Math.round((maxPriceOverall - minPrice) / 20))}
             value={maxPrice}
             onChange={(e) => { const v = Number(e.target.value); setMaxPrice(v); saveFilter("maxPrice", v); }}
-            className="w-48 accent-sea-500"
+            className="w-full accent-coral-500"
             disabled={minPrice === maxPriceOverall}
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink/60">{t("filterTimeLabel")}</span>
-          <div className="flex flex-wrap gap-2">
-            {TIME_SLOTS.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                onClick={() => toggleSlot(slot.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  selectedSlots.includes(slot.id)
-                    ? "border-sea-500 bg-sea-500 text-white"
-                    : "border-sand-100 bg-white text-ink/70 hover:border-sea-500"
-                }`}
-              >
-                {t(slot.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <fieldset className="flex flex-col gap-2.5">
+          <legend className="mb-2.5 text-sm font-semibold text-ink">{t("filterTimeLabel")}</legend>
+          {TIME_SLOTS.map((slot) => (
+            <label key={slot.id} className={checkboxRow}>
+              <input
+                type="checkbox"
+                checked={selectedSlots.includes(slot.id)}
+                onChange={() => toggleSlot(slot.id)}
+                className="h-4 w-4 accent-coral-500"
+              />
+              {t(slot.labelKey)}
+            </label>
+          ))}
+        </fieldset>
 
         {airlineOptions.length > 1 && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink/60">{t("filterAirlineLabel")}</span>
-            <div className="flex flex-wrap gap-2">
-              {airlineOptions.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => toggleAirline(a.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    selectedAirlines.includes(a.id)
-                      ? "border-sea-500 bg-sea-500 text-white"
-                      : "border-sand-100 bg-white text-ink/70 hover:border-sea-500"
-                  }`}
-                >
-                  {a.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <fieldset className="flex flex-col gap-2.5">
+            <legend className="mb-2.5 text-sm font-semibold text-ink">{t("filterAirlineLabel")}</legend>
+            {airlineOptions.map((a) => (
+              <label key={a.id} className={checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={selectedAirlines.includes(a.id)}
+                  onChange={() => toggleAirline(a.id)}
+                  className="h-4 w-4 accent-coral-500"
+                />
+                {a.name}
+              </label>
+            ))}
+          </fieldset>
         )}
+      </aside>
 
-        {isFilterActive && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="ml-auto self-center text-xs font-medium text-coral-600 hover:underline"
-          >
-            {t("filterResetButton")}
-          </button>
+      <section aria-label={t("title")} className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink/60">
+          <p>
+            <span className="font-semibold text-ink">{t("resultsCount", { count: sorted.length })}</span>
+            {dateLabel && <span className="first-letter:uppercase"> · {dateLabel}</span>}
+          </p>
+          <label className="flex items-center gap-2">
+            {t("sortLabel")}
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); saveFilter("sort", e.target.value); }}
+              className="h-9 rounded-lg border border-sand-200 bg-white px-2 text-sm text-ink"
+            >
+              <option value="time">{t("sortEarliest")}</option>
+              <option value="price">{t("sortCheapest")}</option>
+            </select>
+          </label>
+        </div>
+
+        {sorted.length === 0 ? (
+          <p className="rounded-xl border border-sand-100 bg-white p-6 text-sm text-ink/70">{t("noResultsAfterFilter")}</p>
+        ) : (
+          sorted.map((flight) => (
+            <FlightCard
+              key={flight._id}
+              flight={flight}
+              locale={locale}
+              leg={leg}
+              searchContext={searchContext}
+              t={t}
+            />
+          ))
         )}
-      </div>
-
-      {filtered.length === 0 ? (
-        <p className="text-sm text-ink/60">{t("noResultsAfterFilter")}</p>
-      ) : (
-        filtered.map((flight) => (
-          <FlightCard
-            key={flight._id}
-            flight={flight}
-            locale={locale}
-            leg={leg}
-            searchContext={searchContext}
-            t={t}
-          />
-        ))
-      )}
+      </section>
     </div>
   );
 }

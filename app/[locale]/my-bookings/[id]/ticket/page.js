@@ -100,12 +100,12 @@ export default async function TicketPage({ params }) {
       </div>
 
       <Card className="w-full max-w-2xl p-6">
-        <h1 className="mb-4 border-b border-sand-100 pb-3 font-display text-xl font-semibold text-sea-900">
+        <h1 className="mb-4 border-b border-sand-100 pb-3 text-xl font-bold tracking-tight text-ink">
           {t("title")}
         </h1>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">
+            <p className="text-sm font-semibold text-ink/60">
               {t("bookingCodeLabel")}
             </p>
             <p className="font-mono text-2xl font-bold tracking-widest text-sea-900">
@@ -121,7 +121,7 @@ export default async function TicketPage({ params }) {
             const arrival = toVN(leg.arrival_time);
             return (
               <div key={leg.leg} className="rounded-lg bg-white/60 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">
+                <p className="text-sm font-semibold text-sea-700">
                   {leg.leg === "outbound" ? t("outboundLabel") : t("returnLabel")}
                 </p>
                 <p className="mt-1 text-sm font-medium text-ink">{leg.flight_number}</p>
@@ -136,7 +136,7 @@ export default async function TicketPage({ params }) {
 
         {ticketData.contact && (
           <div className="mt-5 border-t border-sand-100 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">{t("contactTitle")}</p>
+            <p className="text-sm font-semibold text-ink/60">{t("contactTitle")}</p>
             <p className="mt-1 text-sm text-ink">
               {ticketData.contact.email} · {ticketData.contact.phone}
             </p>
@@ -144,7 +144,7 @@ export default async function TicketPage({ params }) {
         )}
 
         <div className="mt-5 border-t border-sand-100 pt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">
+          <p className="text-sm font-semibold text-ink/60">
             {t("passengersTitle")}
           </p>
           <div className="mt-2 flex flex-col gap-3">

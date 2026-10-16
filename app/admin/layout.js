@@ -26,6 +26,10 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { ActiveUserError } from "@/lib/requireActiveUser";
+import "@fontsource/be-vietnam-pro/400.css";
+import "@fontsource/be-vietnam-pro/500.css";
+import "@fontsource/be-vietnam-pro/600.css";
+import "@fontsource/be-vietnam-pro/700.css";
 import "../globals.css";
 
 // BẮT BUỘC: build (`next build`) mặc định cố PRERENDER TĨNH mọi route nếu

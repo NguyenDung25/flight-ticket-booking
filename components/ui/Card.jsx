@@ -14,7 +14,7 @@ export default function Card({ children, stub, className = "" }) {
   if (!stub) {
     return (
       <div
-        className={`rounded-xl border border-sand-100 bg-sand-50 shadow-sm ${className}`}
+        className={`rounded-xl border border-sand-100 bg-white ${className}`}
       >
         {children}
       </div>
@@ -23,12 +23,12 @@ export default function Card({ children, stub, className = "" }) {
 
   return (
     <div
-      className={`ticket-stub relative flex overflow-hidden rounded-xl border border-sand-100 bg-sand-50 shadow-sm ${className}`}
+      className={`ticket-stub relative flex overflow-hidden rounded-xl border border-sand-100 bg-white ${className}`}
     >
       <div className="flex-1 p-5">{children}</div>
       <div
         aria-hidden="true"
-        className="border-l border-dashed border-sea-700/25"
+        className="border-l border-sand-100"
       />
       <div className="flex min-w-[9rem] flex-col items-center justify-center gap-2 p-5 text-center">
         {stub}

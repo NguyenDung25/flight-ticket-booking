@@ -131,7 +131,7 @@ Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ
 ```bash
 npm test       # 169 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
 npm run test:integration  # 12 test với MongoDB THẬT (giữ ghế/race, hủy vé, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, xác thực email, bảng giá dịch vụ bổ sung, nhật ký admin)
-npm run test:e2e          # build production + 8 kịch bản giao diện trên Chrome (Playwright)
+npm run test:e2e          # build production + 9 kịch bản giao diện trên Chrome (Playwright)
 npm run lint   # ESLint theo bộ luật của Next.js
 npm run build  # build production — nên chạy 1 lần trước khi demo/bảo vệ
 ```

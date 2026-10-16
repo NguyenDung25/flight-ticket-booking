@@ -1,48 +1,43 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Bảng màu dự án — tông CAM ĐÀO theo ảnh khuyến mãi (cam rực + kem đào + nâu đậm):
-   TÊN token giữ nguyên (mọi component đã dùng sẵn sea-*, sand-*, coral-*, ink...) — chỉ đổi GIÁ TRỊ
-   để cả khu khách lẫn khu Admin đồng nhất từ MỘT chỗ. Ý nghĩa mới của từng nhóm:
-   - sea   : (tên cũ "xanh biển") nay là NÂU GẠCH ĐẬM — chữ chính, tiêu đề, nút phụ, viền nhấn
-   - sand  : kem đào — nền trang + đường viền nhạt
-   - coral : CAM RỰC — CTA chính (tìm chuyến, thanh toán), mục đang chọn, biểu đồ
-   - ink   : nâu đen trung tính cho chữ thường
-   Màu trang trí sáng hơn (cam nhạt, vàng "15%" trong ảnh) dùng thẳng các màu orange/amber mặc định
-   của Tailwind, KHÔNG dùng cho chữ nhỏ. Mọi cặp chữ/nền chức năng đạt tương phản WCAG AA (>= 4.5:1):
-   chữ trắng trên coral-500 = 4.5, trên coral-600 = 5.5, trên sea-500 = 6.4; sea-900 trên kem = 14.9.
+   Bảng màu dự án — nền trắng / kem rất nhạt, MỘT màu nhấn cam đất cho nút chính, chữ nâu đen.
+   Thiết kế lại cho tự nhiên hơn (bỏ gradient, vòng tròn mờ, emoji): giống các trang đặt vé thật.
+   TÊN token giữ nguyên (mọi component đã dùng sẵn sea-*, sand-*, coral-*, ink...), chỉ đổi GIÁ TRỊ:
+   - sand  : nền trang (#FAF7F4) + đường viền (sand-100 nhạt, sand-200 đậm hơn cho ô nhập)
+   - sea   : nâu đỏ đậm — chữ nhấn, liên kết, icon; sea-50/100 là nền nhấn rất nhạt
+   - coral : cam đất — nút chính (tìm chuyến, thanh toán), mục đang chọn
+   - ink   : nâu đen cho chữ thường
+   Tương phản (WCAG AA >= 4.5:1): chữ trắng trên coral-500 = 5.2, trên coral-600 = 7.6;
+   sea-500 trên trắng = 7.6; ink trên sand-50 = 16.
 --------------------------------------------------------------------------- */
 @theme {
-  --color-sea-50: #fff3e8;
-  --color-sea-100: #ffe2cb;
-  --color-sea-500: #9b3a2c;
-  --color-sea-700: #7a2a1c;
-  --color-sea-900: #3d1a0c;
+  --color-sea-50: #fdf1e7;
+  --color-sea-100: #f6dcc6;
+  --color-sea-500: #9a3412;
+  --color-sea-700: #7c2d12;
+  --color-sea-900: #2b1a12;
 
-  --color-sand-50: #fff9f3;
-  --color-sand-100: #f5e2d2;
-  --color-sand-200: #ebcdb3;
+  --color-sand-50: #faf7f4;
+  --color-sand-100: #ede7e1;
+  --color-sand-200: #dcd3cb;
 
-  --color-coral-500: #cf4c0a;
-  --color-coral-600: #b8420a;
+  --color-coral-500: #c2410c;
+  --color-coral-600: #9a3412;
 
   --color-ink: #2b1a12;
 
-  /* Lỗi form (login/register C8, validate chọn ghế/thông tin hành khách sau
-     này) — đỏ hồng sẫm (crimson), KHÁC hẳn cam coral-500 (CTA) để không bị nhầm là nút bấm. */
-  --color-danger: #c0173f;
+  /* Lỗi form — đỏ sẫm, khác hẳn cam của nút chính để không bị nhầm là nút bấm. */
+  --color-danger: #b42318;
 
-  /* StatusBadge.jsx (Booking.status: pending_payment/confirmed) đã dùng 2
-     token này từ trước nhưng chưa từng được định nghĩa — badge trạng thái
-     đang render KHÔNG MÀU ở mọi nơi dùng component đó (my-bookings, admin
-     bookings...). Vàng đậm/xanh lá, tách biệt hẳn sea (nâu gạch) và
-     coral (CTA cam) để không lẫn ý nghĩa. */
+  /* StatusBadge (pending_payment / confirmed). */
   --color-warning: #9a6a05;
   --color-success: #2f855a;
 
-  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Be Vietnam Pro: font thiết kế cho tiếng Việt (đủ dấu), đóng gói qua @fontsource trong layout. */
+  --font-display: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {

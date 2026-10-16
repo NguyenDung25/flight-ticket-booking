@@ -19,7 +19,7 @@ export default async function LoginPage({ params, searchParams }) {
   return (
     <div className="flex flex-1 items-center justify-center bg-sand-50 px-4 py-16">
       <Card className="w-full max-w-sm p-8">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
           {t("loginTitle")}
         </h1>
 

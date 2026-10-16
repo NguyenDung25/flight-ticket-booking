@@ -25,7 +25,7 @@ const EXAMPLE_TOTAL = 3_000_000;
 function Section({ title, children }) {
   return (
     <Card className="w-full max-w-3xl p-6">
-      <h2 className="font-display text-lg font-semibold text-sea-900">{title}</h2>
+      <h2 className="text-lg font-bold tracking-tight text-ink">{title}</h2>
       <div className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-ink/80">{children}</div>
     </Card>
   );
@@ -50,14 +50,14 @@ export default async function CancellationPolicyPage({ params }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="w-full max-w-3xl">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className="mt-1 text-sm text-ink/60">{t("intro")}</p>
       </div>
 
       <Section title={t("paidTitle")}>
         <div className="overflow-hidden rounded-lg border border-sand-100">
           <table className="w-full text-left text-sm">
-            <thead className="bg-sand-100/60 text-xs uppercase tracking-wide text-ink/60">
+            <thead className="bg-sand-100/60 text-xs text-ink/60">
               <tr>
                 <th className="px-4 py-2 font-medium">{t("colWhen")}</th>
                 <th className="px-4 py-2 font-medium">{t("colResult")}</th>

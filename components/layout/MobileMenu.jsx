@@ -23,7 +23,7 @@ export default function MobileMenu({ links }) {
         aria-label={open ? "Đóng menu" : "Mở menu"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-sea-900 hover:bg-sand-100"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-sand-100"
       >
         {open ? (
           // X
@@ -40,7 +40,7 @@ export default function MobileMenu({ links }) {
 
       {/* Drawer */}
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+1px)] z-50 border-b border-sand-100 bg-sand-50/95 px-6 py-4 shadow-md backdrop-blur lg:hidden">
+        <div className="absolute left-0 right-0 top-[calc(100%+1px)] z-50 border-b border-sand-100 bg-white px-6 py-4 shadow-md lg:hidden">
           <nav className="flex flex-col gap-4">
             {visibleLinks.map((l) =>
               l.plain ? (
@@ -48,7 +48,7 @@ export default function MobileMenu({ links }) {
                 <a
                   key={l.href}
                   href={l.href}
-                  className="text-base font-medium text-sea-900 hover:text-coral-600"
+                  className="text-base font-medium text-ink hover:text-coral-600"
                 >
                   {l.label}
                 </a>
@@ -57,7 +57,7 @@ export default function MobileMenu({ links }) {
                   key={l.href}
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="text-base font-medium text-sea-900 hover:text-coral-600"
+                  className="text-base font-medium text-ink hover:text-coral-600"
                 >
                   {l.label}
                 </Link>

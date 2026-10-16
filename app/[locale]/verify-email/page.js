@@ -28,7 +28,7 @@ export default async function VerifyEmailPage({ params, searchParams }) {
   return (
     <div className="flex flex-1 items-center justify-center bg-sand-50 px-4 py-16">
       <Card className="w-full max-w-sm p-8">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">{t("verifyTitle")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("verifyTitle")}</h1>
         {verifiedEmail ? (
           <>
             <p role="status" className="mt-6 rounded-lg bg-sea-700/10 px-3 py-3 text-sm text-sea-900">

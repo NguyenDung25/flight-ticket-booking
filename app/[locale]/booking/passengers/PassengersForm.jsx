@@ -480,7 +480,7 @@ export default function PassengersForm({
         >
           ← {t("backButton")}
         </button>
-        <h1 className="mt-2 font-display text-2xl font-semibold text-sea-900">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink">
           {t("passengerInfoTitle")}
         </h1>
         <p className="mt-1 text-sm text-ink/60">{t("stepLabel")}</p>
@@ -565,7 +565,7 @@ export default function PassengersForm({
             </div>
 
             <div className="mt-4 border-t border-sand-100 pt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">{t("addonsTitle")}</p>
+              <p className="text-sm font-semibold text-sea-700">{t("addonsTitle")}</p>
               <div className={`mt-2 grid gap-3 ${returnFlight ? "sm:grid-cols-2" : ""}`}>
                 {(returnFlight ? ["outbound", "return"] : ["outbound"]).map((leg) => {
                   const a = addonsFor(p, leg);
@@ -659,7 +659,7 @@ export default function PassengersForm({
           </p>
         )}
         <div className="mb-4">
-          <p className="text-sm font-semibold text-sea-900">{t("contactTitle")}</p>
+          <p className="text-sm font-semibold text-ink">{t("contactTitle")}</p>
           <p className="mt-0.5 text-xs text-ink/60">{t("contactHint")}</p>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <Input

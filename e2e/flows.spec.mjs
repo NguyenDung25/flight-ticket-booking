@@ -32,10 +32,10 @@ async function login(page, { email, password }) {
 
 test("trang chủ hiển thị tiêu đề và đổi được sang tiếng Anh", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Vé máy bay giá tốt, bay khắp Việt Nam" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Đặt vé máy bay đi khắp Việt Nam" })).toBeVisible();
   await page.getByRole("combobox", { name: "Ngôn ngữ" }).selectOption("en");
   await expect(page).toHaveURL(/\/en(\/|$)/);
-  await expect(page.getByRole("heading", { name: "Great-value flights across Vietnam" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Book flights across Vietnam" })).toBeVisible();
 });
 
 test("đăng nhập sai mật khẩu báo lỗi; đúng thì vào được trang tài khoản (email đã xác thực)", async ({ page }) => {
@@ -57,7 +57,8 @@ test("đặt vé 1 chiều có hành lý + suất ăn -> sang VNPay đúng số 
   // Tìm chuyến -> chi tiết -> tóm tắt -> nhập hành khách
   const q = new URLSearchParams({ origin: "HAN", destination: "SGN", departureDate: tomorrowVN(), tripType: "one_way", passengerCount: "1" });
   await page.goto(`/search?${q}`);
-  await page.getByRole("link", { name: "Xem chi tiết" }).first().click();
+  // Chọn đúng VN200 (giá 1.500.000đ) — tùy giờ chạy, chuyến VN910 của test check-in cũng có thể rơi vào ngày mai.
+  await page.locator("article", { hasText: "VN200" }).getByRole("link", { name: "Chọn chuyến", exact: true }).click();
   await page.getByRole("link", { name: "Chọn chuyến này" }).first().click();
   await page.getByRole("link", { name: "Tiếp tục nhập thông tin hành khách" }).click();
   await expect(page).toHaveURL(/\/booking\/passengers/);
@@ -112,7 +113,7 @@ test("đăng ký tài khoản mới: chưa xác thực email thì chưa được
 test("check-in online: mã đặt chỗ không tồn tại thì báo lỗi, không lộ thông tin", async ({ page }) => {
   await page.goto("/check-in");
   await page.getByLabel("Mã đặt chỗ (mã vé điện tử)").fill("ZZZZZZ");
-  await page.getByLabel("Họ của hành khách").fill("Nguyen");
+  await page.getByLabel("Họ tên hành khách").fill("Nguyen Van A");
   await page.getByRole("button", { name: "Tìm vé" }).click();
   await expect(errorAlert(page)).toBeVisible();
 });
@@ -122,11 +123,11 @@ test("trang cần đăng nhập chuyển về trang đăng nhập", async ({ pag
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("check-in online trọn luồng: mã + họ -> chọn khách -> đồng ý ICI -> thẻ lên máy bay có hành lý + QR", async ({ page }) => {
+test("check-in online trọn luồng: mã + họ tên -> chọn khách -> đồng ý ICI -> thẻ lên máy bay có hành lý + QR", async ({ page }) => {
   // Booking CKE2EA (đã thanh toán, ký gửi 20kg + suất ăn) trên chuyến VN910 cách ~10 giờ — e2e/seed-checkin.cjs.
   await page.goto("/check-in");
   await page.getByLabel("Mã đặt chỗ (mã vé điện tử)").fill("cke2ea");
-  await page.getByLabel("Họ của hành khách").fill("trần");
+  await page.getByLabel("Họ tên hành khách").fill("trần thị checkin");
   await page.getByRole("button", { name: "Tìm vé" }).click();
 
   await expect(page.getByText("Dữ liệu đặt chỗ")).toBeVisible();
@@ -142,6 +143,19 @@ test("check-in online trọn luồng: mã + họ -> chọn khách -> đồng ý 
   await expect(page.getByText(/Có hành lý ký gửi/)).toBeVisible();
   await expect(page.getByText(/Chỉ có hành lý xách tay/)).toHaveCount(0);
   await expect(page.getByRole("img", { name: "Mã QR thẻ lên máy bay" })).toBeVisible();
+});
+
+test("trang chủ, tab Làm thủ tục: nhập mã + họ tên -> sang trang check-in tự tra cứu, họ không nằm trên URL", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Làm thủ tục" }).click();
+  await page.getByLabel("Mã đặt chỗ").fill("cke2ea");
+  await page.getByLabel("Họ tên hành khách").fill("Tran Thi Checkin");
+  await page.getByRole("button", { name: "Làm thủ tục" }).click();
+
+  await expect(page).toHaveURL(/\/check-in\?code=CKE2EA$/);
+  await expect(page.getByText("Dữ liệu đặt chỗ")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Tran Thi Checkin/ })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("ci_prefill_name"))).toBeNull();
 });
 
 test("admin sửa bảng giá dịch vụ bổ sung: chặn dữ liệu sai, giá mới hiện ở bước đặt vé, có nhật ký", async ({ page }) => {

@@ -83,7 +83,7 @@ export default async function PaymentResultPage({ params, searchParams }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-sand-50 px-4 py-24 text-center">
       <Card className="w-full max-w-md p-8">
-        <h1 className="font-display text-xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className={`mt-4 text-sm ${tone}`}>{t(statusKey)}</p>
 
         {booking && (

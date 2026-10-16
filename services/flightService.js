@@ -246,9 +246,43 @@ async function assertNoActiveBooking(flightId) {
   }
 }
 
+/**
+ * Giá phổ thông thấp nhất theo TỪNG NGÀY (giờ VN) của 1 tuyến — cho dải chọn ngày ở trang kết quả tìm
+ * kiếm. Cùng điều kiện với queryFlightsByLeg: chỉ chuyến `scheduled`, chưa khởi hành.
+ *
+ * @param {{ origin: string, destination: string, dates: string[] }} params - dates dạng "YYYY-MM-DD"
+ * @returns {Promise<Object<string, number>>} { "YYYY-MM-DD": giá thấp nhất } (ngày không có chuyến: không có key)
+ */
+async function getDailyMinPrices({ origin, destination, dates }) {
+  if (!origin || !destination || !Array.isArray(dates) || dates.length === 0) return {};
+  const sorted = [...dates].sort();
+  const now = new Date();
+  const first = dayRangeVN(sorted[0]).start;
+  const end = dayRangeVN(sorted[sorted.length - 1]).end;
+  if (end <= now) return {};
+  const rows = await Flight.aggregate([
+    {
+      $match: {
+        origin_code: String(origin).toUpperCase(),
+        dest_code: String(destination).toUpperCase(),
+        departure_time: { $gte: first > now ? first : now, $lt: end },
+        status: "scheduled",
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$departure_time", timezone: "Asia/Ho_Chi_Minh" } },
+        min: { $min: "$base_price.economy" },
+      },
+    },
+  ]);
+  return Object.fromEntries(rows.map((r) => [r._id, r.min]));
+}
+
 module.exports = {
   FlightError,
   searchFlights,
+  getDailyMinPrices,
   getFlightDetail,
   assertNoActiveBooking,
 };

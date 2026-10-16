@@ -23,7 +23,7 @@ function FlightRow({ flight, locale, label }) {
 
   return (
     <div className="rounded-lg bg-white/60 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">{label}</p>
+      <p className="text-sm font-semibold text-sea-700">{label}</p>
       <p className="mt-1 text-sm font-medium text-ink">
         {airlineName} · {flight.flight_number}
       </p>
@@ -111,10 +111,10 @@ export default async function BookingSummaryPage({ params, searchParams }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="w-full max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-sea-700">
+        <p className="text-sm font-semibold text-sea-700">
           {t("stepLabel")}
         </p>
-        <h1 className="mt-1 font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
       </div>
 
       <Card className="w-full max-w-2xl p-6">

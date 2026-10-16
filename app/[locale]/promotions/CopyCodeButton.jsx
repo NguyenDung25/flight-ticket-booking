@@ -41,7 +41,7 @@ export default function CopyCodeButton({ code }) {
       type="button"
       onClick={handleCopy}
       aria-label={t("copyAria", { code })}
-      className="shrink-0 rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white"
+      className="h-9 shrink-0 rounded-lg border border-sand-200 bg-white px-3 text-sm font-semibold text-ink transition-colors hover:border-ink/40"
     >
       {state === "copied" ? t("copied") : state === "failed" ? t("copyFailed") : t("copy")}
     </button>

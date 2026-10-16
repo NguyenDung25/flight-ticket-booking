@@ -26,7 +26,7 @@ export default async function PromotionsPage({ params }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="w-full max-w-3xl">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className="mt-1 text-sm text-ink/60">{t("subtitle")}</p>
       </div>
 
@@ -37,12 +37,12 @@ export default async function PromotionsPage({ params }) {
           {promotions.map((p) => (
             <Card key={p.code} className="flex flex-col gap-3 p-5">
               <div className="flex items-start justify-between gap-3">
-                <p className="font-display text-3xl font-bold text-coral-600">
+                <p className="text-3xl font-bold text-coral-600">
                   {t("discount", { percent: p.discount_percent })}
                 </p>
                 <CopyCodeButton code={p.code} />
               </div>
-              <p className="w-fit rounded-md border border-dashed border-sea-700/40 bg-white/70 px-3 py-1 font-mono text-lg font-semibold tracking-widest text-sea-900">
+              <p className="w-fit rounded-md border border-dashed border-sea-700/40 bg-white px-3 py-1 font-mono text-lg font-semibold tracking-widest text-sea-900">
                 {p.code}
               </p>
               <div className="flex flex-col gap-0.5 text-xs text-ink/60">

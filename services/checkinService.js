@@ -30,7 +30,7 @@ class CheckinError extends Error {
 }
 
 // Cùng 1 thông báo cho "sai mã" và "đúng mã nhưng sai tên" — không cho người dò biết mã nào tồn tại.
-const NOT_FOUND_MESSAGE = "Không tìm thấy vé đã thanh toán khớp với mã đặt chỗ và họ hành khách này.";
+const NOT_FOUND_MESSAGE = "Không tìm thấy vé đã thanh toán khớp với mã đặt chỗ và họ tên hành khách này.";
 
 /**
  * Tìm booking `confirmed` theo mã đặt chỗ + HỌ (hoặc họ tên) của ít nhất 1 hành khách — như website
@@ -42,7 +42,7 @@ async function findBookingByCodeAndName({ bookingCode, passengerName }) {
   const code = normalizeBookingCode(bookingCode);
   const name = normalizePassengerName(passengerName);
   if (!code || !name) {
-    throw new CheckinError("Vui lòng nhập đúng mã đặt chỗ (6 ký tự) và họ của một hành khách.", 400);
+    throw new CheckinError("Vui lòng nhập đúng mã đặt chỗ (6 ký tự) và họ tên của một hành khách.", 400);
   }
 
   const booking = await Booking.findOne({ booking_code: code, status: "confirmed" });

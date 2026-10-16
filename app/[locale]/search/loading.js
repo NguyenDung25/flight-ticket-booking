@@ -11,7 +11,7 @@
 
 function SkeletonCard() {
   return (
-    <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-sand-100 bg-white/70 p-5">
+    <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-sand-100 bg-white p-5">
       <div className="flex-1 animate-pulse">
         <div className="h-3 w-32 rounded bg-sand-100" />
         <div className="mt-3 flex items-center gap-3">

@@ -73,7 +73,8 @@ export const NAV_ITEMS = [
     label: "Máy bay",
     icon: (
       <svg {...svgProps}>
-        <path d="M7 4h6a2 2 0 012 2v6H7V6a2 2 0 012-2zM6 12h12v3a2 2 0 01-2 2H8a2 2 0 01-2-2zM9 17v3M15 17v3" />
+        {/* Hình máy bay nhìn từ trên xuống (thân, 2 cánh, đuôi) */}
+        <path d="M16 10h4a2 2 0 010 4h-4l-4 7H9l2-7H7l-2 2H2l2-4-2-4h3l2 2h4L9 3h3l4 7z" />
       </svg>
     ),
   },

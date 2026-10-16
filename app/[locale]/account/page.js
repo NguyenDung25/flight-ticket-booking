@@ -23,7 +23,7 @@ export default async function AccountPage({ params, searchParams }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
       <div className="w-full max-w-2xl">
-        <h1 className="font-display text-2xl font-semibold text-sea-900">{t("title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <p className="mt-1 text-sm text-ink/60">
           {user.email} · {t("memberSince", { date: toVN(user.created_at).format("DD/MM/YYYY") })}
         </p>
@@ -31,12 +31,12 @@ export default async function AccountPage({ params, searchParams }) {
       </div>
 
       <Card className="w-full max-w-2xl p-6">
-        <h2 className="font-display text-lg font-semibold text-sea-900">{t("profileTitle")}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-ink">{t("profileTitle")}</h2>
         <ProfileForm initialName={user.full_name} email={user.email} />
       </Card>
 
       <Card className="w-full max-w-2xl p-6">
-        <h2 className="font-display text-lg font-semibold text-sea-900">{t("passwordTitle")}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-ink">{t("passwordTitle")}</h2>
         <p className="mt-1 text-xs text-ink/60">{t("passwordHint")}</p>
         <ChangePasswordForm />
       </Card>

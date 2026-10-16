@@ -15,15 +15,15 @@ export default function Input({ label, error, id, className = "", ...props }) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-ink">
+        <label htmlFor={inputId} className="text-sm font-medium text-ink/80">
           {label}
         </label>
       )}
       <input
         id={inputId}
         aria-invalid={Boolean(error)}
-        className={`rounded-lg border bg-sand-50 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-sea-500 ${
-          error ? "border-danger" : "border-sand-100"
+        className={`h-11 rounded-lg border bg-white px-3.5 text-sm text-ink placeholder:text-ink/40 focus:border-coral-500 focus:outline-none focus:ring-2 focus:ring-coral-500/20 ${
+          error ? "border-danger" : "border-sand-200"
         } ${className}`}
         {...props}
       />
