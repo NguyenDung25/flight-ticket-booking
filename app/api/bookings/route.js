@@ -19,7 +19,7 @@ import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
 import { validateBookingCreation } from "@/services/bookingValidationService";
-import { applyPromotion, computeDiscountAmount } from "@/services/promotionService";
+import { applyPromotion, applyDiscountToLegs } from "@/services/promotionService";
 import {
   PAYMENT_EXPIRY_BUFFER_MS,
   MAX_PENDING_BOOKINGS_PER_USER,
@@ -227,31 +227,9 @@ export async function POST(request) {
         return NextResponse.json({ message: "promotion_code không hợp lệ." }, { status: 400 });
       }
       promotion = await applyPromotion(promotion_code);
-      const discountAmount = computeDiscountAmount(promotion, totalAmountBeforeDiscount);
-
-      // Chia đều discountAmount xuống TỪNG CHẶNG theo đúng tỷ lệ amount của
-      // chặng đó — BẮT BUỘC giữ bất biến "total_amount === Σ flights[].amount"
-      // (ghi chú t) vì services/cancellationService.js (A7/C9/A8) dùng TRỰC
-      // TIẾP flights[leg].amount cho TH2 (hoàn tiền riêng chặng về) và dùng
-      // Σ flights[].amount đã bay để trừ khỏi total_amount ở A8 — nếu để
-      // flights[].amount giữ nguyên giá GỐC (chưa giảm) trong khi
-      // total_amount đã trừ giảm giá, 2 con số lệch nhau sẽ làm sai hoàn
-      // toàn mọi phép tính hoàn tiền sau này, không phải lỗi ở
-      // cancellationService — lỗi ở chỗ phá vỡ bất biến ngay từ đây.
-      let allocated = 0;
-      flightLegs.forEach((leg, i) => {
-        if (i === flightLegs.length - 1) {
-          // Chặng cuối nhận phần dư của phép chia làm tròn xuống (Math.floor
-          // ở mỗi chặng trước có thể để dư 1-2đ) — đảm bảo tổng SAU khi trừ
-          // đúng bằng totalAmountBeforeDiscount - discountAmount, không lệch
-          // vài đồng do làm tròn từng chặng riêng lẻ.
-          leg.amount -= discountAmount - allocated;
-        } else {
-          const legDiscount = Math.floor((leg.amount * discountAmount) / totalAmountBeforeDiscount);
-          leg.amount -= legDiscount;
-          allocated += legDiscount;
-        }
-      });
+      // Chỉ giảm trên GIÁ VÉ (không giảm hành lý/suất ăn), chia xuống từng chặng để giữ bất biến
+      // total_amount === Σ flights[].amount (ghi chú t) — xem promotionService.applyDiscountToLegs.
+      applyDiscountToLegs(flightLegs, promotion);
       total_amount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
     }
 

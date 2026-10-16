@@ -58,7 +58,11 @@ export default function RegisterForm() {
 
       {state?.error && (
         <p role="alert" className="text-sm text-danger">
-          {state.error === "email_in_use" ? t("emailInUse") : tCommon("error")}
+          {state.error === "email_in_use"
+            ? t("emailInUse")
+            : state.error === "too_many"
+              ? t("registerTooMany")
+              : tCommon("error")}
         </p>
       )}
 

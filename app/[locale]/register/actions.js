@@ -14,6 +14,7 @@ import { registerUser, AuthError } from "@/services/authService";
 import { headers } from "next/headers";
 import { signIn } from "@/auth";
 import { sendEmailVerificationLink } from "@/lib/emailVerification";
+import { allowRegisterAttempt } from "@/lib/registerGuard";
 
 /**
  * @param {{ error: string|null }} _prevState
@@ -23,6 +24,11 @@ import { sendEmailVerificationLink } from "@/lib/emailVerification";
 export async function registerAction(_prevState, formData) {
   const email = formData.get("email");
   const password = formData.get("password");
+
+  // Giới hạn theo IP — mỗi lần đăng ký gửi 1 email thật (lib/registerGuard.js).
+  if (!allowRegisterAttempt(await headers())) {
+    return { error: "too_many" };
+  }
 
   let user;
   try {

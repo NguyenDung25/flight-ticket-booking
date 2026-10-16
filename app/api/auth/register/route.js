@@ -8,8 +8,13 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { registerUser, AuthError } from "@/services/authService";
 import { sendEmailVerificationLink } from "@/lib/emailVerification";
+import { allowRegisterAttempt, REGISTER_TOO_MANY_MESSAGE } from "@/lib/registerGuard";
 
 export async function POST(request) {
+  if (!allowRegisterAttempt(request.headers)) {
+    return NextResponse.json({ message: REGISTER_TOO_MANY_MESSAGE }, { status: 429 });
+  }
+
   // registerUser() query + ghi vào User model — phải mở kết nối trước.
   await dbConnect();
 

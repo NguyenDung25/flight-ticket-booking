@@ -64,7 +64,8 @@
     "verifySuccess": "{email} has been verified. You can book flights now.",
     "verifyGoSearch": "Search flights",
     "verifyLinkInvalid": "This verification link is invalid, already used or expired (24 hours).",
-    "verifyResendFromAccount": "Resend the verification email from your Account page"
+    "verifyResendFromAccount": "Resend the verification email from your Account page",
+    "registerTooMany": "Too many sign-up attempts. Please try again in a few minutes."
   },
   "Home": {
     "title": "Find the right flight for you",

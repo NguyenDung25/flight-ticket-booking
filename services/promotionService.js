@@ -62,6 +62,37 @@ function computeDiscountAmount(promotion, totalAmountBeforeDiscount) {
 }
 
 /**
+ * Trừ tiền giảm giá của mã khuyến mãi vào flights[] của booking (sửa trực tiếp `legs`).
+ *
+ * - Chỉ giảm trên GIÁ VÉ: phần dịch vụ bổ sung (`addons_amount` — hành lý, suất ăn) không được giảm.
+ * - Chia xuống TỪNG CHẶNG theo tỷ lệ giá vé của chặng — BẮT BUỘC giữ bất biến
+ *   total_amount === Σ flights[].amount (ghi chú t): services/cancellationService.js (A7/C9/A8) dùng
+ *   trực tiếp flights[leg].amount (hoàn riêng chặng về, trừ chặng đã bay). Chặng cuối nhận phần dư của
+ *   phép làm tròn xuống để tổng giảm đúng bằng số tiền giảm.
+ *
+ * @param {Array<{ amount: number, addons_amount?: number }>} legs
+ * @param {{ discount_percent: number }} promotion
+ * @returns {number} tổng số tiền đã giảm
+ */
+function applyDiscountToLegs(legs, promotion) {
+  const fareOf = (leg) => leg.amount - (leg.addons_amount || 0);
+  const fareTotal = legs.reduce((sum, l) => sum + fareOf(l), 0);
+  const discountAmount = computeDiscountAmount(promotion, fareTotal);
+  let allocated = 0;
+  legs.forEach((leg, i) => {
+    const legDiscount =
+      i === legs.length - 1
+        ? discountAmount - allocated
+        : fareTotal > 0
+          ? Math.floor((fareOf(leg) * discountAmount) / fareTotal)
+          : 0;
+    leg.amount -= legDiscount;
+    allocated += legDiscount;
+  });
+  return discountAmount;
+}
+
+/**
  * Mã đang dùng được NGAY BÂY GIỜ — cho trang Khuyến mãi phía khách: đã tới valid_from, chưa quá
  * valid_until, và còn lượt (không giới hạn, hoặc used_count < usage_limit). Cùng điều kiện với
  * applyPromotion() để khách không thấy mã mà áp vào lại bị từ chối. Sắp mã sắp hết hạn lên trước.
@@ -92,6 +123,7 @@ async function listActivePromotions(now = nowVN().toDate()) {
 }
 
 module.exports = {
+  applyDiscountToLegs,
   PromotionError,
   applyPromotion,
   computeDiscountAmount,

@@ -64,7 +64,8 @@
     "verifySuccess": "Đã xác thực email {email}. Bạn có thể đặt vé ngay bây giờ.",
     "verifyGoSearch": "Tìm chuyến bay",
     "verifyLinkInvalid": "Link xác thực không hợp lệ, đã được dùng hoặc đã hết hạn (24 giờ).",
-    "verifyResendFromAccount": "Gửi lại email xác thực ở trang Tài khoản"
+    "verifyResendFromAccount": "Gửi lại email xác thực ở trang Tài khoản",
+    "registerTooMany": "Bạn đăng ký quá nhiều lần. Vui lòng thử lại sau ít phút."
   },
   "Home": {
     "title": "Tìm chuyến bay phù hợp với bạn",

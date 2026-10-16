@@ -31,7 +31,7 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "concurrently": "^9.0.0",
     "eslint": "^9",
