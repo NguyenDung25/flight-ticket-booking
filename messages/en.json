@@ -59,7 +59,12 @@
     "resetLinkInvalid": "This password reset link is invalid or has expired.",
     "requestNewLink": "Request a new reset link",
     "passwordChangedNotice": "Password changed. Please log in again with your new password.",
-    "passwordResetNotice": "Your new password is set. Please log in."
+    "passwordResetNotice": "Your new password is set. Please log in.",
+    "verifyTitle": "Verify your email",
+    "verifySuccess": "{email} has been verified. You can book flights now.",
+    "verifyGoSearch": "Search flights",
+    "verifyLinkInvalid": "This verification link is invalid, already used or expired (24 hours).",
+    "verifyResendFromAccount": "Resend the verification email from your Account page"
   },
   "Home": {
     "title": "Find the right flight for you",
@@ -375,6 +380,17 @@
     "confirmPassword": "Confirm new password",
     "changePassword": "Change password",
     "passwordMismatch": "The passwords do not match.",
-    "passwordTooShort": "Password must be at least 6 characters."
+    "passwordTooShort": "Password must be at least 6 characters.",
+    "emailVerified": "Email verified",
+    "emailNotVerified": "Email not verified yet",
+    "emailNotVerifiedJustRegistered": "Your account has been created! We have sent a verification link to your email (check Spam too). Please verify your email before booking.",
+    "emailNotVerifiedHint": "Please verify your email before booking — e-tickets are sent by email.",
+    "resendLink": "Resend verification email",
+    "resending": "Sending...",
+    "resendSent": "Sent. Please check your inbox (including Spam).",
+    "resendNotSent": "We could not send the email right now. Please try again later.",
+    "resendError": "Could not send, please try again.",
+    "verifyBeforeBooking": "Please verify your email before booking. Click the link in the email we sent you, or resend it from your Account page.",
+    "goToAccount": "Go to my account"
   }
 }

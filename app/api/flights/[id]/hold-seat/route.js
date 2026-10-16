@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import { requireActiveUser } from "@/lib/requireActiveUser";
+import { requireVerifiedEmail } from "@/lib/requireVerifiedEmail";
 import { handleApiError } from "@/lib/apiError";
 import { holdSeat } from "@/services/seatService";
 
@@ -19,7 +20,7 @@ export async function POST(request, { params }) {
     await dbConnect();
 
     const session = await auth();
-    const user = await requireActiveUser(session);
+    const user = requireVerifiedEmail(await requireActiveUser(session));
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));

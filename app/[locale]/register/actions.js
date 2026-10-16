@@ -7,10 +7,13 @@
 // service tiết kiệm 1 vòng HTTP. Route /api/auth/register vẫn giữ lại cho
 // client khác (Postman/app di động sau này), không phải bị thay thế.
 //
-// Đăng ký xong tự signIn() luôn — khỏi bắt người dùng gõ lại mật khẩu.
+// Đăng ký xong gửi link xác thực email rồi tự signIn() luôn — khỏi bắt người dùng gõ lại mật khẩu.
+// Chuyển về trang Tài khoản để khách thấy ngay trạng thái "chưa xác thực" + nút gửi lại.
 
 import { registerUser, AuthError } from "@/services/authService";
+import { headers } from "next/headers";
 import { signIn } from "@/auth";
+import { sendEmailVerificationLink } from "@/lib/emailVerification";
 
 /**
  * @param {{ error: string|null }} _prevState
@@ -21,8 +24,9 @@ export async function registerAction(_prevState, formData) {
   const email = formData.get("email");
   const password = formData.get("password");
 
+  let user;
   try {
-    await registerUser({
+    user = await registerUser({
       email,
       password,
       full_name: formData.get("full_name"),
@@ -38,10 +42,19 @@ export async function registerAction(_prevState, formData) {
     throw error;
   }
 
+  // Gửi lỗi (SMTP chập chờn...) không làm hỏng việc đăng ký — khách bấm "Gửi lại" ở trang Tài khoản.
+  try {
+    const h = await headers();
+    const origin = h.get("origin") || `${h.get("x-forwarded-proto") || "http"}://${h.get("host")}`;
+    await sendEmailVerificationLink({ userId: user._id, origin, force: true });
+  } catch (error) {
+    console.error("[register] Không gửi được email xác thực:", error.message);
+  }
+
   try {
     // redirectTo ném lỗi điều hướng nội bộ Next.js khi thành công — PHẢI để
     // lọt qua (không nằm trong catch bên dưới, vì catch chỉ bọc registerUser).
-    await signIn("credentials", { email, password, redirectTo: "/" });
+    await signIn("credentials", { email, password, redirectTo: "/account?registered=1" });
     return { error: null };
   } catch (error) {
     // Cực hiếm: vừa tạo xong tài khoản mà signIn() vẫn lỗi (VD race-condition

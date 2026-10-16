@@ -59,7 +59,12 @@
     "resetLinkInvalid": "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
     "requestNewLink": "Gửi lại link đặt lại mật khẩu",
     "passwordChangedNotice": "Đã đổi mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới.",
-    "passwordResetNotice": "Đã đặt mật khẩu mới. Vui lòng đăng nhập."
+    "passwordResetNotice": "Đã đặt mật khẩu mới. Vui lòng đăng nhập.",
+    "verifyTitle": "Xác thực email",
+    "verifySuccess": "Đã xác thực email {email}. Bạn có thể đặt vé ngay bây giờ.",
+    "verifyGoSearch": "Tìm chuyến bay",
+    "verifyLinkInvalid": "Link xác thực không hợp lệ, đã được dùng hoặc đã hết hạn (24 giờ).",
+    "verifyResendFromAccount": "Gửi lại email xác thực ở trang Tài khoản"
   },
   "Home": {
     "title": "Tìm chuyến bay phù hợp với bạn",
@@ -375,6 +380,17 @@
     "confirmPassword": "Nhập lại mật khẩu mới",
     "changePassword": "Đổi mật khẩu",
     "passwordMismatch": "Mật khẩu nhập lại không khớp.",
-    "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự."
+    "passwordTooShort": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "emailVerified": "Email đã được xác thực",
+    "emailNotVerified": "Email chưa được xác thực",
+    "emailNotVerifiedJustRegistered": "Đăng ký thành công! Chúng tôi đã gửi link xác thực tới email của bạn (kiểm tra cả mục Spam). Cần xác thực email trước khi đặt vé.",
+    "emailNotVerifiedHint": "Cần xác thực email trước khi đặt vé — vé điện tử sẽ được gửi qua email.",
+    "resendLink": "Gửi lại email xác thực",
+    "resending": "Đang gửi...",
+    "resendSent": "Đã gửi. Vui lòng kiểm tra hộp thư (cả mục Spam).",
+    "resendNotSent": "Hệ thống chưa gửi được email. Vui lòng thử lại sau.",
+    "resendError": "Không gửi được, vui lòng thử lại.",
+    "verifyBeforeBooking": "Bạn cần xác thực email trước khi đặt vé. Vui lòng bấm link trong email chúng tôi đã gửi, hoặc gửi lại email xác thực ở trang Tài khoản.",
+    "goToAccount": "Đến trang Tài khoản"
   }
 }

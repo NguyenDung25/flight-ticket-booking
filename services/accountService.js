@@ -8,8 +8,12 @@
 //   PASSWORD_RESET_TTL_MINUTES, dùng 1 lần.
 // - Quên mật khẩu KHÔNG cho biết email có tồn tại hay không (route luôn trả cùng 1 câu).
 //
+// - Xác thực email: tài khoản đăng ký mới có email_verified = false, nhận link (hạn
+//   EMAIL_VERIFY_TTL_HOURS, chỉ lưu SHA-256 của token, dùng 1 lần); bấm link -> email_verified = true.
+//
 // API liên quan: PATCH /api/users/me, POST /api/users/me/password,
-//                POST /api/auth/forgot-password, POST /api/auth/reset-password
+//                POST /api/auth/forgot-password, POST /api/auth/reset-password,
+//                POST /api/users/me/verify-email (gửi lại link), trang /verify-email?token=...
 
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -21,6 +25,10 @@ const { AuthError, assertValidNewPassword, normalizeFullName } = require("./auth
 const PASSWORD_RESET_TTL_MINUTES = 30;
 // Gửi lại link quên mật khẩu cho cùng 1 email tối thiểu cách nhau chừng này (chống spam hộp thư).
 const PASSWORD_RESET_RESEND_SECONDS = 60;
+
+const EMAIL_VERIFY_TTL_HOURS = 24;
+// Gửi lại link xác thực tối thiểu cách nhau chừng này.
+const EMAIL_VERIFY_RESEND_SECONDS = 60;
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
@@ -133,8 +141,58 @@ async function resetPassword({ token, newPassword, now = new Date() }) {
   return { email: updated.email };
 }
 
+/**
+ * Tạo token xác thực email cho tài khoản CHƯA xác thực (ghi đè token cũ — link cũ hết hiệu lực).
+ * `force` bỏ qua giới hạn gửi lại (dùng ngay sau khi đăng ký).
+ *
+ * @returns {Promise<{ token: string, expiresAt: Date }>}
+ * @throws {AuthError} 409 đã xác thực rồi, 429 vừa gửi cách đây chưa đủ EMAIL_VERIFY_RESEND_SECONDS
+ */
+async function createEmailVerification({ userId, now = new Date(), force = false }) {
+  const user = await User.findById(userId).select("+email_verify_sent_at");
+  if (!user) throw new AuthError("Tài khoản không tồn tại.", 401);
+  if (user.email_verified !== false) throw new AuthError("Email đã được xác thực.", 409);
+
+  const last = user.email_verify_sent_at;
+  if (!force && last && now - new Date(last) < EMAIL_VERIFY_RESEND_SECONDS * 1000) {
+    throw new AuthError("Bạn vừa yêu cầu gửi email xác thực. Vui lòng đợi 1 phút rồi thử lại.", 429);
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(now.getTime() + EMAIL_VERIFY_TTL_HOURS * 60 * 60 * 1000);
+  await User.updateOne(
+    { _id: user._id, email_verified: false },
+    { $set: { email_verify_token_hash: hashToken(token), email_verify_expires: expiresAt, email_verify_sent_at: now } }
+  );
+  return { token, expiresAt, user };
+}
+
+/**
+ * Xác thực email bằng token trong link (atomic: token đúng + còn hạn, xóa token ngay khi dùng).
+ *
+ * @returns {Promise<{ email: string }>}
+ * @throws {AuthError} 400 token sai / hết hạn / đã dùng
+ */
+async function verifyEmail({ token, now = new Date() }) {
+  if (typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token)) {
+    throw new AuthError("Link xác thực email không hợp lệ hoặc đã hết hạn.", 400);
+  }
+  const updated = await User.findOneAndUpdate(
+    { email_verify_token_hash: hashToken(token), email_verify_expires: { $gt: now } },
+    { $set: { email_verified: true, email_verify_token_hash: null, email_verify_expires: null } },
+    { returnDocument: "after" }
+  );
+  if (!updated) {
+    throw new AuthError("Link xác thực email không hợp lệ hoặc đã hết hạn.", 400);
+  }
+  return { email: updated.email };
+}
+
 module.exports = {
   PASSWORD_RESET_TTL_MINUTES,
+  EMAIL_VERIFY_TTL_HOURS,
+  createEmailVerification,
+  verifyEmail,
   hashToken,
   updateProfile,
   changePassword,

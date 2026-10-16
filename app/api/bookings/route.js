@@ -14,6 +14,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import { requireActiveUser } from "@/lib/requireActiveUser";
+import { requireVerifiedEmail } from "@/lib/requireVerifiedEmail";
 import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
@@ -58,7 +59,7 @@ export async function POST(request) {
     await dbConnect();
 
     const session = await auth();
-    const user = await requireActiveUser(session);
+    const user = requireVerifiedEmail(await requireActiveUser(session));
 
     const body = await request.json().catch(() => ({}));
     const { trip_type, flights, passengers, promotion_code } = body ?? {};

@@ -18,6 +18,7 @@ import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import { getFlightDetail, FlightError } from "@/services/flightService";
 import { Link } from "@/i18n/navigation";
+import User from "@/models/User";
 import PassengersForm from "./PassengersForm";
 
 /**
@@ -76,6 +77,21 @@ export default async function BookingPassengersPage({ params, searchParams }) {
   }
 
   await dbConnect();
+
+  // Email chưa xác thực -> chưa cho chọn ghế (API hold-seat/bookings cũng chặn, đây chỉ để báo sớm,
+  // khỏi để khách nhập hết hành khách rồi mới bị từ chối).
+  const me = await User.findById(session.user.id).select("email_verified").lean();
+  if (me?.email_verified === false) {
+    const tAccount = await getTranslations("Account");
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-sand-50 px-4 py-24 text-center">
+        <p className="max-w-md text-ink/80">{tAccount("verifyBeforeBooking")}</p>
+        <Link href="/account" className="text-sm font-medium text-sea-500 hover:underline">
+          {tAccount("goToAccount")}
+        </Link>
+      </div>
+    );
+  }
 
   let outbound = null;
   let returnFlight = null;

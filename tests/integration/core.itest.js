@@ -1,7 +1,7 @@
 // tests/integration/core.itest.js — test TÍCH HỢP chạy trên MongoDB THẬT (không stub DB): các thao tác
 // cần tính atomic của MongoDB — giữ ghế, tranh ghế, cron nhả ghế, hủy vé đồng thời, IPN + trang kết quả
-// chạy song song, check-in đồng thời, hạn mức mã khuyến mãi, token đặt lại mật khẩu dùng 1 lần, nhật ký
-// admin.
+// chạy song song, check-in đồng thời, hạn mức mã khuyến mãi, token đặt lại mật khẩu dùng 1 lần, xác thực
+// email, nhật ký admin.
 //
 // Chạy: npm run test:integration   (cần MongoDB đang chạy, mặc định mongodb://127.0.0.1:27017)
 // - Mỗi lần chạy tạo 1 database RIÊNG tên "ftb-integration-<thời điểm>" rồi XÓA khi xong — không đụng
@@ -32,6 +32,7 @@ const account = require("../../services/accountService");
 const vnpayClient = require("../../lib/vnpayClient");
 const emailClient = require("../../lib/emailClient");
 const { logAdminAction } = require("../../lib/adminLog");
+const { requireVerifiedEmail } = require("../../lib/requireVerifiedEmail");
 
 const HOUR = 3600 * 1000;
 const sent = { tickets: 0 };
@@ -222,6 +223,28 @@ test("đặt lại mật khẩu: 2 lần dùng cùng token đồng thời -> đ�
   const ok1 = await bcrypt.compare("NewPass@1", fresh.password_hash);
   const ok2 = await bcrypt.compare("NewPass@2", fresh.password_hash);
   assert.ok(ok1 !== ok2, "mật khẩu là đúng 1 trong 2 giá trị");
+});
+
+test("xác thực email: tài khoản mới bị chặn đặt vé; gửi lại quá sớm 429; link dùng 1 lần; tài khoản cũ không bị chặn", async () => {
+  const old = await makeUser(); // tạo không có email_verified -> mặc định đã xác thực
+  assert.equal(old.email_verified, true);
+  assert.doesNotThrow(() => requireVerifiedEmail(old));
+
+  const u = await User.create({ email: `new${Date.now()}@it.test`, password_hash: "x", full_name: "New", email_verified: false });
+  assert.throws(() => requireVerifiedEmail(u), (e) => e.statusCode === 403);
+
+  const first = await account.createEmailVerification({ userId: u._id, force: true });
+  assert.equal((await rejects(() => account.createEmailVerification({ userId: u._id })))?.statusCode, 429);
+  // Link mới (force) làm link cũ hết hiệu lực.
+  const second = await account.createEmailVerification({ userId: u._id, force: true });
+  assert.equal((await rejects(() => account.verifyEmail({ token: first.token })))?.statusCode, 400);
+
+  const out = await Promise.allSettled([1, 2].map(() => account.verifyEmail({ token: second.token })));
+  assert.equal(out.filter((x) => x.status === "fulfilled").length, 1);
+  const fresh = await User.findById(u._id);
+  assert.equal(fresh.email_verified, true);
+  assert.doesNotThrow(() => requireVerifiedEmail(fresh));
+  assert.equal((await rejects(() => account.createEmailVerification({ userId: u._id, force: true })))?.statusCode, 409);
 });
 
 test("nhật ký admin: ghi vào collection AdminLog thật", async () => {

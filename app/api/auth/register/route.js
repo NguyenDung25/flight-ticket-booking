@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { registerUser, AuthError } from "@/services/authService";
+import { sendEmailVerificationLink } from "@/lib/emailVerification";
 
 export async function POST(request) {
   // registerUser() query + ghi vào User model — phải mở kết nối trước.
@@ -31,6 +32,10 @@ export async function POST(request) {
       full_name,
       preferred_language,
     });
+    // Gửi link xác thực email (lỗi gửi không làm hỏng việc đăng ký — gửi lại được ở trang Tài khoản).
+    await sendEmailVerificationLink({ userId: user._id, origin: request.nextUrl.origin, force: true }).catch(
+      (e) => console.error("[POST /api/auth/register] Không gửi được email xác thực:", e.message)
+    );
     return NextResponse.json(user, { status: 201 });
   } catch (err) {
     if (err instanceof AuthError) {

@@ -27,6 +27,14 @@ const UserSchema = new Schema(
     password_reset_token_hash: { type: String, default: null, select: false },
     password_reset_expires: { type: Date, default: null, select: false },
     password_reset_requested_at: { type: Date, default: null, select: false },
+
+    // Xác thực email (services/accountService.js). Mặc định true để tài khoản có từ trước (seed,
+    // tài khoản demo, admin) không bị chặn; CHỈ tài khoản đăng ký mới được ghi false cho tới khi
+    // bấm link trong email. Chưa xác thực thì chưa được giữ ghế / đặt vé (lib/requireVerifiedEmail.js).
+    email_verified: { type: Boolean, default: true },
+    email_verify_token_hash: { type: String, default: null, select: false },
+    email_verify_expires: { type: Date, default: null, select: false },
+    email_verify_sent_at: { type: Date, default: null, select: false },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
@@ -36,5 +44,6 @@ const UserSchema = new Schema(
 // trả lỗi rõ ràng (409) thay vì để MongoDB ném lỗi duplicate key thô.
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ password_reset_token_hash: 1 }, { sparse: true });
+UserSchema.index({ email_verify_token_hash: 1 }, { sparse: true });
 
 module.exports = mongoose.models.User || mongoose.model("User", UserSchema);

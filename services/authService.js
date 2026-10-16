@@ -75,6 +75,9 @@ function sanitizeUser(userDoc) {
     password_reset_token_hash,
     password_reset_expires,
     password_reset_requested_at,
+    email_verify_token_hash,
+    email_verify_expires,
+    email_verify_sent_at,
     ...safe
   } = obj;
   return safe;
@@ -139,6 +142,7 @@ async function registerUser({ email, password, full_name, preferred_language }) 
     password_hash,
     full_name,
     ...(preferred_language ? { preferred_language } : {}),
+    email_verified: false, // phải bấm link xác thực trong email mới được đặt vé
     // role KHÔNG truyền — luôn dùng default "customer" của schema
   });
 

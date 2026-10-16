@@ -10,9 +10,11 @@ import { toVN } from "@/lib/timezone";
 import Card from "@/components/ui/Card";
 import ProfileForm from "./ProfileForm";
 import ChangePasswordForm from "./ChangePasswordForm";
+import EmailVerification from "./EmailVerification";
 
-export default async function AccountPage({ params }) {
+export default async function AccountPage({ params, searchParams }) {
   const { locale } = await params;
+  const { registered } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("Account");
 
@@ -25,6 +27,7 @@ export default async function AccountPage({ params }) {
         <p className="mt-1 text-sm text-ink/60">
           {user.email} · {t("memberSince", { date: toVN(user.created_at).format("DD/MM/YYYY") })}
         </p>
+        <EmailVerification verified={user.email_verified !== false} justRegistered={registered === "1"} />
       </div>
 
       <Card className="w-full max-w-2xl p-6">
