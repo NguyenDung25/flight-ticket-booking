@@ -18,7 +18,7 @@ const { hoursUntil, nowVN } = require("../lib/timezone");
 const {
   CANCELLATION_FULL_REFUND_THRESHOLD_HOURS,
   CANCELLATION_FIXED_FEE_THRESHOLD_HOURS,
-  CANCELLATION_FIXED_FEE_PER_PASSENGER,
+  CANCELLATION_FEES,
 } = require("../config/constants");
 
 class CancellationError extends Error {
@@ -28,28 +28,81 @@ class CancellationError extends Error {
   }
 }
 
+/** Mốc hủy theo số giờ còn lại tới giờ bay (âm = đã khởi hành): "early" | "mid" | "late". */
+function cancellationWindow(elapsedHours) {
+  if (elapsedHours >= CANCELLATION_FULL_REFUND_THRESHOLD_HOURS) return "early";
+  if (elapsedHours >= CANCELLATION_FIXED_FEE_THRESHOLD_HOURS) return "mid";
+  return "late";
+}
+
+/** Hạng ghế của hành khách trên 1 chặng (thiếu dữ liệu -> coi như phổ thông). */
+function seatClassOn(passenger, flightId) {
+  const seat = (passenger.seats || []).find((s) => String(s.flight_id) === String(flightId));
+  return seat?.seat_class === "business" ? "business" : "economy";
+}
+
 /**
- * Bảng mốc phí hủy cố định (ghi chú j), áp dụng cho MỘT phần tiền cụ thể
- * (toàn `total_amount` ở TH1/vé 1 chiều, hoặc riêng `flights[chặng về].amount`
- * ở TH2). Trả về tier THEO ĐÚNG BẢNG GỐC — nơi gọi hàm này tự quyết định có
- * ghi đè thành `partial` hay không (xem ghi chú w, chỉ TH2 mới ghi đè).
+ * Phần tiền của TỪNG hành khách trong các chặng `legs` — chia `leg.amount` (số tiền thực trả của chặng,
+ * đã trừ khuyến mãi) theo tỷ lệ giá ghế + dịch vụ bổ sung của mỗi khách trên chặng đó. Khách cuối nhận
+ * phần dư làm tròn, nên tổng các phần luôn đúng bằng tổng tiền các chặng. Thiếu giá (dữ liệu cũ) -> chia đều.
+ */
+function passengerShares({ booking, flightMap, legs }) {
+  const pax = booking.passengers;
+  const shares = pax.map(() => 0);
+  for (const leg of legs) {
+    const flightDoc = flightMap[String(leg.flight_id)];
+    const weights = pax.map((p) => {
+      const seat = (p.seats || []).find((s) => String(s.flight_id) === String(leg.flight_id));
+      const base = seat && flightDoc?.base_price ? flightDoc.base_price[seat.seat_class] ?? 0 : 0;
+      return base + (seat?.addons_amount || 0);
+    });
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let allocated = 0;
+    pax.forEach((_, i) => {
+      const part =
+        i === pax.length - 1
+          ? leg.amount - allocated
+          : totalWeight > 0
+            ? Math.floor((leg.amount * weights[i]) / totalWeight)
+            : Math.floor(leg.amount / pax.length);
+      shares[i] += part;
+      allocated += part;
+    });
+  }
+  return shares;
+}
+
+/**
+ * Bảng phí hủy (ghi chú j) — tính cho TỪNG hành khách theo hạng ghế của khách và mốc giờ hủy, trên phần
+ * tiền của khách đó. Trả về tier THEO ĐÚNG BẢNG — nơi gọi tự quyết định có ghi đè thành `partial` (TH2).
+ *   tier "full"      : không mất phí (VD thương gia hủy trước 24h)
+ *   tier "none"      : không hoàn đồng nào (VD toàn khách phổ thông hủy dưới 3h)
+ *   tier "fixed_fee" : còn lại (có phí, vẫn hoàn một phần)
  *
  * @param {Number} elapsedHours - giờ còn lại tới departure_time mốc (có thể âm nếu đã qua giờ bay)
- * @param {Number} passengerCount
- * @param {Number} amount - phần tiền bị áp mốc
+ * @param {Array<{ seatClass: "economy"|"business", share: Number }>} passengers
  */
-function computeFeeBucket(elapsedHours, passengerCount, amount) {
-  if (elapsedHours >= CANCELLATION_FULL_REFUND_THRESHOLD_HOURS) {
-    return { tier: "full", fee: 0, refund: amount };
+function computeCancellationFee(elapsedHours, passengers) {
+  const window = cancellationWindow(elapsedHours);
+  let amount = 0;
+  let fee = 0;
+  for (const p of passengers) {
+    const rule = CANCELLATION_FEES[p.seatClass] ?? CANCELLATION_FEES.economy;
+    const perPax = rule[window] === null ? p.share : Math.min(rule[window], p.share);
+    amount += p.share;
+    fee += perPax;
   }
-  if (elapsedHours >= CANCELLATION_FIXED_FEE_THRESHOLD_HOURS) {
-    // Trừ thẳng, KHÔNG để refund âm nếu total_amount nhỏ hơn mức phạt cố định
-    const fee = Math.min(CANCELLATION_FIXED_FEE_PER_PASSENGER * passengerCount, amount);
-    return { tier: "fixed_fee", fee, refund: amount - fee };
-  }
-  // < 3 tiếng, KỂ CẢ khi departure_time đã qua (elapsedHours âm) — vẫn phạt 100%,
-  // không phải "chặn hủy" (đó là quy tắc khác — ghi chú l, chỉ áp khi đã check-in)
-  return { tier: "none", fee: amount, refund: 0 };
+  const refund = amount - fee;
+  const tier = fee === 0 ? "full" : refund === 0 ? "none" : "fixed_fee";
+  return { tier, fee, refund, window };
+}
+
+/** Phí hủy cho các chặng `legs` của booking, mốc giờ theo chuyến `refFlightId`. */
+function feeForLegs({ booking, flightMap, legs, refFlightId, now }) {
+  const shares = passengerShares({ booking, flightMap, legs });
+  const passengers = booking.passengers.map((p, i) => ({ seatClass: seatClassOn(p, refFlightId), share: shares[i] }));
+  const elapsedHours = hoursUntil(flightMap[String(refFlightId)].departure_time, now);
+  return computeCancellationFee(elapsedHours, passengers);
 }
 
 /**
@@ -188,15 +241,10 @@ async function cancelBooking({ bookingId, cancelReason }) {
  *   releaseFlightIds = null nghĩa là nhả ghế mọi chặng
  */
 function planCancellation({ booking, flightMap, now }) {
-  const passengerCount = booking.passengers.length;
-
   if (booking.trip_type === "one_way") {
     const leg = booking.flights[0];
-    const flightDoc = flightMap[String(leg.flight_id)];
-    // Ghi chú (j): <3h KỂ CẢ khi chuyến đã khởi hành → phạt 100%, hoàn 0đ (chủ đích của thiết kế,
-    // không chặn hủy) — computeFeeBucket xử lý elapsedHours âm.
-    const elapsedHours = hoursUntil(flightDoc.departure_time, now);
-    const { tier, fee, refund } = computeFeeBucket(elapsedHours, passengerCount, booking.total_amount);
+    // Ghi chú (j): <3h KỂ CẢ khi chuyến đã khởi hành vẫn áp mốc "late" (không chặn hủy).
+    const { tier, fee, refund } = feeForLegs({ booking, flightMap, legs: booking.flights, refFlightId: leg.flight_id, now });
     return { tier, fee, refund, releaseFlightIds: null };
   }
 
@@ -207,16 +255,14 @@ function planCancellation({ booking, flightMap, now }) {
   const returnFlight = flightMap[String(returnLeg.flight_id)];
 
   if (now < outboundFlight.departure_time) {
-    // TH1 — chưa chặng nào bay: áp mốc theo chặng đi, trên toàn total_amount
-    const elapsedHours = hoursUntil(outboundFlight.departure_time, now);
-    const { tier, fee, refund } = computeFeeBucket(elapsedHours, passengerCount, booking.total_amount);
+    // TH1 — chưa chặng nào bay: mốc giờ + hạng ghế theo chặng đi, trên toàn bộ số tiền booking
+    const { tier, fee, refund } = feeForLegs({ booking, flightMap, legs: booking.flights, refFlightId: outboundLeg.flight_id, now });
     return { tier, fee, refund, releaseFlightIds: null };
   }
   if (now < returnFlight.departure_time) {
-    // TH2 — chặng đi đã bay, chặng về chưa: áp mốc theo chặng về, CHỈ trên flights[return].amount
-    const elapsedHours = hoursUntil(returnFlight.departure_time, now);
-    const { fee, refund } = computeFeeBucket(elapsedHours, passengerCount, returnLeg.amount);
-    // ghi chú w — tier "partial", ghi đè, không dùng tier gốc của bucket
+    // TH2 — chặng đi đã bay, chặng về chưa: mốc giờ + hạng ghế theo chặng về, CHỈ trên tiền chặng về
+    const { fee, refund } = feeForLegs({ booking, flightMap, legs: [returnLeg], refFlightId: returnLeg.flight_id, now });
+    // ghi chú w — tier "partial", ghi đè, không dùng tier gốc của bảng
     return { tier: "partial", fee, refund, releaseFlightIds: [returnLeg.flight_id] };
   }
   // TH3 — cả 2 chặng đã bay: không còn gì để hủy
@@ -476,7 +522,9 @@ module.exports = {
   CancellationError,
   planCancellation,
   computeBulkRefund,
-  computeFeeBucket,
+  computeCancellationFee,
+  cancellationWindow,
+  passengerShares,
   computeManualRefund,
   resolveManualRefund,
   cancelBooking,

@@ -2,7 +2,7 @@
 
 > Dùng cho Chương 4 (Kiểm thử). Cột **Kết quả thực tế** và **Đạt?** để trống — điền sau khi bạn chạy thử trên máy demo.
 >
-> - **Tự động**: chạy `npm test` (169 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). `npm run test:integration` chạy thêm 12 test với MongoDB thật (DB tạm, tự xóa sau khi chạy) cho giữ ghế/race, hủy vé đồng thời, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, xác thực email, bảng giá dịch vụ bổ sung, nhật ký admin. `npm run test:e2e` chạy 9 kịch bản giao diện trên Chrome (Playwright): trang chủ tab Làm thủ tục, trang chủ + đổi ngôn ngữ, đăng nhập, đặt vé có hành lý tới VNPay rồi hủy, đăng ký chưa xác thực email, check-in sai mã, trang cần đăng nhập, check-in trọn luồng tới thẻ lên máy bay (có hành lý + QR), admin sửa bảng giá dịch vụ bổ sung. Cột "Tự động" ghi tên nhóm test tương ứng.
+> - **Tự động**: chạy `npm test` (170 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). `npm run test:integration` chạy thêm 12 test với MongoDB thật (DB tạm, tự xóa sau khi chạy) cho giữ ghế/race, hủy vé đồng thời, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, xác thực email, bảng giá dịch vụ bổ sung, nhật ký admin. `npm run test:e2e` chạy 9 kịch bản giao diện trên Chrome (Playwright): trang chủ tab Làm thủ tục, trang chủ + đổi ngôn ngữ, đăng nhập, đặt vé có hành lý tới VNPay rồi hủy, đăng ký chưa xác thực email, check-in sai mã, trang cần đăng nhập, check-in trọn luồng tới thẻ lên máy bay (có hành lý + QR), admin sửa bảng giá dịch vụ bổ sung. Cột "Tự động" ghi tên nhóm test tương ứng.
 > - **Chuẩn bị chung**: `npm run seed`, `npm run seed:test`, chạy `npm run dev` + `npm run cron`; test thanh toán chạy được trên `localhost`; riêng test IPN thì bật ngrok và khai báo IPN URL (README mục 6b).
 > - Tài khoản: admin / khách demo do `npm run seed` in ra.
 
@@ -70,9 +70,9 @@
 | Mã | Chức năng | Bước thực hiện | Kết quả mong đợi | Tự động | Kết quả thực tế | Đạt? |
 |---|---|---|---|---|---|---|
 | TC-40 | Hủy booking chưa thanh toán | Khách hủy booking `pending_payment` | `cancelled`, ghế nhả | — | | |
-| TC-41 | Hủy ≥24h | Hủy vé đã thanh toán, còn >24h | `refunded`, hoàn 100%, phí 0 | `computeFeeBucket` | | |
-| TC-42 | Hủy 3h–24h | Hủy khi còn 4h, 2 khách | Phạt 800.000đ (400.000đ × 2), tier `fixed_fee` | `computeFeeBucket` | | |
-| TC-43 | Hủy <3h / đã qua giờ bay | Hủy khi còn 2h | Phạt 100%, hoàn 0đ | `computeFeeBucket` | | |
+| TC-41 | Hủy ≥24h | Hủy vé đã thanh toán, còn >24h: 1 khách phổ thông; 1 khách thương gia | Phổ thông: phí 300.000đ, tier `fixed_fee`. Thương gia: hoàn 100%, phí 0, tier `full` | `computeCancellationFee` | | |
+| TC-42 | Hủy 3h–24h | Hủy khi còn 4h, 1 khách phổ thông + 1 khách thương gia | Phí 600.000đ + 300.000đ = 900.000đ, tier `fixed_fee` | `computeCancellationFee` | | |
+| TC-43 | Hủy <3h / đã qua giờ bay | Hủy khi còn 2h: khách phổ thông; khách thương gia | Phổ thông: mất toàn bộ, hoàn 0đ (tier `none`). Thương gia: phí bỏ chỗ 650.000đ, hoàn phần còn lại | `computeCancellationFee` | | |
 | TC-44 | Khứ hồi TH1 | Hủy khi chưa bay chặng nào | Mốc tính theo chặng đi, áp trên toàn booking | — | | |
 | TC-45 | Khứ hồi TH2 | Chặng đi đã bay, hủy khi chặng về còn >24h | Chỉ tính phần chặng về, tier `partial`, không phạt phần đã bay | — | | |
 | TC-46 | Khứ hồi TH3 | Cả hai chặng đã bay | Từ chối "hành trình đã hoàn tất" | — | | |
@@ -145,7 +145,7 @@
 | TC-93 | Trạng thái khung check-in | Mở trang Check-in với vé còn >24h, trong 24h–2h, và <2h trước giờ bay | Lần lượt "Chưa mở check-in" / nút Check-in / "Đã đóng check-in" | `checkInWindowState` | | |
 | TC-94 | Nội dung thẻ lên máy bay | Check-in thành công | Thẻ có tên khách, mã đặt chỗ, chuyến bay, điểm đi/đến, giờ khởi hành, giờ lên máy bay (−40 phút), ghế, hạng ghế, mã thẻ | `checkIn: trả đủ dữ liệu thẻ lên máy bay` | | |
 | TC-95 | Trang Khuyến mãi | Admin tạo mã còn hạn, mã hết hạn, mã hết lượt; khách mở menu "Khuyến mãi" | Chỉ hiện mã còn hạn và còn lượt, kèm % giảm, hạn dùng, số lượt còn lại; nút "Sao chép mã" chép đúng mã | `listActivePromotions` | | |
-| TC-96 | Trang Chính sách hủy vé | Mở menu "Chính sách hủy vé" | Mốc 24h / 3h, phí 400.000đ/khách, 3 trường hợp khứ hồi khớp với hằng số trong `config/constants.js` | — | | |
+| TC-96 | Trang Chính sách hủy vé | Mở menu "Chính sách hủy vé" | Bảng mốc 24h / 3h theo 2 cột Phổ thông / Thương gia (300.000 / 600.000 / mất hết; 0 / 300.000 / 650.000), 3 trường hợp khứ hồi khớp với hằng số trong `config/constants.js` | — | | |
 | TC-97 | Báo đúng trạng thái email vé | Để trống `SMTP_USER`/`SMTP_PASS`, thanh toán thành công | Trang kết quả báo "chưa gửi được qua email" (không báo đã gửi); cấu hình SMTP rồi bấm "Gửi lại qua email" thì báo đã gửi | `ticketEmail` | | |
 | TC-98 | Check-in bằng mã đặt chỗ + họ | Đăng xuất, mở trang Check-in, nhập mã đặt chỗ + chỉ HỌ của một hành khách (thử gõ không dấu, chữ thường); thử mã sai và mã đúng nhưng họ sai | Không cần đăng nhập; đúng mã + họ thì sang trang "Dữ liệu đặt chỗ"; sai mã hoặc sai họ đều báo cùng một thông báo | `checkIn: chỉ cần HỌ`, `passengerNameMatches` | | |
 | TC-99 | Chống dò mã check-in | Nhập sai mã/tên 5 lần liên tiếp rồi thử lần 6 | Lần 6 bị chặn 429 "nhập sai quá nhiều lần", mở lại sau 15 phút (hoặc restart server) | — | | |

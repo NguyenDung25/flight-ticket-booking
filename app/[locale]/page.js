@@ -13,7 +13,7 @@ import PopularRoutesCarousel from "@/components/home/PopularRoutesCarousel";
 import { getRouteStats } from "@/services/routeStatsService";
 import { listForHome } from "@/services/popularRouteService";
 import { buildRouteCards, resolveRouteImage } from "@/lib/popularRoutes";
-import { CANCELLATION_FIXED_FEE_PER_PASSENGER } from "@/config/constants";
+import { CANCELLATION_FEES } from "@/config/constants";
 import { listActivePromotions } from "@/services/promotionService";
 import { toVN } from "@/lib/timezone";
 import CopyCodeButton from "./promotions/CopyCodeButton";
@@ -71,7 +71,7 @@ export default async function HomePage({ params }) {
   const features = ["seat", "qr", "lock", "refund"].map((key, i) => ({
     key,
     title: t(`feature${i + 1}Title`),
-    desc: t(`feature${i + 1}Desc`, { fee: CANCELLATION_FIXED_FEE_PER_PASSENGER.toLocaleString("vi-VN") }),
+    desc: t(`feature${i + 1}Desc`, { fee: CANCELLATION_FEES.economy.early.toLocaleString("vi-VN") }),
   }));
 
   return (

@@ -7,7 +7,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { computeFeeBucket, computeManualRefund } = require("../services/cancellationService");
+const { computeCancellationFee, passengerShares, computeManualRefund } = require("../services/cancellationService");
 const {
   validatePassengerDocument,
   validateNoDuplicateDocumentIds,
@@ -18,31 +18,57 @@ const { isCheckInWindowOpen, hoursUntil, ageInYears } = require("../lib/timezone
 
 const HOUR = 60 * 60 * 1000;
 
-// ---------------------------------------------------------------- A7: phí hủy theo mốc
-test("computeFeeBucket: >=24h hoàn 100%", () => {
-  assert.deepEqual(computeFeeBucket(48, 2, 3_000_000), { tier: "full", fee: 0, refund: 3_000_000 });
-  assert.equal(computeFeeBucket(24, 1, 1_000_000).tier, "full"); // đúng mốc 24h vẫn là full
+// ---------------------------------------------------------------- A7: phí hủy theo mốc + hạng ghế
+const eco = (share) => ({ seatClass: "economy", share });
+const biz = (share) => ({ seatClass: "business", share });
+
+test("computeCancellationFee: >=24h — phổ thông phí 300.000đ, thương gia miễn phí", () => {
+  assert.deepEqual(computeCancellationFee(48, [eco(1_000_000)]), { tier: "fixed_fee", fee: 300_000, refund: 700_000, window: "early" });
+  assert.deepEqual(computeCancellationFee(48, [biz(3_000_000)]), { tier: "full", fee: 0, refund: 3_000_000, window: "early" });
+  assert.equal(computeCancellationFee(24, [eco(1_000_000)]).window, "early"); // đúng mốc 24h
 });
 
-test("computeFeeBucket: 3h–24h phạt 400.000đ/khách", () => {
-  assert.deepEqual(computeFeeBucket(4, 2, 3_000_000), {
+test("computeCancellationFee: 3h–24h — phổ thông 600.000đ, thương gia 300.000đ mỗi khách", () => {
+  assert.deepEqual(computeCancellationFee(4, [eco(1_000_000), biz(3_000_000)]), {
     tier: "fixed_fee",
-    fee: 800_000,
-    refund: 2_200_000,
+    fee: 900_000,
+    refund: 3_100_000,
+    window: "mid",
   });
-  assert.equal(computeFeeBucket(3, 1, 3_000_000).tier, "fixed_fee"); // đúng mốc 3h
-  assert.equal(computeFeeBucket(23.99, 1, 3_000_000).tier, "fixed_fee");
+  assert.equal(computeCancellationFee(3, [eco(1_000_000)]).window, "mid"); // đúng mốc 3h
+  assert.equal(computeCancellationFee(23.99, [eco(1_000_000)]).window, "mid");
 });
 
-test("computeFeeBucket: phí không vượt quá số tiền, refund không âm", () => {
-  const r = computeFeeBucket(10, 3, 500_000); // phạt lý thuyết 1.200.000 > 500.000
-  assert.equal(r.fee, 500_000);
+test("computeCancellationFee: <3h hoặc đã qua giờ bay — phổ thông mất hết, thương gia phí bỏ chỗ 650.000đ", () => {
+  assert.deepEqual(computeCancellationFee(2.99, [eco(1_000_000)]), { tier: "none", fee: 1_000_000, refund: 0, window: "late" });
+  assert.deepEqual(computeCancellationFee(-5, [biz(3_000_000)]), { tier: "fixed_fee", fee: 650_000, refund: 2_350_000, window: "late" });
+  // Booking hỗn hợp: khách phổ thông mất hết phần của mình, khách thương gia vẫn được hoàn phần còn lại.
+  const mixed = computeCancellationFee(1, [eco(1_000_000), biz(3_000_000)]);
+  assert.equal(mixed.fee, 1_650_000);
+  assert.equal(mixed.refund, 2_350_000);
+});
+
+test("computeCancellationFee: phí mỗi khách không vượt quá phần tiền của khách đó, refund không âm", () => {
+  const r = computeCancellationFee(10, [eco(500_000), eco(400_000)]); // phí lý thuyết 600k/khách
+  assert.equal(r.fee, 900_000);
   assert.equal(r.refund, 0);
+  assert.equal(r.tier, "none");
 });
 
-test("computeFeeBucket: <3h hoặc đã qua giờ bay phạt 100%", () => {
-  assert.deepEqual(computeFeeBucket(2.99, 1, 1_000_000), { tier: "none", fee: 1_000_000, refund: 0 });
-  assert.equal(computeFeeBucket(-5, 1, 1_000_000).tier, "none");
+test("passengerShares: chia tiền chặng theo giá ghế + dịch vụ của từng khách, tổng khớp tiền chặng", () => {
+  const booking = {
+    passengers: [
+      { seats: [{ flight_id: "F", seat_class: "economy", addons_amount: 330_000 }] },
+      { seats: [{ flight_id: "F", seat_class: "business", addons_amount: 0 }] },
+    ],
+    flights: [{ flight_id: "F", amount: 4_000_000 }], // đã trừ khuyến mãi (gốc 1.33tr + 3tr)
+  };
+  const flightMap = { F: { base_price: { economy: 1_000_000, business: 3_000_000 } } };
+  const shares = passengerShares({ booking, flightMap, legs: booking.flights });
+  assert.equal(shares[0] + shares[1], 4_000_000);
+  assert.equal(shares[0], Math.floor((4_000_000 * 1_330_000) / 4_330_000));
+  // Thiếu giá (dữ liệu cũ) -> chia đều
+  assert.deepEqual(passengerShares({ booking: { passengers: [{}, {}] }, flightMap: {}, legs: [{ flight_id: "X", amount: 1_000_001 }] }), [500_000, 500_001]);
 });
 
 // ---------------------------------------------------------------- A3: hoàn tiền tay

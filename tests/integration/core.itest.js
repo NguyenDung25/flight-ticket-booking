@@ -155,7 +155,9 @@ test("hủy vé: chưa thanh toán -> cancelled + nhả ghế; 5 request hủy �
   assert.equal(out.filter((x) => x.status === "rejected" && x.reason.statusCode === 409).length, 4);
   bk = await Booking.findById(bk._id);
   assert.equal(bk.status, "refunded");
-  assert.equal(bk.cancellation_tier, "full"); // bay sau 72h -> hoàn 100%
+  assert.equal(bk.cancellation_tier, "fixed_fee"); // phổ thông, bay sau 72h -> phí 300.000đ
+  assert.equal(bk.cancellation_fee_amount, 300_000);
+  assert.equal(bk.refund_amount, 700_000);
   assert.equal(seatOf(await Flight.findById(f._id), "4B").status, "available");
 });
 

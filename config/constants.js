@@ -19,13 +19,21 @@ const SEAT_HOLD_DURATION_MS = SEAT_HOLD_DURATION_MINUTES * 60 * 1000;
 const PAYMENT_EXPIRY_BUFFER_MINUTES = 5;
 const PAYMENT_EXPIRY_BUFFER_MS = PAYMENT_EXPIRY_BUFFER_MINUTES * 60 * 1000;
 
-// ---- A7/C9 (ghi chú j) — Bảng mốc phí hủy vé cố định ----
-// >= mốc này (giờ trước departure_time): hoàn 100%
+// ---- A7/C9 (ghi chú j) — Phí hủy vé do khách chủ động hủy, theo MỐC GIỜ và HẠNG GHẾ ----
+// 3 mốc tính theo giờ còn lại tới departure_time:
+//   early: >= CANCELLATION_FULL_REFUND_THRESHOLD_HOURS (24h)
+//   mid  : >= CANCELLATION_FIXED_FEE_THRESHOLD_HOURS (3h) và < 24h
+//   late : < 3h, kể cả khi chuyến đã khởi hành
 const CANCELLATION_FULL_REFUND_THRESHOLD_HOURS = 24;
-// >= mốc này (và < mốc full-refund): phạt cố định theo đầu khách
 const CANCELLATION_FIXED_FEE_THRESHOLD_HOURS = 3;
-// Dưới CANCELLATION_FIXED_FEE_THRESHOLD_HOURS: phạt 100%, hoàn 0đ
-const CANCELLATION_FIXED_FEE_PER_PASSENGER = 400_000; // đồng/hành khách
+// Phí MỖI HÀNH KHÁCH theo hạng ghế của khách (đồng). null = mất toàn bộ phần tiền của khách đó.
+// Lấy mức trung bình của các hãng truyền thống (Vietnam Airlines, Bamboo Airways): thương gia coi như
+// vé linh hoạt (phí thấp, có phí bỏ chỗ khi hủy sát giờ), phổ thông coi như vé tiêu chuẩn.
+// Phí không bao giờ vượt quá phần tiền của chính khách đó.
+const CANCELLATION_FEES = Object.freeze({
+  economy: Object.freeze({ early: 300_000, mid: 600_000, late: null }),
+  business: Object.freeze({ early: 0, mid: 300_000, late: 650_000 }),
+});
 
 // ---- C6 (ghi chú z) — Transit tối thiểu giữa chặng đi và chặng về (khứ hồi) ----
 const MIN_ROUND_TRIP_TRANSIT_HOURS = 2;
@@ -81,7 +89,7 @@ module.exports = {
   PAYMENT_EXPIRY_BUFFER_MS,
   CANCELLATION_FULL_REFUND_THRESHOLD_HOURS,
   CANCELLATION_FIXED_FEE_THRESHOLD_HOURS,
-  CANCELLATION_FIXED_FEE_PER_PASSENGER,
+  CANCELLATION_FEES,
   MIN_ROUND_TRIP_TRANSIT_HOURS,
   MIN_ROUND_TRIP_TRANSIT_MS,
   CHECK_IN_OPENS_HOURS_BEFORE_DEPARTURE,

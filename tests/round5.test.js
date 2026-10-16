@@ -66,10 +66,11 @@ const one = (amount = 1_000_000, pax = 1) => ({
   total_amount: amount,
   flights: [{ flight_id: "F", leg: "outbound", amount }],
 });
-test("#9 một chiều: ≥24h hoàn 100%; 3–24h phạt cố định; <3h và đã bay hoàn 0 (đúng ghi chú j)", () => {
-  assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(48) } }, now }).refund, 1_000_000);
+test("#9 một chiều (khách phổ thông): ≥24h phí 300k; 3–24h phí 600k; <3h và đã bay hoàn 0 (ghi chú j)", () => {
+  assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(48) } }, now }).refund, 700_000);
   const mid = planCancellation({ booking: one(), flightMap: { F: { departure_time: at(10) } }, now });
   assert.equal(mid.tier, "fixed_fee");
+  assert.equal(mid.fee, 600_000);
   assert.equal(mid.refund + mid.fee, 1_000_000);
   assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(1) } }, now }).refund, 0);
   assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(-5) } }, now }).refund, 0);
@@ -78,12 +79,12 @@ test("#9 khứ hồi TH1/TH2/TH3 theo ghi chú w", () => {
   const b = { ...rt, trip_type: "round_trip", passengers: [{}] };
   const th1 = planCancellation({ booking: b, flightMap: { OUT: { departure_time: at(48) }, RET: { departure_time: at(96) } }, now });
   assert.equal(th1.releaseFlightIds, null);
-  assert.equal(th1.refund, 3_000_000);
+  assert.equal(th1.refund, 2_700_000); // phổ thông, ≥24h: phí 300k trên toàn booking
 
   const th2 = planCancellation({ booking: b, flightMap: { OUT: { departure_time: at(-5) }, RET: { departure_time: at(48) } }, now });
   assert.equal(th2.tier, "partial");
   assert.deepEqual(th2.releaseFlightIds, ["RET"]);
-  assert.equal(th2.refund, 2_000_000); // chỉ tính trên chặng về
+  assert.equal(th2.refund, 1_700_000); // chỉ tính trên chặng về (2tr − 300k)
 
   assert.throws(
     () => planCancellation({ booking: b, flightMap: { OUT: { departure_time: at(-50) }, RET: { departure_time: at(-5) } }, now }),
