@@ -39,6 +39,10 @@ Nguyên tắc nhúng (embed) vs tham chiếu (ref):
   password_reset_token_hash: String, // SHA-256 của token quên mật khẩu (select: false), null khi không có
   password_reset_expires: Date,      // hạn dùng token (30 phút)
   password_reset_requested_at: Date, // chống gửi lại link liên tục (60 giây / email)
+  email_verified: Boolean,           // default true (tài khoản cũ/seed); đăng ký mới = false tới khi bấm link (C8c)
+  email_verify_token_hash: String,   // SHA-256 của token xác thực email (select: false)
+  email_verify_expires: Date,        // hạn link xác thực (24 giờ)
+  email_verify_sent_at: Date,        // chống gửi lại liên tục (60 giây)
   created_at: Date,
   updated_at: Date,
 }
@@ -240,7 +244,8 @@ flight.seats = structuredClone(aircraft.seat_map_template).map(s => ({
     {
       flight_id: ObjectId,        // ref: Flight
       leg: String,                // enum: 'outbound' | 'return'
-      amount: Number,             // = Σ (giá theo seat_class từng khách trên chặng này) — ghi chú t; đã trừ phần chia giảm giá nếu có (ghi chú am)
+      amount: Number,             // = Σ (giá theo seat_class + dịch vụ bổ sung từng khách trên chặng này) — ghi chú t; đã trừ phần chia giảm giá nếu có (ghi chú am)
+      addons_amount: Number,      // phần dịch vụ bổ sung trong amount (trước giảm giá), default 0
     }
   ],
 
@@ -255,6 +260,9 @@ flight.seats = structuredClone(aircraft.seat_map_template).map(s => ({
           flight_id: ObjectId,    // ref: Flight — 1 phần tử / chặng
           seat_number: String,
           seat_class: String,     // enum: 'economy' | 'business' — gắn theo TỪNG khách (ghi chú m)
+          baggage_kg: Number,     // hành lý ký gửi MUA THÊM: 0 | 15 | 20 | 25 | 30 (chưa gồm phần miễn phí theo hạng)
+          meal: Boolean,          // suất ăn (thương gia luôn true, không tính tiền)
+          addons_amount: Number,  // giá dịch vụ của khách này trên chặng này — server tính (lib/ancillaries.js)
         }
       ],
     }
