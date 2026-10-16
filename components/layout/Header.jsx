@@ -52,12 +52,12 @@ export default async function Header() {
 
   return (
     <header className="relative border-b border-sand-100 bg-white">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6 xl:gap-6">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 xl:gap-6">
         <div className="flex items-center gap-2">
           {/* Hamburger — chỉ hiện < lg (chính MobileMenu tự có class
               "lg:hidden" trên root của nó; 5 mục menu không đủ chỗ ở khổ md), đặt bên trái brand cho quen tay
               (giống đa số app mobile). */}
-          <MobileMenu links={mobileLinks} />
+          <MobileMenu links={mobileLinks} logoutLabel={session?.user ? t("logout") : null} />
           {/* Tên web là liên kết về trang chủ (không dùng biểu tượng riêng). */}
           <Link href="/" className="text-xl font-bold tracking-tight text-ink hover:text-coral-600">
             {tBrand("name")}
@@ -67,7 +67,7 @@ export default async function Header() {
         {/* Mục menu của trang đang mở được ẩn đi (DesktopNav / MobileMenu, xem navFilter.js). */}
         <DesktopNav links={navLinks} />
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <LanguageSwitcher />
           {session?.user ? (
             <>
@@ -92,7 +92,8 @@ export default async function Header() {
               >
                 {session.user.name || session.user.email}
               </Link>
-              <form action={signOutAction}>
+              {/* Điện thoại: nút Đăng xuất nằm trong menu ☰ (MobileMenu) để header không bị tràn ngang. */}
+              <form action={signOutAction} className="hidden sm:block">
                 <Button type="submit" variant="ghost" className="whitespace-nowrap px-3">
                   {t("logout")}
                 </Button>

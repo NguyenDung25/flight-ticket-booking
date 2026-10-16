@@ -9,8 +9,9 @@
 import { useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { hideCurrentPage } from "./navFilter";
+import { signOutAction } from "./authActions";
 
-export default function MobileMenu({ links }) {
+export default function MobileMenu({ links, logoutLabel = null }) {
   const [open, setOpen] = useState(false);
   // Ẩn mục menu của chính trang đang mở (navFilter.js).
   const visibleLinks = hideCurrentPage(links, usePathname());
@@ -64,6 +65,14 @@ export default function MobileMenu({ links }) {
               )
             )}
           </nav>
+          {/* Đăng xuất: trên điện thoại header không còn chỗ cho nút này (chỉ hiện dưới khổ sm). */}
+          {logoutLabel && (
+            <form action={signOutAction} className="mt-4 border-t border-sand-100 pt-4 sm:hidden">
+              <button type="submit" className="text-base font-medium text-ink hover:text-coral-600">
+                {logoutLabel}
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>
