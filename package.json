@@ -12,6 +12,7 @@
     "seed:test": "node scripts/seedTestFlights.js",
     "test:vnpay": "node scripts/testVnpay.js",
     "test": "node --test",
+    "test:integration": "node --test --test-concurrency=1 \"tests/integration/**/*.itest.js\"",
     "dev:all": "concurrently \"npm run dev\" \"npm run cron\""
   },
   "dependencies": {

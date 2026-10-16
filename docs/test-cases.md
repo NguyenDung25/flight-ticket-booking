@@ -2,7 +2,7 @@
 
 > Dùng cho Chương 4 (Kiểm thử). Cột **Kết quả thực tế** và **Đạt?** để trống — điền sau khi bạn chạy thử trên máy demo.
 >
-> - **Tự động**: chạy `npm test` (153 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). Cột "Tự động" ghi tên nhóm test tương ứng.
+> - **Tự động**: chạy `npm test` (153 test, không cần MongoDB; luồng thanh toán/race dùng bản giả của DB nên **không thay thế** việc test tay với MongoDB + VNPay sandbox thật). `npm run test:integration` chạy thêm 10 test với MongoDB thật (DB tạm, tự xóa sau khi chạy) cho giữ ghế/race, hủy vé đồng thời, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, nhật ký admin. Cột "Tự động" ghi tên nhóm test tương ứng.
 > - **Chuẩn bị chung**: `npm run seed`, `npm run seed:test`, chạy `npm run dev` + `npm run cron`; test thanh toán chạy được trên `localhost`; riêng test IPN thì bật ngrok và khai báo IPN URL (README mục 6b).
 > - Tài khoản: admin / khách demo do `npm run seed` in ra.
 

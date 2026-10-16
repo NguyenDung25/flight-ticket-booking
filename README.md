@@ -130,11 +130,12 @@ Do `npm run seed` tạo ra, in trực tiếp ra terminal lúc chạy — **chỉ
 
 ```bash
 npm test       # 153 test tự động (phí hủy, giấy tờ theo tuổi, transit, check-in, chữ ký VNPay, dịch thông báo lỗi...) — không cần MongoDB
+npm run test:integration  # 10 test với MongoDB THẬT (giữ ghế/race, hủy vé, IPN + querydr, check-in, khuyến mãi, đặt lại mật khẩu, nhật ký admin)
 npm run lint   # ESLint theo bộ luật của Next.js
 npm run build  # build production — nên chạy 1 lần trước khi demo/bảo vệ
 ```
 
-- Test tự động dùng bản giả của DB (stub) cho luồng thanh toán/race, **không thay thế** test với MongoDB thật. Script `scripts/integration-seat-cancel.js` chạy với MongoDB thật (xem chú thích đầu file; **không** trỏ vào DB có dữ liệu thật).
+- `npm test` dùng bản giả của DB (stub) cho luồng thanh toán/race. `npm run test:integration` chạy các luồng đó trên MongoDB thật: mặc định `mongodb://127.0.0.1:27017` (đổi bằng biến `INTEGRATION_MONGO_URL`), mỗi lần tạo 1 database riêng `ftb-integration-<thời gian>` rồi **xóa đi khi chạy xong** — không đụng DB của app, không gửi email thật.
 - Bảng test case thủ công cho Chương 4 (109 trường hợp, có cột điền kết quả) nằm ở `docs/test-cases.md`.
 
 ## 11. Một số hành vi cần biết khi demo
@@ -155,4 +156,5 @@ npm run build  # build production — nên chạy 1 lần trước khi demo/bả
 - **Các bộ đếm chống dò** (đăng nhập sai, tra cứu check-in, gửi lại email vé) lưu trong bộ nhớ tiến trình: đủ cho đồ án chạy 1 instance; triển khai nhiều instance cần chuyển sang Redis hoặc collection MongoDB có TTL.
 - **IPN VNPay** mới được kiểm thử bằng unit test; luồng thanh toán thật đã kiểm chứng qua trang kết quả (`querydr`). Muốn thử IPN thật xem mục 6b.
 - **Lỗi nạp SWC trên Windows** (`Failed to load native binding`, `ERR_SWC_NATIVE_CACHE`): đặt biến `SWC_NATIVE_BINDING_CACHE` trỏ tới thư mục `.swc-cache` trong dự án trước khi chạy `npm run dev`/`npm run build` (PowerShell: `$env:SWC_NATIVE_BINDING_CACHE="$PWD\.swc-cache"`). Không đặt thư mục này trong `.next` — `next build` sẽ xóa nó.
+- **Header bảo mật** (`next.config.mjs`): CSP chỉ cho tải tài nguyên từ chính site (thêm `'unsafe-eval'`/websocket khi dev cho HMR), chặn nhúng iframe, HSTS chỉ bật ở production. Thêm script/ảnh/API từ domain khác thì phải mở trong CSP.
 - **`npm audit`**: các gói chạy production không có lỗ hổng (`npm audit --omit=dev` → 0). Lỗ hổng mức "high" còn lại nằm ở công cụ lint (`eslint-config-next` → `braces`/`micromatch`, chỉ là DoS khi xử lý glob lúc chạy lint), không đi vào ứng dụng. **Không chạy `npm audit fix --force`**: có thể hạ `next-auth`/`eslint-config-next` xuống bản không tương thích.
