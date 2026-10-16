@@ -13,7 +13,8 @@
     "test:vnpay": "node scripts/testVnpay.js",
     "test": "node --test",
     "test:integration": "node --test --test-concurrency=1 \"tests/integration/**/*.itest.js\"",
-    "dev:all": "concurrently \"npm run dev\" \"npm run cron\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run cron\"",
+    "test:e2e": "next build && playwright test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -30,6 +31,7 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
     "concurrently": "^9.0.0",
     "eslint": "^9",
