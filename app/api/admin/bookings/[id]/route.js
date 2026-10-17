@@ -1,14 +1,3 @@
-// app/api/admin/bookings/[id]/route.js
-//
-// A3 — PATCH xử lý tay booking `payment_error_manual_refund` (ngoại lệ DUY NHẤT cho
-// phép admin nhập tay refund_amount — xem ghi chú y và mô tả A3).
-//
-// Body: { refund_amount: number (đồng, nguyên dương, <= total_amount), note?: string }
-//
-// KHÔNG dùng route này để đổi status booking khác: muốn hủy booking đã `confirmed`,
-// admin gọi PATCH /api/bookings/[id]/cancel như khách (C9) để hệ thống tự tính mốc phạt.
-// Service tự từ chối (409) nếu booking không ở đúng trạng thái lỗi thanh toán.
-
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";

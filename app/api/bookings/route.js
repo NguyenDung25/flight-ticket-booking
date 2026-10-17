@@ -1,14 +1,3 @@
-// app/api/bookings/route.js
-//
-// C6 — tạo Booking `pending_payment` SAU KHI khách đã hold-seat (C5) cho mọi
-// ghế và nhập xong hành khách (C4). Route này KHÔNG tự hold ghế — chỉ tin
-// những ghế đã `held` bởi ĐÚNG user hiện tại (xem
-// bookingValidationService.assertSeatIsHeldByUser).
-//
-// KHÔNG tin bất kỳ giá trị nào ảnh hưởng tới tiền (seat_class, amount) hay
-// giấy tờ (document_type/document_id theo tuổi) từ client — toàn bộ được
-// đối chiếu lại ở services/bookingValidationService.js trước khi ghi DB.
-
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
@@ -30,13 +19,7 @@ import Promotion from "@/models/Promotion";
 import { normalizeContact } from "@/lib/bookingContact";
 import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 
-/**
- * payment.payment_expires_at (ghi chú y) = held_until CỦA GHẾ GIỮ SỚM NHẤT
- * trong toàn booking, trừ đi buffer — dùng mốc SỚM NHẤT (không phải trễ
- * nhất/trung bình) để an toàn: nếu khách giữ ghế A lúc 10:00 và ghế B lúc
- * 10:05 (nhập hành khách xong mới chọn ghế lần lượt), ghế A hết hạn TRƯỚC —
- * payment_expires_at phải bám theo mốc đó, không phải mốc của ghế B.
- */
+/** payment.payment_expires_at (ghi chú y) = held_until của ghế giữ sớm nhất trong toàn booking, trừ đi buffer. */
 function earliestHeldUntil(flightDocs, passengers) {
   let earliest = null;
   for (const passenger of passengers) {
@@ -82,11 +65,7 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    // BẮT BUỘC validate leg TRƯỚC khi gọi validateBookingCreation: nếu
-    // round_trip mà thiếu đúng 1 'outbound' + 1 'return' (client lỗi hoặc cố
-    // tình gửi sai), bookingValidationService.validateRoundTripTransit sẽ
-    // .find() ra undefined rồi crash TypeError khi đọc undefined.flightDoc —
-    // chặn ở đây để trả 400 rõ ràng thay vì lộ lỗi 500 chung chung.
+    // Bắt buộc validate leg trước khi gọi validateBookingCreation.
     const legNames = flights.map((f) => f?.leg).sort();
     const validLegShape =
       trip_type === "round_trip"
@@ -110,10 +89,7 @@ export async function POST(request) {
       );
     }
 
-    // flight_id sai định dạng ObjectId (không phải do không tồn tại — đó là
-    // trường hợp 404 xử lý bên dưới) sẽ khiến Flight.findById ném Mongoose
-    // CastError, KHÔNG có statusCode → handleApiError rơi vào nhánh 500 mù mờ.
-    // Chặn sớm ở đây để trả đúng 400.
+    // flight_id sai định dạng ObjectId.
     const badIdIndex = flights.findIndex(
       (f) => !mongoose.isValidObjectId(f?.flight_id)
     );
@@ -124,8 +100,7 @@ export async function POST(request) {
       );
     }
 
-    // Nạp Flight doc THẬT cho từng chặng — mọi đối chiếu seat_class/giá/ghế
-    // đang held đều dựa trên dữ liệu này, KHÔNG dựa vào flights[] client gửi.
+    // Nạp Flight doc thật cho từng chặng — mọi đối chiếu seat_class/giá/ghế đang held đều dựa trên dữ liệu này.
     const flightDocs = await Promise.all(
       flights.map((f) => Flight.findById(f.flight_id))
     );
@@ -142,8 +117,7 @@ export async function POST(request) {
       leg: f.leg,
     }));
 
-    // Ném ValidationError (giấy tờ/tuổi, transit time, seat_class giả mạo,
-    // ghế chưa được chính user này giữ...) — bắt ở catch bên dưới.
+    // Ném ValidationError (giấy tờ/tuổi, transit time, seat_class giả mạo, ghế chưa được chính user này giữ...).
     const { amounts } = await validateBookingCreation({
       passengers,
       legs,
@@ -151,9 +125,7 @@ export async function POST(request) {
       pricing: await getAncillaryPricing(), // bảng giá dịch vụ bổ sung admin đang áp dụng
     });
 
-    // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế): (1) mỗi user tối
-    // đa MAX_PENDING_BOOKINGS_PER_USER booking đang chờ; (2) không tạo booking thứ 2 chứa CÙNG
-    // ghế với 1 booking đang chờ (khách phải thanh toán/hủy booking cũ — trả kèm id để UI dẫn tới).
+    // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế).
     const nowTs = new Date();
     const livePending = { user_id: user._id, status: "pending_payment", payment_expires_at: { $gt: nowTs } };
     const seatKeys = passengers.flatMap((p) =>
@@ -196,27 +168,10 @@ export async function POST(request) {
     const totalAmountBeforeDiscount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
 
     // A5 — mã khuyến mãi (tùy chọn, chỉ áp khi client có gửi promotion_code).
-    // applyPromotion() ném PromotionError (404/400/409, xem
-    // services/promotionService.js) nếu mã không hợp lệ — bắt ở catch bên
-    // dưới như mọi lỗi nghiệp vụ khác, KHÔNG bọc try/catch riêng ở đây để
-    // âm thầm bỏ qua mã sai (khách phải biết rõ mã bị từ chối, không được
-    // lặng lẽ tính giá gốc).
-    //
-    // GỌI applyPromotion() SAU KHI validateBookingCreation() đã pass (ở
-    // trên) — tăng used_count càng trễ càng tốt, giảm tối đa cửa sổ "đã tính
-    // là dùng mã nhưng cuối cùng Booking.create() lại lỗi vì lý do khác".
-    // Vẫn còn 1 khe hở nhỏ (nếu Booking.create() bên dưới lỗi, used_count
-    // coi như mất 1 lượt oan) — chấp nhận được, ĐÚNG tinh thần đánh đổi đã
-    // ghi rõ ở ghi chú (p): "khi booking dùng mã bị hủy → KHÔNG giảm lại
-    // used_count", tức là dự án đã chấp nhận used_count có thể không khớp
-    // tuyệt đối 100% với số booking thực tế dùng mã thành công, đổi lấy
-    // KHÔNG cần transaction/lock phức tạp.
     let promotion = null;
     let total_amount = totalAmountBeforeDiscount;
 
-    // Mã khuyến mãi bị tăng used_count TRƯỚC khi tạo booking (atomic, ghi chú p). Nếu sau đó việc tạo
-    // booking không thành (lỗi, hoặc số tiền ngoài giới hạn VNPay) thì phải trả lại lượt vừa lấy — khác
-    // với trường hợp booking đã tạo rồi bị hủy (ghi chú p: không hoàn lại, có chủ đích).
+    // Mã khuyến mãi bị tăng used_count trước khi tạo booking (atomic, ghi chú p).
     const rollbackPromotion = async () => {
       if (promotion) {
         await Promotion.updateOne({ _id: promotion._id, used_count: { $gt: 0 } }, { $inc: { used_count: -1 } });
@@ -227,14 +182,12 @@ export async function POST(request) {
         return NextResponse.json({ message: "promotion_code không hợp lệ." }, { status: 400 });
       }
       promotion = await applyPromotion(promotion_code);
-      // Chỉ giảm trên GIÁ VÉ (không giảm hành lý/suất ăn), chia xuống từng chặng để giữ bất biến
-      // total_amount === Σ flights[].amount (ghi chú t) — xem promotionService.applyDiscountToLegs.
+      // Chỉ giảm trên giá vé (không giảm hành lý/suất ăn).
       applyDiscountToLegs(flightLegs, promotion);
       total_amount = flightLegs.reduce((sum, l) => sum + l.amount, 0);
     }
 
-    // VNPay chỉ nhận 5.000đ – dưới 1 tỷ đồng/giao dịch: báo lỗi NGAY (kèm trả lượt mã) thay vì tạo booking
-    // không thể thanh toán, treo ghế tới hết hạn (VD mã giảm 100% → tổng 0đ).
+    // VNPay chỉ nhận 5.000đ – dưới 1 tỷ đồng/giao dịch: báo lỗi ngay.
     if (total_amount < PAYMENT_MIN_AMOUNT || total_amount > PAYMENT_MAX_AMOUNT) {
       await rollbackPromotion();
       return NextResponse.json(
@@ -271,9 +224,7 @@ export async function POST(request) {
 
     return NextResponse.json(booking, { status: 201 });
   } catch (err) {
-    // ValidationError (bookingValidationService) đã có sẵn statusCode —
-    // handleApiError tự nhận diện và trả đúng mã lỗi (xem lib/apiError.js),
-    // không cần bắt riêng ở đây.
+    // ValidationError (bookingValidationService) đã có sẵn statusCode.
     return handleApiError(err, "POST /api/bookings");
   }
 }

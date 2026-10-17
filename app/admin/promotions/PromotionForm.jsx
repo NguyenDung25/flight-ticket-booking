@@ -1,16 +1,5 @@
 "use client";
 
-// app/admin/promotions/PromotionForm.jsx
-//
-// A5 — tạo mã khuyến mãi mới. Cùng convention với AircraftForm/AirlineForm:
-// form luôn hiện (không collapse — chỉ vài field, khác FlightForm.jsx nhiều
-// field hơn nên mới cần thu gọn).
-//
-// valid_from/valid_until dùng type="date" (KHÔNG datetime-local như
-// FlightForm) — Promotion chỉ cần chính xác tới NGÀY (đúng model: so sánh
-// bằng nowVN().toDate() ở promotionService.applyPromotion(), không có yêu
-// cầu chính xác tới giờ như giờ bay).
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -27,11 +16,7 @@ export default function PromotionForm() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // "Từ ngày" == "Đến ngày" giờ HỢP LỆ — đại diện mã giảm giá chỉ dùng
-    // đúng 1 ngày (server quy đổi valid_until thành 00:00 giờ VN của NGÀY
-    // KẾ TIẾP, xem app/api/admin/promotions/route.js, nên valid_until luôn
-    // > valid_from ở DB dù 2 ngày này bằng nhau trên form) — chỉ chặn khi
-    // "Đến ngày" ĐI TRƯỚC "Từ ngày", không chặn khi bằng nhau.
+    // "Từ ngày" == "Đến ngày" giờ hợp lệ — đại diện mã giảm giá chỉ dùng đúng 1 ngày.
     if (validUntil && validFrom && validUntil < validFrom) {
       setError("Ngày hết hạn phải từ ngày bắt đầu trở đi.");
       return;

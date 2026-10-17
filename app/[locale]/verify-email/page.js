@@ -1,8 +1,3 @@
-// app/[locale]/verify-email/page.js — mở từ link xác thực trong email (?token=...).
-// Trang công khai (không cần đăng nhập — khách có thể mở link trên máy khác). Token dùng 1 lần, hết
-// hạn sau 24 giờ (services/accountService.verifyEmail). Mở lại link đã dùng -> báo không hợp lệ, kèm
-// hướng dẫn gửi lại ở trang Tài khoản.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import dbConnect from "@/lib/mongodb";

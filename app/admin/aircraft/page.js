@@ -1,12 +1,3 @@
-// app/admin/aircraft/page.js
-//
-// A2 — quản lý máy bay: liệt kê + thêm mới (AircraftForm) + sửa/xóa từng dòng
-// (AircraftRow, gọi PUT/DELETE /api/admin/aircraft/[id]). Xóa bị chặn nếu còn
-// chuyến bay dùng loại máy bay này.
-//
-// Gọi thẳng Aircraft.find() (KHÔNG qua /api/admin/aircraft) — đúng
-// convention mọi page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Aircraft from "@/models/Aircraft";
@@ -33,10 +24,7 @@ export default async function AdminAircraftPage() {
       businessCount,
       economyCount,
       layout: detectLayout(a.seat_map_template),
-      // Cờ cảnh báo — mismatch không bị chặn ở DB (ghi chú trong
-      // models/Aircraft.js: "ngoài phạm vi đồ án, mục 6"), nhưng UI vẫn nên
-      // tự phát hiện và cảnh báo cho admin biết ngay, thay vì để lộ khi tạo
-      // Flight (A1) rồi mới phát hiện seats[] sai.
+      // Cờ cảnh báo — mismatch không bị chặn ở DB (ghi chú trong models/Aircraft.js: "ngoài phạm vi đồ án, mục 6").
       mismatch: businessCount + economyCount !== a.total_seats,
     };
   });

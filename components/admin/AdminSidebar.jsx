@@ -1,11 +1,5 @@
 "use client";
 
-// components/admin/AdminSidebar.jsx
-//
-// Menu bên trái khu Admin, cùng tông cam đào với khu khách: khối thương hiệu cam đậm ở trên, thân menu
-// kem đào, mục đang mở là nút cam. Từ md trở lên: cột dọc cố định bên trái; màn hình hẹp: thành 1 hàng
-// ngang cuộn được ở trên cùng. Mục đang mở được tô theo đường dẫn hiện tại.
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, isActive } from "./adminNav";

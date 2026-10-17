@@ -1,5 +1,3 @@
-// tests/account.test.js — tài khoản (đổi / quên / đặt lại mật khẩu, phiên cũ hết hiệu lực), thông tin
-// liên hệ của booking, nhật ký thao tác admin. Không cần MongoDB (stub tại chỗ).
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

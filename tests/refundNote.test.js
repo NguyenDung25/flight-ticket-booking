@@ -1,5 +1,3 @@
-// Dòng giải thích số tiền hoàn trên "Vé của tôi" — đủ các trường hợp hủy (một chiều, khứ hồi chặng
-// đi/chặng về, hãng hủy) × các mốc 24h / 3h theo cancellationService.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getRefundNote } = require("../lib/refundNote");
@@ -80,7 +78,7 @@ test("mọi khóa trả về đều có trong messages en và vi", () => {
     assert.ok(en[k], `thiếu en.${k}`);
     assert.ok(vi[k], `thiếu vi.${k}`);
   }
-  // câu cần {fee} thì cả 2 ngôn ngữ đều phải có {fee}
+  // Câu cần {fee} thì cả 2 ngôn ngữ đều phải có {fee}
   for (const k of keys.filter((x) => /FixedFee|AirlinePartial/.test(x))) {
     assert.ok(en[k].includes("{fee}") && vi[k].includes("{fee}"), `${k} thiếu {fee}`);
   }

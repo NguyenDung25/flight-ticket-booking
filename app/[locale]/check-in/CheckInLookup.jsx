@@ -1,15 +1,5 @@
 "use client";
 
-// app/[locale]/check-in/CheckInLookup.jsx
-//
-// C10 — làm thủ tục trực tuyến theo 4 bước như website hãng bay (VD Sun PhuQuoc Airways):
-//   1) Nhập mã đặt chỗ + HỌ của 1 hành khách  -> POST /api/check-in/lookup
-//   2) Dữ liệu đặt chỗ: chọn chặng bay + hành khách cần làm thủ tục, "Tiếp tục"
-//   3) Quy định ICI về hành khách và hành lý: đọc, tick "Đồng ý", "Đồng ý & Tiếp tục"
-//      -> POST /api/flights/[id]/check-in cho từng ghế đã chọn (kèm ici_accepted: true)
-//   4) Thẻ lên máy bay (QR, In / Lưu PDF)
-// Họ tên/mã gửi trong body, không đưa lên URL.
-
 import { useMemo, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Card from "@/components/ui/Card";
@@ -35,7 +25,7 @@ function groupByFlight(items) {
   return [...groups.values()];
 }
 
-/** Lý do 1 ghế KHÔNG chọn được để làm thủ tục (null = chọn được). */
+/** Lý do 1 ghế không chọn được để làm thủ tục (null = chọn được). */
 function blockReason(item, t) {
   if (item.checkedIn) return t("alreadyCheckedIn");
   if (item.flightCancelled) return t("flightCancelled");
@@ -128,10 +118,7 @@ export default function CheckInLookup({ initialCode = "" }) {
     runLookup(code, name);
   }
 
-  // Đến từ tab "Làm thủ tục" ở trang chủ: mã đặt chỗ trong ?code=, họ hành khách để trong sessionStorage
-  // (KHÔNG đưa họ tên lên URL) -> điền sẵn và tra cứu luôn, rồi xóa khỏi sessionStorage.
-  // Chạy trong setTimeout (không setState trực tiếp trong effect); xóa sessionStorage lúc thực sự dùng —
-  // StrictMode chạy effect 2 lần, lần đầu bị hủy (clearTimeout) thì lần sau vẫn đọc được.
+  // Đến từ tab "Làm thủ tục" ở trang chủ: mã đặt chỗ trong ?code=, họ hành khách để trong sessionStorage.
   useEffect(() => {
     let prefillName = "";
     try {
@@ -217,7 +204,7 @@ export default function CheckInLookup({ initialCode = "" }) {
               placeholder={t("codePlaceholder")}
               autoComplete="off"
               maxLength={12}
-              className="font-monost"
+              className="font-mono tracking-wider"
             />
             <Input
               id="passenger-name"

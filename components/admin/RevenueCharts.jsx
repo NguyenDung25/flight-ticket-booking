@@ -1,15 +1,5 @@
 "use client";
 
-// components/admin/RevenueCharts.jsx
-//
-// Hai biểu đồ Recharts của trang Tổng quan admin:
-//  - MonthlyRevenueChart: cột CHỒNG theo tháng (doanh thu vé + phí phạt hủy) — 12 tháng liền nhau, tháng
-//    đang xem được tô đậm, bấm vào 1 cột để chuyển sang xem tháng đó.
-//  - RouteRevenueChart: cột NGANG xếp hạng doanh thu theo tuyến bay.
-// Nhận dữ liệu đã chuẩn hóa từ lib/adminChartData.js (page.js là Server Component lấy từ DB rồi truyền xuống).
-// ResponsiveContainer cần bề rộng thật từ trình duyệt -> initialDimension để lần render đầu trên server
-// không bị cảnh báo width/height = -1.
-
 import { useRouter } from "next/navigation";
 import {
   Bar,

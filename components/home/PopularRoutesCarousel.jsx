@@ -1,12 +1,5 @@
 "use client";
 
-// components/home/PopularRoutesCarousel.jsx
-//
-// Carousel "Tuyến bay phổ biến": hàng thẻ cao có ảnh điểm đến, ô đếm "n/N" góc phải trên, tên tuyến, giá
-// thấp nhất "Từ ... VND*", chuyến gần nhất và nút "Mua ngay". Vuốt/cuộn ngang (scroll-snap), mũi tên trái/phải
-// ở hai đầu. Toàn bộ chữ + số liệu do page.js (Server Component) dựng sẵn rồi truyền xuống — component này
-// chỉ lo hiển thị và cuộn, không tự gọi DB.
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import RouteArt from "./RouteArt";
@@ -44,8 +37,7 @@ export default function PopularRoutesCarousel({ cards, labels }) {
     });
   }, []);
 
-  // ResizeObserver gọi lại ngay khi bắt đầu quan sát và mỗi lần đổi kích thước -> mũi tên đúng trạng thái
-  // từ đầu (ví dụ ít thẻ, không cần cuộn thì cả hai mũi tên tự ẩn).
+  // ResizeObserver gọi lại ngay khi bắt đầu quan sát và mỗi lần đổi kích thước -> mũi tên đúng trạng thái từ đầu.
   useEffect(() => {
     const el = listRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;

@@ -1,4 +1,3 @@
-// Chuẩn hóa dữ liệu trang Tổng quan admin theo THÁNG (không cần MongoDB).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {

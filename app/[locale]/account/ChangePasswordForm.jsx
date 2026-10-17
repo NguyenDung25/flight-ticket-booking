@@ -1,8 +1,5 @@
 "use client";
 
-// app/[locale]/account/ChangePasswordForm.jsx — đổi mật khẩu (POST /api/users/me/password). Thành
-// công thì mọi phiên đăng nhập (kể cả phiên này) hết hiệu lực -> chuyển sang trang đăng nhập.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";

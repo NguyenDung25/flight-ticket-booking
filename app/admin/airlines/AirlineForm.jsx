@@ -1,11 +1,5 @@
 "use client";
 
-// app/admin/airlines/AirlineForm.jsx
-//
-// A2 — form thêm hãng bay. Validate tối thiểu ở client (required) — validate
-// THẬT (unique code, required name.vi/en) nằm ở API + Mongoose schema, form
-// này chỉ chặn sớm cho đỡ round-trip vô ích khi để trống.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

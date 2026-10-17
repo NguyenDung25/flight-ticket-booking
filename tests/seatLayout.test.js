@@ -1,4 +1,3 @@
-// Cấu hình ghế máy bay theo hạng (không cần MongoDB).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {

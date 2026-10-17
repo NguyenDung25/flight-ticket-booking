@@ -1,17 +1,5 @@
 "use client";
 
-// app/[locale]/booking/passengers/PassengersForm.jsx
-//
-// C4+C5 gộp 1 màn hình — khách nhập hành khách và chọn ghế cho từng chặng
-// CÙNG LÚC (đúng đặc tả C4). Mọi ghế hiển thị "đã chọn" ở đây là TRẠNG THÁI
-// UI CỤC BỘ ghép giữa dữ liệu ghế thật từ server (status/held_by) và việc
-// "ghế nào đang gán cho hành khách nào trong form" (server không biết khái
-// niệm "hành khách" cho tới khi POST /api/bookings) — xem computeLocalStatus.
-//
-// Side-effect BẮT BUỘC khi xóa hành khách đã lỡ chọn ghế (đúng ghi chú C4):
-// gọi ngay release-seat cho MỌI ghế người đó đang giữ, không chỉ xóa khỏi
-// state — xem removePassenger().
-
 import { useEffect, useRef, useState } from "react";
 import { MIN_AGE_REQUIRE_ID_DOCUMENT } from "@/config/constants";
 import { useTranslations } from "next-intl";
@@ -27,12 +15,7 @@ import { baggageOptions, baggagePrice, checkedBaggageAllowance, priceAddons } fr
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
-/**
- * Bản client-side của lib/timezone.js ageInYears() — KHÔNG import trực tiếp
- * file đó (server-only, kéo theo các hằng số C10 không liên quan tới form
- * này). Tuổi chỉ cần chính xác tới NGÀY — input type="date" cho sẵn
- * "YYYY-MM-DD" nên không có rủi ro lệch múi giờ như khi so departure_time.
- */
+/** Bản client-side của lib/timezone.js ageInYears() — không import trực tiếp file đó. */
 function ageInYearsLocal(dateOfBirth) {
   const birth = new Date(dateOfBirth);
   const now = new Date();
@@ -44,8 +27,7 @@ function ageInYearsLocal(dateOfBirth) {
   return age;
 }
 
-// Ngày hôm nay theo giờ MÁY KHÁCH (dạng YYYY-MM-DD) làm `max` cho ô ngày sinh —
-// không dùng toISOString() vì nó ra ngày UTC, sáng sớm giờ VN sẽ lùi 1 ngày.
+// Ngày hôm nay theo giờ máy khách (dạng YYYY-MM-DD) làm `max` cho ô ngày sinh.
 function todayLocalISO() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
@@ -101,9 +83,7 @@ export default function PassengersForm({
   const tCommon = useTranslations("Common");
   const router = useRouter();
 
-  // sessionStorage — lưu hành khách + ghế đã chọn để không mất khi thoát
-  // trang rồi quay lại (VD bấm Back từ trang summary). Key gắn với
-  // outboundFlight._id để tránh khôi phục nhầm data của chuyến bay khác.
+  // sessionStorage — lưu hành khách + ghế đã chọn để không mất khi thoát trang rồi quay lại.
   const SESSION_KEY = `pf_${outboundFlight._id}`;
   function readPfSession(key, fallback) {
     try {
@@ -126,12 +106,10 @@ export default function PassengersForm({
   const [submitting, setSubmitting] = useState(false);
   // Người liên hệ: email nhận vé điện tử (mặc định email tài khoản) + số điện thoại.
   const [contact, setContact] = useState({ email: defaultContactEmail, phone: "" });
-  // true sau khi đã khôi phục từ sessionStorage — trước đó KHÔNG tự lưu, kẻo giá trị mặc định ghi đè dữ liệu cũ.
+  // true sau khi đã khôi phục từ sessionStorage — trước đó không tự lưu, kẻo giá trị mặc định ghi đè dữ liệu cũ.
   const [restored, setRestored] = useState(false);
 
-  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
-  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
-  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  // Render lần đầu bằng giá trị mặc định (giống server — server không đọc được sessionStorage).
   useEffect(() => {
     const saved = readPfSession(SESSION_KEY, null);
     const id = setTimeout(() => {
@@ -148,17 +126,13 @@ export default function PassengersForm({
   }, []);
 
   // Auto-save passengers + seats vào sessionStorage mỗi khi thay đổi.
-  // Đặt SAU khi cả 3 state đã khai báo — const không hoist, dùng trước khai
-  // báo sẽ gây ReferenceError runtime.
   useEffect(() => {
     if (!restored) return;
     savePfSession({ passengers, outboundSeats, returnSeats, contact });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, passengers, outboundSeats, returnSeats, contact]);
   const [errorMessage, setErrorMessage] = useState(null);
-  // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng, nhưng khách
-  // vừa bấm ghế ở sơ đồ phía trên -> thường không thấy. Tự cuộn tới lỗi mỗi
-  // khi có lỗi mới để không bị bỏ sót.
+  // Lỗi (VD ghế vừa bị người khác giữ) hiển thị ở khung dưới cùng.
   const errorRef = useRef(null);
   useEffect(() => {
     if (errorMessage && errorRef.current) {
@@ -166,10 +140,7 @@ export default function PassengersForm({
     }
   }, [errorMessage]);
   const [createdBookingId, setCreatedBookingId] = useState(null);
-  // A5 — mã khuyến mãi (tùy chọn). KHÔNG tự gọi API kiểm tra mã lúc gõ (đồ
-  // án không cần UX preview realtime) — chỉ gửi kèm khi tạo booking, server
-  // (applyPromotion) validate và trả lỗi rõ ràng nếu sai/hết hạn/hết lượt,
-  // hiện qua chung errorMessage như mọi lỗi submit khác.
+  // A5 — mã khuyến mãi (tùy chọn).
   const [promotionCode, setPromotionCode] = useState("");
 
   function setSeatLocal(leg, seatNumber, patch) {
@@ -200,9 +171,7 @@ export default function PassengersForm({
     return apiCall(`/api/flights/${flightId}/release-seat`, { seat_number: seatNumber });
   }
 
-  // Trạng thái HIỂN THỊ của 1 ghế — kết hợp dữ liệu thật (status/held_by) với
-  // việc ghế đó đã được GÁN cho hành khách nào trong form hiện tại (khái
-  // niệm chỉ tồn tại phía client, server chỉ biết "held bởi user X").
+  // Trạng thái hiển thị của 1 ghế — kết hợp dữ liệu thật.
   function computeLocalStatus(seat, leg) {
     const assignedPassenger = passengers.find((p) => p.seatByLeg[leg] === seat.seat_number);
     if (assignedPassenger) {
@@ -247,22 +216,13 @@ export default function PassengersForm({
 
     setSeatBusy(true);
     try {
-      // Hành khách hiện tại đang giữ 1 ghế KHÁC trên CÙNG chặng -> nhả
-      // trước, mỗi khách chỉ 1 ghế / chặng.
+      // Hành khách hiện tại đang giữ 1 ghế khác trên cùng chặng -> nhả trước, mỗi khách chỉ 1 ghế / chặng.
       if (currentSeatForActive) {
         await callReleaseSeat(leg, currentSeatForActive);
         setSeatLocal(leg, currentSeatForActive, { status: "available", held_by_me: false });
       }
 
-      // LUÔN gọi hold-seat (kể cả khi state cục bộ nghĩ ghế này "đã là của
-      // mình" — status "mineUnassigned") — KHÔNG tự đoán trạng thái cũ trên
-      // client rồi bỏ qua gọi API. Lý do: state "mineUnassigned" tính từ
-      // dữ liệu tải lúc vào trang, có thể đã CŨ (VD ghế đã bị server tự nhả
-      // vì hết hạn 30 phút trong lúc người dùng còn đang ở trên trang) —
-      // hold-seat() phía server là idempotent (xem services/seatService.js),
-      // gọi lại luôn an toàn: nếu ghế thật sự vẫn đang là của mình (còn hạn) thì không đổi gì
-      // (KHÔNG gia hạn held_until); nếu đã bị nhả/quá hạn thì giữ lại như hold mới, không
-      // silently coi là "đã giữ" trong khi thực ra không còn giữ gì cả.
+      // Luôn gọi hold-seat (kể cả khi state cục bộ nghĩ ghế này "đã là của mình" — status "mineUnassigned").
       await callHoldSeat(leg, seatNumber);
       setSeatLocal(leg, seatNumber, { status: "held", held_by_me: true });
 
@@ -283,7 +243,7 @@ export default function PassengersForm({
     const p = passengers[index];
     setSeatBusy(true);
     try {
-      // BẮT BUỘC nhả ghế ngay — không chỉ xóa khỏi state (xem comment đầu file).
+      // Bắt buộc nhả ghế ngay — không chỉ xóa khỏi state.
       if (p.seatByLeg.outbound) {
         await callReleaseSeat("outbound", p.seatByLeg.outbound).catch((err) => console.error(err));
         setSeatLocal("outbound", p.seatByLeg.outbound, { status: "available", held_by_me: false });
@@ -337,12 +297,7 @@ export default function PassengersForm({
         return t("errorMissingFields");
       }
 
-      // Khớp ĐÚNG luật server (services/bookingValidationService.js
-      // validatePassengerDocument): document_id CHỈ bắt buộc từ
-      // MIN_AGE_REQUIRE_ID_DOCUMENT tuổi trở lên — dưới tuổi đó, khai sinh
-      // hợp lệ dù không có document_id.
-      // Ngày sinh không được ở tương lai (gõ tay vẫn vượt qua `max` của ô ngày);
-      // server validate lại y hệt (validatePassengerDateOfBirth).
+      // Khớp đúng luật server (services/bookingValidationService.js validatePassengerDocument).
       if (p.date_of_birth > todayLocalISO()) {
         return t("errorDobFuture");
       }
@@ -355,11 +310,7 @@ export default function PassengersForm({
         return t("errorDocumentTypeForAge");
       }
 
-      // MỚI THÊM: chặn 2 hành khách trong cùng booking khai TRÙNG số giấy
-      // tờ — bỏ qua document_id rỗng (trẻ dưới tuổi bắt buộc, hợp lệ không
-      // điền), KHÔNG coi 2 ô rỗng là "trùng nhau". Server
-      // (validateNoDuplicateDocumentIds) validate lại y hệt, đây chỉ để báo
-      // lỗi sớm ngay trên form.
+      // Chặn 2 hành khách trong cùng booking khai trùng số giấy tờ — bỏ qua document_id rỗng.
       const trimmedId = p.document_id.trim();
       if (trimmedId) {
         if (seenDocumentIds.has(trimmedId)) {
@@ -387,8 +338,7 @@ export default function PassengersForm({
     try {
       let bookingId = createdBookingId;
 
-      // Nếu bước thanh toán lần trước lỗi (VD VNPay tạm thời không phản hồi),
-      // booking ĐÃ tồn tại — chỉ retry thanh toán, KHÔNG tạo booking lần 2.
+      // Nếu bước thanh toán lần trước lỗi (VD VNPay tạm thời không phản hồi), booking đã tồn tại.
       if (!bookingId) {
         const flights = [{ flight_id: outboundFlight._id, leg: "outbound" }];
         if (returnFlight) flights.push({ flight_id: returnFlight._id, leg: "return" });
@@ -425,10 +375,7 @@ export default function PassengersForm({
           trip_type: tripType,
           flights,
           passengers: passengersPayload,
-          // "" -> undefined: KHÔNG gửi field rỗng lên server (route coi
-          // promotion_code falsy là "không áp mã", nhưng gửi chuỗi rỗng vẫn
-          // falsy nên thực ra vô hại — chỉ để tránh key rác không cần thiết
-          // trong request body).
+          // "" -> undefined: không gửi field rỗng lên server.
           promotion_code: promotionCode.trim() || undefined,
           contact: { email: contact.email.trim(), phone: contact.phone.trim() },
         });
@@ -441,8 +388,7 @@ export default function PassengersForm({
       const payment = await apiCall(`/api/payments/${bookingId}`, {});
       window.location.href = payment.payUrl;
     } catch (err) {
-      // Quay lại từ trang VNPay rồi bấm đặt lần nữa: server chặn booking thứ 2 cùng ghế (409). Cho khách
-      // tiếp tục thanh toán booking đang chờ thay vì kẹt; nói rõ là dữ liệu hành khách của booking cũ.
+      // Quay lại từ trang VNPay rồi bấm đặt lần nữa: server chặn booking thứ 2 cùng ghế (409).
       if (err.existingBookingId) {
         const goOn = window.confirm(
           `${err.message}\n\n${t("continuePendingConfirm")}`
@@ -631,9 +577,7 @@ export default function PassengersForm({
         </Button>
       </div>
 
-      {/* Cho biết ghế đang chọn sẽ gán cho ai — trên điện thoại, khung nhập
-          hành khách nằm xa sơ đồ ghế nên khách dễ không biết mình đang chọn
-          cho hành khách nào. */}
+      {/* Cho biết ghế đang chọn sẽ gán cho ai — trên điện thoại. */}
       <p className="w-full max-w-3xl text-sm text-ink/70">
         {t("selectingSeatFor")}:{" "}
         <strong className="text-coral-600">

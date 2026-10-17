@@ -1,30 +1,5 @@
 "use client";
 
-// app/admin/flights/FlightsTable.jsx
-//
-// A1 (sửa) + A8 (hủy chuyến, dùng lại CancelFlightButton.jsx như cũ, không
-// đổi gì file đó). Toàn bộ bảng chuyển thành Client Component (khác mọi
-// page.js khác trong khu Admin — thường render bảng ngay trong Server
-// Component) VÌ "Sửa" cần mở 1 hàng phụ NGAY DƯỚI dòng đang sửa, trải rộng
-// hết bề ngang bảng (colSpan) — không phải overlay/modal (dự án cố tình
-// không có Modal/dialog riêng trong components/ui, không tự chế thêm 1
-// component chỉ cho chỗ này, xem comment gốc
-// app/[locale]/my-bookings/BookingList.jsx). Mở hàng phụ kiểu này cần biết
-// "đang sửa dòng nào" ở cấp CẢ BẢNG (chỉ 1 dòng được sửa cùng lúc), nên
-// state phải nằm ở component cha bọc <table>, không thể để riêng từng nút tự
-// quản trạng thái như CancelFlightButton.
-//
-// CHỈ sửa đúng field PATCH /api/admin/flights/[id] thật sự nhận
-// (EDITABLE_FIELDS trong route đó): flight_number, origin_code, dest_code,
-// departure_time, arrival_time, base_price, status. KHÔNG có airline_id hay
-// aircraft_id — route bỏ qua 2 field này dù có gửi lên, nên form không hỏi.
-//
-// ĐÃ XỬ LÝ (services/flightService.assertNoActiveBooking, ghi chú v): route
-// PATCH giờ chặn cứng (409) nếu sửa departure_time mà chuyến đã có booking
-// hiệu lực (pending_payment/confirmed) — form dưới đây cần tự hiện lỗi 409
-// đó cho admin thấy rõ (xem handleSubmit, đã đọc data?.message từ response
-// lỗi và set vào `error` state), KHÔNG cần tự chặn lại phía client ở đây.
-
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import CancelFlightButton from "./CancelFlightButton";
@@ -32,13 +7,7 @@ import DeleteFlightButton from "./DeleteFlightButton";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
-/**
- * Bản client-side quy đổi ISO string -> "YYYY-MM-DDTHH:mm" theo giờ VN, cho
- * value mặc định của <input type="datetime-local">. KHÔNG import
- * lib/timezone.js ở đây — cùng lý do đã ghi ở PassengersForm.jsx
- * (ageInYearsLocal): file đó coi là server-only, chỉ cần đúng phép quy đổi
- * hiển thị, không cần kéo theo mọi hằng số C10 không liên quan tới bảng này.
- */
+/** Bản client-side quy đổi ISO string -> "YYYY-MM-DDTHH:mm" theo giờ VN. */
 function toDatetimeLocalVN(isoString) {
   if (!isoString) return "";
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -242,15 +211,12 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
   );
 }
 
-// --- A8: nút hủy chuyến — logic ở CancelFlightButton.jsx (file riêng, giữ
-// nguyên như cũ, chỉ import lại ở đây). A1 (ghi chú v): nút xóa hẳn — logic
-// ở DeleteFlightButton.jsx (file riêng mới, cùng convention). ---
+// --- A8: nút hủy chuyến — logic ở CancelFlightButton.jsx (file riêng, giữ nguyên như cũ, chỉ import lại ở đây).
 
 const COLUMN_COUNT = 9;
 
 export default function FlightsTable({ flights, airports }) {
-  // Chỉ 1 dòng được sửa cùng lúc — mở dòng khác tự đóng dòng đang mở, tránh
-  // nhiều form PATCH lơ lửng cùng lúc dễ gây nhầm lẫn đang sửa chuyến nào.
+  // Chỉ 1 dòng được sửa cùng lúc — mở dòng khác tự đóng dòng đang mở.
   const [editingId, setEditingId] = useState(null);
 
   return (
@@ -293,11 +259,7 @@ export default function FlightsTable({ flights, airports }) {
                     : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  {/* KHÔNG dùng StatusBadge dùng chung — component đó cố
-                      định 5 tone theo đúng Booking.status (xem comment gốc
-                      trong file), "scheduled" không khớp key nào sẽ rơi vào
-                      fallback màu vàng cảnh báo, sai ý nghĩa cho chuyến bay
-                      đang khai thác bình thường. Badge riêng cho Flight. */}
+                  {/* Không dùng StatusBadge dùng chung — component đó cố định 5 tone theo đúng Booking.status. */}
                   <span
                     className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
                       f.status === "cancelled"

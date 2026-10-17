@@ -1,4 +1,3 @@
-// tests/round5.test.js — kiểm thử các bản sửa vòng 5 (không cần MongoDB).
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -47,7 +46,7 @@ const rt = {
 test("#3 chuyến bị hủy đã QUA giờ khởi hành vẫn được hoàn đủ (không coi là đã bay)", () => {
   const flightMap = { OUT: { departure_time: at(-48) }, RET: { departure_time: at(-1) } };
   const r = computeBulkRefund({ booking: rt, flightMap, cancelledFlightId: "RET", now });
-  // chặng đi đã bay thật (1tr) bị trừ; chặng về là chuyến bị hủy → hoàn đủ 2tr
+  // Chặng đi đã bay thật (1tr) bị trừ; chặng về là chuyến bị hủy → hoàn đủ 2tr
   assert.equal(r.refundAmount, 2_000_000);
   assert.equal(r.tier, "partial");
 });

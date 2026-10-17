@@ -1,25 +1,3 @@
-// services/paymentService.js
-//
-// C6 — logic nghiệp vụ thanh toán, dựng trên lib/vnpayClient.js (chỉ lo phần
-// chữ ký + HTTP). File này quyết định khi nào đổi Booking.status, khi nào
-// confirm/nhả ghế — đúng ranh giới lib/ (giao tiếp ngoài) vs services/
-// (nghiệp vụ) đã áp dụng cho lib/emailClient.js + services/ticketService.js.
-//
-// 3 luồng:
-// 1) initiatePayment()   — POST /api/payments/[bookingId]: khách bấm "Thanh
-//    toán", dựng URL thanh toán VNPay có chữ ký để redirect khách sang.
-// 2) handleWebhook()     — GET /api/payments/vnpay-ipn (VNPay gọi ngầm, IPN):
-//    xử lý kết quả thật, đổi status Booking + ghế.
-// 3) syncPaymentStatus() — trang kết quả (Return URL): server hỏi lại VNPay
-//    (querydr) để chốt booking khi IPN chưa/không về (VD chạy local không ngrok).
-//
-// Race-condition webhook (ghi chú y): dựa thẳng vào điều kiện atomic có sẵn
-// trong seatService.confirmAllSeatsBooked() (status: held, held_by: userId
-// ngay trong query) làm "trọng tài" — KHÔNG tự kiểm tra payment_expires_at
-// thủ công ở đây, tránh 2 nơi tính điều kiện có thể lệch nhau. Nếu ghế đã bị
-// cron nhả hoặc bị người khác giữ/đặt trước khi webhook về, điều kiện đó tự
-// fail → không ghi đè 'confirmed'.
-
 const Booking = require("../models/Booking");
 const Flight = require("../models/Flight");
 const { PAYMENT_MIN_AMOUNT, PAYMENT_MAX_AMOUNT } = require("../config/constants");
@@ -29,10 +7,7 @@ const ticketService = require("./ticketService");
 const vnpayClient = require("../lib/vnpayClient");
 const { nowVN } = require("../lib/timezone");
 
-/**
- * Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. `rspCode` dùng riêng cho IPN:
- * mã phản hồi VNPay mong đợi (97 sai chữ ký, 01 không thấy đơn, 04 sai số tiền, 99 lỗi khác).
- */
+/** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
 class PaymentError extends Error {
   constructor(message, statusCode = 400, rspCode = "99") {
     super(message);
@@ -41,22 +16,15 @@ class PaymentError extends Error {
   }
 }
 
-// Phương thức thanh toán (giá trị lưu ở Booking.payment.method). Khách chọn ngân hàng/thẻ
-// (ATM nội địa, thẻ quốc tế, QR...) ngay trên trang của VNPay.
+// Phương thức thanh toán (giá trị lưu ở Booking.payment.method).
 const PAYMENT_METHODS = Object.freeze({ vnpay: "vnpay" });
 const DEFAULT_PAYMENT_METHOD = "vnpay";
 
-// ObjectId của Mongo luôn là chuỗi hex 24 ký tự — an toàn để lấy 24 ký tự đầu của mã đơn hàng làm
-// bookingId (xem buildOrderId).
+// ObjectId của Mongo luôn là chuỗi hex 24 ký tự — an toàn để lấy 24 ký tự đầu của mã đơn hàng làm bookingId.
 const OBJECT_ID_LENGTH = 24;
 const OBJECT_ID_RE = /^[0-9a-f]{24}$/i;
 
-/**
- * Mã đơn hàng gửi VNPay (vnp_TxnRef) = bookingId (24 ký tự) nối mốc thời gian, CHỈ gồm chữ + số, để:
- * - IPN parse ngược lại đúng bookingId (parseBookingIdFromOrderId), và
- * - vẫn DUY NHẤT cho mỗi lần thanh toán nếu khách bấm "thanh toán lại" (VNPay không nhận trùng
- *   vnp_TxnRef trong ngày).
- */
+/** Mã đơn hàng gửi VNPay (vnp_TxnRef) = bookingId (24 ký tự) nối mốc thời gian, chỉ gồm chữ + số, để. */
 function buildOrderId(bookingId) {
   return `${bookingId}${Date.now()}`;
 }
@@ -94,23 +62,7 @@ async function assertBookingSeatsStillHeld(booking) {
   }
 }
 
-/**
- * C6 — khách bấm "Thanh toán": dựng URL thanh toán VNPay cho 1 booking đang `pending_payment`,
- * trả về payUrl để FE redirect.
- *
- * KHÔNG đổi Booking.status ở bước này (vẫn `pending_payment` cho tới khi IPN/truy vấn báo kết quả
- * thật) — chỉ là bước "khởi tạo giao dịch".
- *
- * @param {Object} params
- * @param {String} params.bookingId
- * @param {String} params.baseUrl - origin của app, dùng để build Return URL tuyệt đối cho VNPay
- * @param {String} [params.ipAddr] - IP của khách (VNPay bắt buộc vnp_IpAddr)
- * @param {String} [params.paymentMethod="vnpay"]
- * @param {String} [params.locale="vi"] - ngôn ngữ trang VNPay + trang kết quả
- * @returns {Promise<{ payUrl: String, orderId: String }>}
- * @throws {PaymentError} 404 không tìm thấy booking, 409 booking không ở trạng thái
- *   chờ thanh toán hoặc đã hết hạn giữ ghế, 400 số tiền ngoài giới hạn
- */
+/** C6 — khách bấm "Thanh toán": dựng URL thanh toán VNPay cho 1 booking đang `pending_payment`. */
 async function initiatePayment({
   bookingId,
   baseUrl,
@@ -118,8 +70,7 @@ async function initiatePayment({
   paymentMethod = DEFAULT_PAYMENT_METHOD,
   locale = "vi",
 }) {
-  // Object.hasOwn: tránh các key kế thừa như "constructor"/"__proto__" lọt qua
-  // bước kiểm tra chỉ vì tồn tại trên prototype của object.
+  // Object.hasOwn: tránh các key kế thừa như "constructor"/"__proto__" lọt qua bước kiểm tra chỉ vì tồn tại trên…
   if (typeof paymentMethod !== "string" || !Object.hasOwn(PAYMENT_METHODS, paymentMethod)) {
     throw new PaymentError(
       `Phương thức thanh toán không được hỗ trợ (chỉ nhận: ${Object.keys(PAYMENT_METHODS).join(", ")}).`,
@@ -137,9 +88,7 @@ async function initiatePayment({
       409
     );
   }
-  // Chặn sớm ở tầng service, tránh tạo giao dịch gần như chắc chắn sẽ rơi vào
-  // payment_error_manual_refund khi IPN về (xem ghi chú y) — dù cron job (ghi chú f)
-  // có thể chưa kịp quét nhả ghế.
+  // Chặn sớm ở tầng service, tránh tạo giao dịch gần như chắc chắn sẽ rơi vào payment_error_manual_refund khi IPN…
   const expiresAt = booking.payment?.payment_expires_at;
   if (expiresAt && nowVN().toDate() > expiresAt) {
     throw new PaymentError(
@@ -148,12 +97,10 @@ async function initiatePayment({
     );
   }
 
-  // Ghế phải CÒN được user này giữ — nếu không, khách trả tiền xong mới phát hiện mất ghế và phải hoàn
-  // tay. Chặn trước khi tạo giao dịch.
+  // Ghế phải còn được user này giữ — nếu không, khách trả tiền xong mới phát hiện mất ghế và phải hoàn tay.
   await assertBookingSeatsStillHeld(booking);
 
-  // VNPay chỉ nhận số tiền trong khoảng giới hạn — ngoài khoảng này VNPay từ chối nhưng booking đã
-  // tạo (ghế đang bị giữ) → kẹt đến khi hết hạn. Chặn sớm.
+  // VNPay chỉ nhận số tiền trong khoảng giới hạn — ngoài khoảng này VNPay từ chối nhưng booking đã tạo.
   if (booking.total_amount < PAYMENT_MIN_AMOUNT || booking.total_amount > PAYMENT_MAX_AMOUNT) {
     throw new PaymentError(
       `Tổng tiền ${booking.total_amount.toLocaleString("vi-VN")}đ nằm ngoài giới hạn thanh toán VNPay (${PAYMENT_MIN_AMOUNT.toLocaleString("vi-VN")}–${PAYMENT_MAX_AMOUNT.toLocaleString("vi-VN")}đ).`,
@@ -162,8 +109,7 @@ async function initiatePayment({
   }
 
   const orderId = buildOrderId(bookingId);
-  // Return URL KHÔNG kèm query (?bookingId=...) — VNPay tự nối tham số vnp_* vào sau; trang kết quả
-  // lấy bookingId từ vnp_TxnRef.
+  // Return URL không kèm query (?bookingId=...) — VNPay tự nối tham số vnp_* vào sau.
   const returnUrl = `${baseUrl}/${locale}/payment`;
 
   const { payUrl, createDate } = vnpayClient.createPaymentUrl({
@@ -178,11 +124,7 @@ async function initiatePayment({
     expireDate: expiresAt || undefined,
   });
 
-  // Ghi nhớ phương thức + mã đơn hàng vừa tạo (KHÔNG đụng status) — updateOne thay vì booking.save()
-  // để không ghi đè nhầm các field khác nếu IPN của lần thanh toán trước đang xử lý song song. Điều
-  // kiện status giữ cho booking đã chốt (confirmed/cancelled...) không bị sửa lại.
-  // `last_order_id` + `last_order_date` dùng để syncPaymentStatus() hỏi lại VNPay (querydr bắt buộc
-  // gửi đúng ngày tạo giao dịch).
+  // Ghi nhớ phương thức + mã đơn hàng vừa tạo (không đụng status).
   await Booking.updateOne(
     { _id: bookingId, status: "pending_payment" },
     {
@@ -204,11 +146,7 @@ async function releaseSeatRefs(booking, seatRefs) {
   }
 }
 
-/**
- * Ghế "thất bại" khi confirm có thể chỉ là do luồng song song (IPN + syncPaymentStatus) vừa
- * confirm xong CHÍNH booking này: ghế đã `booked` bởi chủ booking và không thuộc booking
- * confirmed nào khác -> coi như thành công, không phải mất ghế thật.
- */
+/** Ghế "thất bại" khi confirm có thể chỉ là do luồng song song. */
 async function isSeatLostForReal(booking, { flightId, seatNumber }) {
   const bookedBySame = await seatService.isSeatBookedBy({ flightId, seatNumber, userId: booking.user_id });
   if (!bookedBySame) return true;
@@ -220,15 +158,7 @@ async function isSeatLostForReal(booking, { flightId, seatNumber }) {
   return Boolean(other);
 }
 
-/**
- * Ghi nhận thanh toán ĐÃ ĐƯỢC VNPAY XÁC NHẬN (IPN đúng chữ ký, hoặc kết quả querydr) cho booking
- * `pending_payment` — dùng chung cho IPN và syncPaymentStatus. Mọi thay đổi status đều là
- * findOneAndUpdate ATOMIC có điều kiện `status: "pending_payment"` nên 2 luồng chạy song song /
- * khách hủy cùng lúc không ghi đè nhau. KHÔNG throw vì lỗi nghiệp vụ: tiền đã bị trừ thật.
- *
- * @param {Object} booking
- * @param {{transId: String, amount: Number}} paid - số tiền VNĐ (đã chia 100)
- */
+/** Ghi nhận thanh toán đã được VNPAY xác nhận. */
 async function applySuccessfulPayment(booking, paid) {
   const claim = async (status) =>
     Booking.findOneAndUpdate(
@@ -246,8 +176,7 @@ async function applySuccessfulPayment(booking, paid) {
 
   const seatRefs = collectSeatRefs(booking);
 
-  // Số tiền VNPay thu khác tổng booking (không xảy ra với giao dịch do chính server tạo): không
-  // confirm ghế, đánh dấu hoàn tay, nhả ghế đang giữ.
+  // Số tiền VNPay thu khác tổng booking (không xảy ra với giao dịch do chính server tạo): không confirm ghế.
   if (Number(paid.amount) !== booking.total_amount) {
     const won = await claim("payment_error_manual_refund");
     if (!won) return Booking.findById(booking._id);
@@ -268,13 +197,11 @@ async function applySuccessfulPayment(booking, paid) {
     }
   }
 
-  // Ghi chú (y): mất ghế thật -> TUYỆT ĐỐI không 'confirmed'; không rollback ghế đã confirm vì
-  // tiền đã trừ thật — admin hoàn tay (A3).
+  // Ghi chú (y): mất ghế thật -> tuyệt đối không 'confirmed'; không rollback ghế đã confirm vì tiền đã trừ thật.
   const won = await claim(seatsLost ? "payment_error_manual_refund" : "confirmed");
 
   if (!won) {
-    // Thua race ghi status. Luồng kia đã xác nhận -> trả về luôn. Nếu booking đã bị hủy trong lúc
-    // chờ: nhả đúng những ghế VỪA confirm ở lần gọi này rồi ghi nhận thanh toán muộn.
+    // Thua race ghi status.
     const fresh = await Booking.findById(booking._id);
     if (fresh && fresh.status === "cancelled") {
       await releaseSeatRefs(booking, confirmedRefs);
@@ -290,11 +217,7 @@ async function applySuccessfulPayment(booking, paid) {
   return won;
 }
 
-/**
- * Nhánh THẤT BẠI (VNPay xác nhận thất bại dứt khoát). Giành quyền đổi status TRƯỚC (atomic, điều
- * kiện pending_payment), chỉ thắng mới nhả ghế -> không nhả nhầm khi luồng khác vừa xác nhận
- * thanh toán thành công.
- */
+/** Nhánh thất bại (VNPay xác nhận thất bại dứt khoát). */
 async function applyFailedPayment(booking) {
   const won = await Booking.findOneAndUpdate(
     { _id: booking._id, status: "pending_payment" },
@@ -311,19 +234,7 @@ async function applyFailedPayment(booking) {
   return won;
 }
 
-/**
- * Quyết định webhook cần làm gì — hàm THUẦN (không đụng DB) để test được.
- *
- * - `pending_payment` + thành công        -> "confirm"
- * - `pending_payment` + thất bại          -> "fail"
- * - `cancelled` + thành công + chưa ghi transaction_id -> "late_payment_error":
- *   booking đã bị cron/khách hủy (ghế đã nhả) nhưng VNPay vẫn trừ tiền. Theo ghi chú (y)
- *   KHÔNG được bỏ qua âm thầm — chuyển `payment_error_manual_refund` để admin hoàn tay.
- * - thành công lần nữa (transId khác) trên booking đã chốt -> "duplicate_payment"
- * - mọi trường hợp khác (IPN gửi lại, booking đã confirmed/refunded...) -> "noop"
- *
- * @param {{status: String, paid: Boolean, hasTransactionId?: Boolean, transId?: String, storedTransId?: String}} p
- */
+/** Quyết định webhook cần làm gì — hàm thuần (không đụng DB) để test được. */
 function decideWebhookAction({ status, paid, hasTransactionId, transId, storedTransId }) {
   if (status === "pending_payment") {
     return paid ? "confirm" : "fail";
@@ -331,8 +242,7 @@ function decideWebhookAction({ status, paid, hasTransactionId, transId, storedTr
   if (status === "cancelled" && paid && !hasTransactionId) {
     return "late_payment_error";
   }
-  // Thanh toán THÀNH CÔNG thêm lần nữa trên 1 booking đã chốt (VD khách bấm "Thanh toán"
-  // 2 lần -> 2 giao dịch VNPay, cả 2 đều trả tiền). IPN gửi lại cùng transId thì vẫn là noop.
+  // Thanh toán thành công thêm lần nữa trên 1 booking đã chốt.
   if (
     paid &&
     hasTransactionId &&
@@ -345,10 +255,7 @@ function decideWebhookAction({ status, paid, hasTransactionId, transId, storedTr
   return "noop";
 }
 
-/**
- * Ghi nhận khoản thanh toán thừa (trả 2 lần cho 1 booking) vào payment.extra_payments để
- * admin hoàn tay. Idempotent theo trans_id (IPN gửi lại không ghi trùng).
- */
+/** Ghi nhận khoản thanh toán thừa (trả 2 lần cho 1 booking) vào payment.extra_payments để admin hoàn tay. */
 async function applyDuplicatePayment(booking, { transId, orderId, amount }) {
   await Booking.updateOne(
     {
@@ -373,11 +280,7 @@ async function applyDuplicatePayment(booking, { transId, orderId, amount }) {
   return booking;
 }
 
-/**
- * Tiền đã bị trừ nhưng booking đã `cancelled` (ghế đã được nhả từ trước, có thể đang
- * thuộc người khác) -> KHÔNG đụng tới ghế, chỉ ghi nhận giao dịch + đánh dấu cần hoàn tay.
- * Atomic (điều kiện cancelled + chưa có transaction_id).
- */
+/** Tiền đã bị trừ nhưng booking đã `cancelled`. */
 async function applyLatePayment(booking, { transId }) {
   const updated = await Booking.findOneAndUpdate(
     { _id: booking._id, status: "cancelled", "payment.transaction_id": { $exists: false } },
@@ -394,20 +297,7 @@ async function applyLatePayment(booking, { transId }) {
   return updated || (await Booking.findById(booking._id));
 }
 
-/**
- * Trang kết quả thanh toán (Return URL) gọi mỗi khi khách quay lại: booking còn `pending_payment`
- * thì server hỏi thẳng VNPay (querydr) kết quả giao dịch gần nhất — KHÔNG tin tham số trên Return
- * URL. Nhờ vậy chạy local không cần ngrok (IPN không về được) vẫn chốt được booking.
- *
- * - "success"  -> ghi nhận như IPN (số tiền lệch -> payment_error_manual_refund).
- * - "failed"   -> hủy booking + nhả ghế ngay (VNPay đã xác nhận thất bại dứt khoát).
- * - còn lại (chưa thanh toán / đang xử lý / không truy vấn được) -> giữ nguyên; IPN hoặc cron
- *   (quá payment_expires_at) sẽ dọn.
- * Không bao giờ ném lỗi ra ngoài: lỗi mạng/VNPay -> trả booking nguyên trạng.
- *
- * @param {String} bookingId
- * @returns {Promise<Object|null>} Booking doc (sau khi có thể đã được xác nhận)
- */
+/** Trang kết quả thanh toán (Return URL) gọi mỗi khi khách quay lại. */
 async function syncPaymentStatus(bookingId) {
   const booking = await Booking.findById(bookingId);
   if (!booking || booking.status !== "pending_payment") return booking;
@@ -438,21 +328,7 @@ async function syncPaymentStatus(bookingId) {
   }
 }
 
-/**
- * C6 — xử lý IPN VNPay gửi tới `GET /api/payments/vnpay-ipn` (URL cấu hình ở trang quản trị merchant).
- *
- * Tin IPN sau khi xác minh: chữ ký HMAC-SHA512 bằng vnp_HashSecret RIÊNG của merchant + đúng
- * vnp_TmnCode + đúng số tiền. (Khác MoMo sandbox dùng chung khóa công khai, nên không cần hỏi lại
- * VNPay cho từng IPN.)
- *
- * IDEMPOTENT: VNPay có thể gửi lại cùng 1 IPN nhiều lần — booking đã ra khỏi `pending_payment`
- * thì coi như no-op, KHÔNG chạy lại confirmAllSeatsBooked.
- *
- * @param {Object} query - tham số vnp_* trên query string
- * @returns {Promise<{ booking: Object, rspCode: String }>} rspCode "00" đã xử lý, "02" đơn đã được
- *   xác nhận từ trước (IPN lặp lại)
- * @throws {PaymentError} rspCode 97 sai chữ ký, 01 không có đơn, 04 sai số tiền, 99 chưa xử lý được
- */
+/** C6 — xử lý IPN VNPay gửi tới `GET /api/payments/vnpay-ipn` (URL cấu hình ở trang quản trị merchant). */
 async function handleWebhook(query) {
   if (!vnpayClient.verifyReturnParams(query)) {
     throw new PaymentError("Chữ ký IPN VNPay không hợp lệ.", 400, "97");
@@ -476,15 +352,13 @@ async function handleWebhook(query) {
     throw new PaymentError("Giao dịch VNPay chưa hoàn tất.", 503, "99");
   }
 
-  // Số tiền trong IPN phải đúng tổng tiền booking (chữ ký đúng nhưng số tiền lệch = dữ liệu bất
-  // thường) — trả "04" theo quy ước VNPay, không đổi gì.
+  // Số tiền trong IPN phải đúng tổng tiền booking (chữ ký đúng nhưng số tiền lệch = dữ liệu bất thường).
   if (result.amount !== booking.total_amount) {
     console.error(`[webhook] SAI SỐ TIỀN: bookingId=${booking._id}, VNPay=${result.amount}, booking=${booking.total_amount}`);
     throw new PaymentError("Số tiền không khớp booking.", 400, "04");
   }
 
-  // Lọc IPN thất bại lỗi thời: mã đơn hàng không khớp lần thanh toán cuối (payment.last_order_id)
-  // -> phản hồi của lần CŨ hơn, KHÔNG được hủy booking khi lần mới có thể đang chờ.
+  // Lọc IPN thất bại lỗi thời: mã đơn hàng không khớp lần thanh toán cuối.
   const lastOrderId = booking.payment?.last_order_id;
   if (!paid && lastOrderId && result.txnRef !== lastOrderId) {
     return { booking, rspCode: "00" };

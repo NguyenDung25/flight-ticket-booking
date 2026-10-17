@@ -1,11 +1,5 @@
 "use client";
 
-// components/admin/SeatLayoutFields.jsx
-//
-// Ô nhập cấu hình ghế THEO HẠNG (số hàng + số ghế mỗi hàng của business / economy) kèm
-// xem trước sơ đồ cabin. Dùng chung cho form thêm máy bay và dòng sửa máy bay (A2) để hai nơi
-// luôn sinh ghế giống nhau. State do component cha giữ (controlled).
-
 import { MAX_ROWS_PER_CLASS, MAX_SEATS_PER_ROW, layoutTotal, seatLetters } from "@/lib/seatLayout";
 
 const inputCls =

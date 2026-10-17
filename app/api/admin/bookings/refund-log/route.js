@@ -1,13 +1,3 @@
-// app/api/admin/bookings/refund-log/route.js
-//
-// A7 — nhật ký đối soát hoàn tiền, CHỈ ĐỌC (không có POST/PATCH/DELETE: đây không còn là
-// hàng đợi duyệt). Trả các booking đã `refunded` kèm số tiền hoàn, mức phạt đã áp, lý do
-// khách nhập, thời điểm xử lý. Thêm ?include_errors=1 để lấy luôn các booking
-// `payment_error_manual_refund` đang chờ admin hoàn tay.
-//
-// Trang quản trị /admin/refunds đọc DB trực tiếp (convention của các page.js); route này
-// phục vụ đúng đặc tả API và cho tích hợp/kiểm thử bên ngoài.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

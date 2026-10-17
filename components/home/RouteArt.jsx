@@ -1,9 +1,3 @@
-// components/home/RouteArt.jsx
-//
-// Hình minh họa SVG (nền trời gradient + hình khối đặc trưng) cho thẻ tuyến bay — hiển thị khi chưa có ảnh
-// thật của điểm đến trong public/images/routes/. Thuần trang trí (aria-hidden); không dùng hook nên import
-// được cả từ Server lẫn Client component.
-
 function Motif({ motif }) {
   switch (motif) {
     case "skyline":

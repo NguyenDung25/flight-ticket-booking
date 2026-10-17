@@ -1,7 +1,5 @@
 "use client";
 
-// app/[locale]/register/RegisterForm.jsx
-
 import { useActionState, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Input from "@/components/ui/Input";
@@ -23,13 +21,10 @@ export default function RegisterForm() {
   const [state, formAction, isPending] = useActionState(registerAction, initialState);
 
   // Lưu name/email vào sessionStorage để không mất khi đổi ngôn ngữ.
-  // Không lưu password — không bao giờ lưu password vào storage.
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
 
-  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
-  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
-  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  // Render lần đầu bằng giá trị mặc định (giống server — server không đọc được sessionStorage).
   useEffect(() => {
     const id = setTimeout(() => {
       setFullName(readReg("fullName"));

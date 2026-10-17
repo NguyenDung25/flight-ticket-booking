@@ -1,9 +1,3 @@
-// services/ancillaryPricingService.js
-//
-// Bảng giá dịch vụ bổ sung (hành lý ký gửi, suất ăn) — đọc/ghi Setting key "ancillary_pricing".
-// Chưa có trong DB (hoặc dữ liệu hỏng) -> DEFAULT_PRICING của lib/ancillaries.js. Đổi bảng giá chỉ áp
-// dụng cho booking tạo SAU đó: booking đã tạo lưu sẵn giá + số kg của từng ghế.
-
 const Setting = require("../models/Setting");
 const { normalizePricing, pricingOrDefault, DEFAULT_PRICING } = require("../lib/ancillaries");
 
@@ -21,10 +15,7 @@ async function getAncillaryPricingInfo() {
   return { pricing: pricingOrDefault(doc?.value), updated_at: doc?.updated_at ?? null, is_default: !doc };
 }
 
-/**
- * Admin lưu bảng giá mới.
- * @throws {AncillaryError} 400 dữ liệu không hợp lệ (message tiếng Việt, hiện thẳng cho admin)
- */
+/** Admin lưu bảng giá mới. */
 async function updateAncillaryPricing({ raw, adminId }) {
   const pricing = normalizePricing(raw);
   await Setting.updateOne(

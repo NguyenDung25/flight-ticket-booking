@@ -1,16 +1,5 @@
 "use client";
 
-// app/[locale]/booking/passengers/SeatMap.jsx
-//
-// C5 — hiển thị thuần túy (không tự gọi API, mọi logic hold/release nằm ở
-// PassengersForm.jsx) — nhận `seats[]` đã có localStatus tính sẵn cho từng
-// ghế (xem computeLocalStatus trong PassengersForm) và chỉ render + báo
-// onSelect khi khách bấm vào 1 ghế "chọn được".
-//
-// seat_number dạng "12C" (số hàng + chữ cái, xem models/Aircraft.js) — tách
-// ra để nhóm theo hàng, KHÔNG giả định số cột cố định vì seat_map_template
-// tự do theo từng Aircraft.
-
 function parseSeatNumber(seatNumber) {
   const match = /^(\d+)([A-Za-z]+)$/.exec(seatNumber);
   if (!match) return { row: seatNumber, letter: "" };
@@ -51,9 +40,7 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
       <div className="overflow-x-auto">
       <div className="flex flex-col gap-1.5 min-w-max">
         {rowNumbers.map((row) => {
-          // Lưới cột = số ghế của hàng DÀI NHẤT (thường là economy). Hàng ngắn hơn (business) được đặt vào GIỮA
-          // lưới → ghế business thẳng cột với các ghế giữa của economy (VD economy A–F, business 4 ghế → B–E).
-          // Lối đi nằm giữa lưới (sau nửa số cột) khi lưới từ 4 cột trở lên, giống máy bay thật.
+          // Lưới cột = số ghế của hàng dài nhất (thường là economy).
           const rowSeats = [...rows[row]].sort((a, b) => a.seat_number.localeCompare(b.seat_number));
           const offset = Math.floor((gridCols - rowSeats.length) / 2);
           const aisleAt = gridCols >= 4 ? Math.ceil(gridCols / 2) : -1;

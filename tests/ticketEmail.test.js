@@ -1,5 +1,3 @@
-// tests/ticketEmail.test.js — C7: chỉ ghi ticket_emailed_at khi email vé GỬI ĐƯỢC THẬT, để trang kết
-// quả thanh toán không báo "đã gửi email" khi SMTP lỗi/chưa cấu hình. Không cần MongoDB.
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

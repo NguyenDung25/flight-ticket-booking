@@ -1,9 +1,3 @@
-// app/api/admin/ancillaries/route.js
-//
-// Bảng giá dịch vụ bổ sung (hành lý ký gửi, suất ăn): GET (xem) + PUT (lưu). Kiểm tra dữ liệu ở
-// lib/ancillaries.normalizePricing (lỗi 400 kèm câu tiếng Việt). Đổi giá chỉ áp dụng cho booking mới —
-// booking đã tạo giữ giá lúc đặt. Ghi nhật ký thao tác admin.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

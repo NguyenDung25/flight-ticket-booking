@@ -1,21 +1,6 @@
-// services/flightService.js
-//
-// C1 (tìm kiếm chuyến bay), C3 (chi tiết 1 chuyến bay). C2 (lọc theo giá/
-// khung giờ/hãng bay) xử lý phía client trên kết quả C1 đã trả về (theo đúng
-// ghi chú kỹ thuật C2 — quy mô đồ án không cần query lại server).
-//
-// API liên quan: GET /api/flights/search (C1), GET /api/flights/[id] (C3)
-
 const Flight = require("../models/Flight");
 const Booking = require("../models/Booking");
-// Flight.airline_id/aircraft_id chỉ là { ref: "Airline"/"Aircraft" } (tên
-// chuỗi) — Mongoose CHỈ tìm ra model thật khi file định nghĩa nó đã được
-// require() ở ĐÂU ĐÓ trong cùng tiến trình. Next.js/Turbopack bundle theo
-// từng route RIÊNG BIỆT ở dev, nên nếu route nào đó (VD trang chi tiết
-// chuyến bay) không tự require 2 model này, và không có route KHÁC tình cờ
-// nạp trước trong cùng bundle, .populate("airline_id"/"aircraft_id") bên
-// dưới sẽ ném MissingSchemaError — đúng bug vừa gặp khi test C3. Require ở
-// đây để KHÔNG PHỤ THUỘC vào việc file khác có tình cờ nạp trước hay không.
+// Flight.airline_id/aircraft_id chỉ là { ref: "Airline"/"Aircraft" } (tên chuỗi).
 require("../models/Airline");
 require("../models/Aircraft");
 const { dayRangeVN, todayStringVN, isValidYmd } = require("../lib/timezone");
@@ -29,14 +14,8 @@ class FlightError extends Error {
   }
 }
 
-/**
- * Đếm số ghế còn `available` theo từng seat_class, ngay trong Aggregation
- * Pipeline — TRÁNH trả nguyên mảng `seats[]` (có thể vài trăm phần tử/chuyến)
- * về client chỉ để hiển thị danh sách kết quả tìm kiếm (C1/C2), vốn chỉ cần
- * biết còn trống bao nhiêu ghế mỗi hạng, không cần seat_number cụ thể.
- * Seat map chi tiết (để chọn ghế) chỉ cần tải riêng ở bước C5.
- */
-// Ghế trống = `available`, HOẶC `held` đã quá hạn (cron chưa kịp nhả) — khớp seatService.holdSeat.
+/** Đếm số ghế còn `available` theo từng seat_class, ngay trong Aggregation Pipeline. */
+// Ghế trống = `available`, hoặc `held` đã quá hạn (cron chưa kịp nhả) — khớp seatService.holdSeat.
 const AVAILABLE_SEAT_COND = {
   $or: [
     { $eq: ["$$s.status", "available"] },
@@ -67,20 +46,7 @@ function buildAvailableSeatsProjection() {
   };
 }
 
-/**
- * Query 1 chặng bay theo route + 1 ngày dương lịch (giờ VN). Dùng chung cho
- * cả chặng đi và chặng về (round_trip chỉ đảo `origin`/`destination`).
- *
- * CHỈ trả chuyến `status: "scheduled"` — chuyến đã bị hãng hủy (`cancelled`)
- * không được hiển thị cho khách tìm/đặt tiếp, dù dữ liệu vẫn còn trong DB
- * (A8 xử lý booking liên quan, không xóa Flight).
- *
- * Chuyến ĐÃ KHỞI HÀNH (departure_time <= now) cũng không trả về — khách không
- * thể đặt chuyến đã bay. Với ngày hôm nay, mốc bắt đầu là `now` thay vì 00:00;
- * với ngày tương lai `start` luôn > now nên không đổi gì.
- *
- * Sắp xếp mặc định theo `departure_time` tăng dần (đúng Đầu ra C1).
- */
+/** Query 1 chặng bay theo route + 1 ngày dương lịch (giờ VN). */
 async function queryFlightsByLeg({ origin, destination, date }) {
   const { start: dayStart, end } = dayRangeVN(date);
   const now = new Date();
@@ -120,25 +86,7 @@ async function queryFlightsByLeg({ origin, destination, date }) {
   ]);
 }
 
-/**
- * C1 — tìm kiếm chuyến bay. Với khứ hồi, query 2 lần (ghi chú kỹ thuật C1):
- * chặng đi (origin→destination, departure_date) và chặng về (destination→
- * origin, return_date, origin/destination ĐẢO CHIỀU).
- *
- * `passenger_count` KHÔNG dùng để lọc bớt chuyến khỏi kết quả (tài liệu
- * không yêu cầu ẩn chuyến thiếu chỗ) — mỗi chuyến trả kèm `available_seats`
- * để client tự quyết định hiển thị cảnh báo/khóa nút đặt nếu không đủ ghế
- * cho `passenger_count`, tránh hệ thống âm thầm giấu bớt lựa chọn của khách.
- *
- * @param {Object} params
- * @param {String} params.origin - Airport.code điểm đi
- * @param {String} params.destination - Airport.code điểm đến
- * @param {String|Date} params.departureDate
- * @param {"one_way"|"round_trip"} params.tripType
- * @param {String|Date} [params.returnDate] - bắt buộc nếu round_trip
- * @param {Number} [params.passengerCount]
- * @returns {Promise<{ outbound: Array, return: Array|null }>}
- */
+/** C1 — tìm kiếm chuyến bay. */
 async function searchFlights({ origin, destination, departureDate, tripType, returnDate, passengerCount }) {
   if (!origin || !destination) {
     throw new FlightError("Thiếu điểm đi hoặc điểm đến.");
@@ -192,24 +140,12 @@ async function searchFlights({ origin, destination, departureDate, tripType, ret
   return { outbound, return: returnLeg };
 }
 
-/**
- * C3 — chi tiết 1 chuyến bay. Trả FULL `seats[]` (khác `searchFlights` ở
- * trên) vì C4/C5 (nhập hành khách + chọn ghế) diễn ra NGAY TRÊN CÙNG màn
- * hình chi tiết này (theo ma trận phụ thuộc mục 5) — cần sẵn seat map đầy đủ
- * để vẽ sơ đồ ghế, không cần gọi thêm API riêng.
- *
- * @returns {Promise<Object>} Flight doc, có populate airline_id/aircraft_id
- * @throws {FlightError} 404 nếu không tồn tại
- */
+/** C3 — chi tiết 1 chuyến bay. */
 async function getFlightDetail(flightId) {
   const flight = await Flight.findById(flightId)
     .populate("airline_id", "code name")
     .populate("aircraft_id", "name");
-  // CỐ Ý trả đủ field (kể cả seats[].held_by): booking/passengers/page.js cần
-  // held_by để tính held_by_me ngay trên server rồi tự lọc trước khi gửi
-  // xuống client. Việc ẩn held_by/boarding_pass_code khỏi người ngoài làm ở
-  // API công khai GET /api/flights/[id] (xem route.js), KHÔNG làm ở đây —
-  // loại ở service sẽ khiến held_by_me luôn false, khách mất ghế đang giữ.
+  // Cố Ý trả đủ field (kể cả seats[].held_by).
 
   if (!flight) {
     throw new FlightError("Không tìm thấy chuyến bay.", 404);
@@ -218,21 +154,7 @@ async function getFlightDetail(flightId) {
   return flight;
 }
 
-/**
- * A1 (ghi chú v) — chặn sửa `departure_time`/`aircraft_id` hoặc xóa chuyến
- * bay nếu đang có booking HIỆU LỰC liên quan (`pending_payment` hoặc
- * `confirmed` — KHÔNG tính `cancelled`/`refunded`/`payment_error_manual_refund`,
- * vì các trạng thái đó không còn giữ ghế thật, đã xử lý xong).
- *
- * Gọi hàm này ở:
- * - PATCH /api/admin/flights/[id], CHỈ KHI body có sửa `departure_time`
- *   (đổi `base_price`/`status`/tên chuyến không ảnh hưởng vé đã bán, không
- *   cần chặn).
- * - DELETE /api/admin/flights/[id], LUÔN LUÔN (xóa hẳn document càng phải
- *   chặn chắc hơn sửa 1 field).
- *
- * @throws {FlightError} 409 nếu có ít nhất 1 booking hiệu lực đang phụ thuộc
- */
+/** A1 (ghi chú v) — chặn sửa `departure_time`/`aircraft_id` hoặc xóa chuyến bay nếu đang có booking hiệu lực… */
 async function assertNoActiveBooking(flightId) {
   const hasActive = await Booking.exists({
     "flights.flight_id": flightId,
@@ -246,13 +168,7 @@ async function assertNoActiveBooking(flightId) {
   }
 }
 
-/**
- * Giá phổ thông thấp nhất theo TỪNG NGÀY (giờ VN) của 1 tuyến — cho dải chọn ngày ở trang kết quả tìm
- * kiếm. Cùng điều kiện với queryFlightsByLeg: chỉ chuyến `scheduled`, chưa khởi hành.
- *
- * @param {{ origin: string, destination: string, dates: string[] }} params - dates dạng "YYYY-MM-DD"
- * @returns {Promise<Object<string, number>>} { "YYYY-MM-DD": giá thấp nhất } (ngày không có chuyến: không có key)
- */
+/** Giá phổ thông thấp nhất theo từng ngày (giờ VN) của 1 tuyến — cho dải chọn ngày ở trang kết quả tìm kiếm. */
 async function getDailyMinPrices({ origin, destination, dates }) {
   if (!origin || !destination || !Array.isArray(dates) || dates.length === 0) return {};
   const sorted = [...dates].sort();

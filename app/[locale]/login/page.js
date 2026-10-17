@@ -1,10 +1,3 @@
-// app/[locale]/login/page.js
-//
-// C8 — proxy.js redirect khách chưa đăng nhập tới đây kèm
-// ?callbackUrl=<path gốc họ định vào> (xem PROTECTED_CUSTOMER_PATHS trong
-// proxy.js) — đọc lại searchParams để LoginForm biết đăng nhập xong quay về
-// đâu, KHÔNG hard-code "/".
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";

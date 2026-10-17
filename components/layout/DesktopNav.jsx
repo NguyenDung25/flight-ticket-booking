@@ -1,8 +1,5 @@
 "use client";
 
-// components/layout/DesktopNav.jsx — menu ngang trên màn hình lớn (≥ lg). Client Component vì cần
-// biết trang hiện tại (usePathname) để ẩn mục menu của chính trang đó (navFilter.js).
-
 import { Link, usePathname } from "@/i18n/navigation";
 import { hideCurrentPage } from "./navFilter";
 

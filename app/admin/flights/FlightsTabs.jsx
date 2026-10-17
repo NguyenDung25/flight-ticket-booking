@@ -1,9 +1,3 @@
-// app/admin/flights/FlightsTabs.jsx
-//
-// Thanh tab của mục "Chuyến bay": "Danh sách chuyến bay" (mặc định) và "Tuyến phổ biến" (?tab=routes —
-// quản lý khối "Tuyến bay phổ biến" ở trang chủ khách). Cả hai cùng nằm dưới 1 mục menu Chuyến bay.
-// Server Component thuần (chỉ là 2 liên kết).
-
 import Link from "next/link";
 
 const TABS = [

@@ -1,5 +1,3 @@
-// components/layout/Footer.jsx
-
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 

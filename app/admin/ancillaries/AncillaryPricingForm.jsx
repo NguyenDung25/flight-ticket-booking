@@ -1,11 +1,5 @@
 "use client";
 
-// app/admin/ancillaries/AncillaryPricingForm.jsx
-//
-// Sửa bảng giá dịch vụ bổ sung: hành lý xách tay, ký gửi đã gồm theo hạng, các gói ký gửi mua thêm
-// (thêm/xóa dòng), suất ăn theo hạng (đã gồm hoặc trả phí). Server kiểm tra lại toàn bộ
-// (lib/ancillaries.normalizePricing) — form chỉ giữ giá trị dạng chuỗi để gõ thoải mái.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

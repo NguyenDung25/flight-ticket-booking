@@ -1,11 +1,3 @@
-// app/admin/users/page.js
-//
-// A4 — danh sách user, khóa/mở khóa. Gọi thẳng User.find() (KHÔNG qua
-// /api/admin/users) — page.js đã chạy server-side sẵn, giống mọi page.js
-// khác trong dự án (trang chủ gọi thẳng Airport.find(), search gọi thẳng
-// searchFlights()...). Route API vẫn giữ cho việc TOGGLE (cần tương tác
-// client), bản thân LIST thì đọc thẳng.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import User from "@/models/User";
@@ -24,9 +16,7 @@ export default async function AdminUsersPage() {
     .limit(200)
     .lean();
 
-  // Map về mảng thuần (bỏ mọi field không cần) trước khi truyền cho Client
-  // Component — _id là ObjectId (BSON), không tự serialize qua ranh giới
-  // Server -> Client Component, phải String() hóa ở đây.
+  // Map về mảng thuần (bỏ mọi field không cần) trước khi truyền cho Client Component — _id là ObjectId (BSON).
   const users = usersDocs.map((u) => ({
     id: String(u._id),
     email: u.email,
@@ -70,8 +60,7 @@ export default async function AdminUsersPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-ink/60">
-                  {/* timeZone tường minh — cùng bẫy múi giờ đã gặp ở
-                      scripts/seedSample.js, xem comment ở đó. */}
+                  {/* timeZone tường minh để ngày hiển thị theo giờ VN, không theo múi giờ máy chủ. */}
                   {u.created_at
                     ? new Date(u.created_at).toLocaleDateString("vi-VN", {
                         timeZone: "Asia/Ho_Chi_Minh",

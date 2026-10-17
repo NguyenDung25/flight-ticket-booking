@@ -1,9 +1,3 @@
-// app/api/admin/aircraft/route.js
-//
-// A2 — CRUD máy bay. `seat_map_template` là NGUỒN DUY NHẤT sinh ghế khi tạo
-// Flight (A1, ghi chú u) — admin nhập kỹ ở đây, KHÔNG có bước nhập ghế riêng
-// lúc tạo chuyến bay.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
@@ -39,10 +33,7 @@ export async function POST(request) {
       );
     }
 
-    // Cảnh báo SỚM nếu độ dài không khớp — schema KHÔNG tự validate việc này
-    // (ghi chú trong models/Aircraft.js, cố tình để đồ án đơn giản), nhưng
-    // route vẫn nên cảnh báo rõ ràng thay vì để admin tự phát hiện sau khi
-    // tạo hàng loạt Flight với seat map sai.
+    // Cảnh báo sớm nếu độ dài không khớp — schema không tự validate việc này.
     if (seat_map_template.length !== Number(total_seats)) {
       return NextResponse.json(
         {

@@ -1,19 +1,3 @@
-// app/api/admin/flights/[id]/cancel-bulk/route.js
-//
-// A8 — hủy chuyến bay THẬT SỰ do lỗi hãng (khác PATCH /api/admin/flights/[id]
-// ở chỗ route đó CHỈ đổi field status đơn thuần, KHÔNG đụng Booking nào —
-// xem comment trong file đó). Route này làm CẢ 2 việc trong 1 request:
-// 1. Đổi Flight.status -> "cancelled".
-// 2. Cascade cancellationService.cancelBookingsForFlight() — hủy/hoàn tiền
-//    TOÀN BỘ booking đang pending_payment/confirmed gắn với chuyến này.
-//
-// KHÔNG dùng transaction MongoDB thật (đúng comment mục 10 statsService.js —
-// dự án không dùng Transaction) — nếu bước 2 lỗi giữa chừng sau khi bước 1
-// đã lưu, Flight vẫn đúng "cancelled" (sự thật), chỉ có 1 số Booking chưa
-// kịp xử lý — an toàn để CHẠY LẠI route này (cancelBookingsForFlight tự lọc
-// đúng status pending_payment/confirmed còn sót, không xử lý trùng booking
-// đã refunded/cancelled từ lần chạy trước).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
@@ -40,12 +24,7 @@ export async function POST(request, { params }) {
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
-    // KHÔNG chặn 409 khi chuyến đã "cancelled" — đúng thiết kế ở comment đầu
-    // file ("an toàn để CHẠY LẠI route này"). Trước đây guard 409 ở đây chặn
-    // ngược chính ý đó: nếu lần trước lỗi giữa chừng sau khi lưu status nhưng
-    // trước khi hủy hết booking, gọi lại sẽ bị 409 và các booking còn sót
-    // không bao giờ xử lý được. cancelBookingsForFlight tự lọc booking còn
-    // pending_payment/confirmed; không còn gì thì trả danh sách rỗng, vô hại.
+    // Không chặn khi chuyến đã "cancelled": cho phép chạy lại để xử lý nốt booking còn sót.
     if (flight.status !== "cancelled") {
       flight.status = "cancelled";
       await flight.save();

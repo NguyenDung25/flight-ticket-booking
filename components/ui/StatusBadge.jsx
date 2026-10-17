@@ -1,11 +1,3 @@
-// components/ui/StatusBadge.jsx
-//
-// Server Component thuần. Cố tình KHÔNG tự gọi useTranslations ở đây để
-// không ép nơi gọi phải là Client Component — nơi gọi tự lấy label đã dịch
-// (từ namespace MyBookings.status*) và truyền vào, component này chỉ lo
-// màu sắc theo đúng 5 giá trị enum thật của Booking.status
-// (models/Booking.js) — KHÔNG thêm trạng thái nào ngoài danh sách đó.
-
 const TONE_CLASSES = {
   pending_payment: "bg-warning/10 text-warning border-warning/30",
   confirmed: "bg-success/10 text-success border-success/30",

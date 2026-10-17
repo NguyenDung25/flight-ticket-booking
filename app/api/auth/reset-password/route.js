@@ -1,9 +1,3 @@
-// app/api/auth/reset-password/route.js
-//
-// Đặt lại mật khẩu từ link email: POST { token, new_password }. Token dùng 1 lần, hết hạn sau 30 phút;
-// thành công thì mọi phiên đăng nhập cũ hết hiệu lực (services/accountService.resetPassword()).
-// Giới hạn số lần thử sai theo IP để không dò được token.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { handleApiError } from "@/lib/apiError";

@@ -1,7 +1,5 @@
 "use client";
 
-// app/[locale]/account/EmailVerification.jsx — trạng thái xác thực email + nút gửi lại link.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";

@@ -1,17 +1,5 @@
 "use client";
 
-// app/[locale]/my-bookings/BookingList.jsx
-//
-// C9 — hiển thị danh sách vé + nút hủy. Xác nhận 2 bước ngay trên thẻ (bấm
-// "Hủy vé" -> hiện "Xác nhận hủy?" + 2 nút Có/Không) thay vì window.confirm()
-// để giữ đúng phong cách UI của app (Modal/dialog riêng CHƯA có trong
-// components/ui, không tự chế thêm 1 component mới chỉ cho 1 chỗ dùng).
-//
-// Sau khi hủy thành công, THAY THẾ NGUYÊN booking đó bằng bản trả về từ
-// API (đã có đủ refund_amount/cancellation_fee_amount/status mới) — không tự
-// suy đoán các field đó ở client, vì công thức tính nằm hoàn toàn ở
-// services/cancellationService.js (mốc 24h/3h, 3 trường hợp khứ hồi...).
-
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -32,24 +20,12 @@ const STATUS_LABEL_KEY = {
   payment_error_manual_refund: "statusPaymentErrorManualRefund",
 };
 
-// Chỉ cho THỬ hủy ở 2 trạng thái này — mọi rule chi tiết hơn (đã check-in,
-// hành trình đã hoàn tất...) do chính API /cancel đối chiếu lại và trả lỗi
-// rõ ràng, nút bấm ở đây chỉ lọc bớt trường hợp CHẮC CHẮN không hủy được
-// (VD đã 'refunded' hoặc 'cancelled' từ trước) để đỡ 1 lượt gọi API vô ích.
+// Chỉ cho thử hủy ở 2 trạng thái này — mọi rule chi tiết hơn.
 const CANCELLABLE_STATUSES = new Set(["pending_payment", "confirmed"]);
 
-/**
- * Đếm ngược thời gian còn lại tới `expiresAt` (ISO string) — chỉ tính KHOẢNG
- * CÁCH thời gian (mili-giây), không so ngày theo lịch, nên KHÔNG cần quy đổi
- * qua lib/timezone.js (Date.parse() luôn ra epoch UTC tuyệt đối bất kể chuỗi
- * input viết theo giờ nào, hiệu số 2 epoch luôn đúng, không lệch múi giờ).
- * Cập nhật mỗi giây bằng setInterval — expiresAt CỐ ĐỊNH (không đổi sau khi
- * mount) nên đưa thẳng vào dependency array là đủ, không cần ref.
- */
+/** Đếm ngược thời gian còn lại tới `expiresAt` (ISO string) — chỉ tính khoảng cách thời gian (mili-giây). */
 function useCountdown(expiresAt) {
-  // Bắt đầu bằng null (chưa hiển thị) ở CẢ server lẫn lần render đầu trên trình duyệt: nếu tính
-  // Date.now() ngay khi render, server và trình duyệt lệch nhau vài trăm ms -> chữ "11:33" vs "11:34"
-  // khác nhau -> lỗi hydration. Chỉ bắt đầu đếm sau khi component đã chạy trên trình duyệt.
+  // Bắt đầu bằng null (chưa hiển thị) ở cả server lẫn lần render đầu trên trình duyệt.
   const [remainingMs, setRemainingMs] = useState(null);
 
   useEffect(() => {
@@ -74,9 +50,7 @@ function formatCountdown(ms) {
 }
 
 function legLabel(flightId) {
-  // flights.flight_id có thể chưa populate được (chuyến bay đã bị admin xóa
-  // hẳn khỏi DB — hiếm nhưng không phải không thể) -> flight_id lúc đó vẫn
-  // là 1 chuỗi ObjectId thay vì object đã populate.
+  // flights.flight_id có thể chưa populate được.
   if (!flightId || typeof flightId === "string") return null;
   return flightId;
 }
@@ -116,10 +90,7 @@ function PayNowButton({ bookingId, t }) {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState(null);
 
-  // Y HỆT logic app/[locale]/booking/passengers/PassengersForm.jsx khi khởi
-  // tạo thanh toán lần đầu (POST /api/payments/[bookingId] rồi redirect
-  // sang payUrl) — booking ĐÃ tồn tại rồi (khách thoát ra trước khi thanh
-  // toán xong), nên chỉ cần gọi lại đúng API đó, KHÔNG tạo booking mới.
+  // Y hệt logic app/[locale]/booking/passengers/PassengersForm.jsx khi khởi tạo thanh toán lần đầu.
   async function handlePayNow() {
     setPaying(true);
     setError(null);
@@ -230,8 +201,7 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
               <p className="text-xs text-sea-700">
                 {t("refundAmountLabel")}: {CURRENCY_FORMATTER.format(booking.refund_amount)}đ
               </p>
-              {/* Giải thích số tiền hoàn theo từng trường hợp hủy (một chiều / khứ hồi chặng đi /
-                  khứ hồi chặng về / hãng hủy) — logic chọn câu nằm ở lib/refundNote.js. */}
+              {/* Giải thích số tiền hoàn theo từng trường hợp hủy. */}
               {refundNote && (
                 <p className="text-xs text-ink/50">
                   {t(
@@ -246,10 +216,7 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
 
         {CANCELLABLE_STATUSES.has(booking.status) && (
           <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-            {/* "Thanh toán ngay" CHỈ cho pending_payment (confirmed thì đã
-                thanh toán xong, không có gì để trả tiếp) — đặt TRƯỚC nút Hủy
-                theo thứ tự ưu tiên hành động (khách bấm nhầm Hủy khi ý định
-                thật là thanh toán tiếp sẽ tốn công xác nhận lại hơn). */}
+            {/* "Thanh toán ngay" chỉ cho pending_payment (confirmed thì đã thanh toán xong, không có gì để trả tiếp). */}
             {booking.status === "pending_payment" && !confirming && (
               <PayNowButton bookingId={booking._id} t={t} />
             )}
@@ -292,8 +259,7 @@ export default function BookingList({ initialBookings }) {
   const [bookings, setBookings] = useState(initialBookings);
 
   function handleCancelled(updatedBooking) {
-    // API cancel trả booking CHƯA populate flights (flight_id chỉ là chuỗi) — giữ lại flights đã
-    // populate của bản cũ, nếu không thẻ vé sẽ báo "Flight no longer available" cho tới khi tải lại trang.
+    // API cancel trả booking chưa populate flights (flight_id chỉ là chuỗi).
     setBookings((prev) =>
       prev.map((b) => (b._id === updatedBooking._id ? { ...updatedBooking, flights: b.flights } : b))
     );

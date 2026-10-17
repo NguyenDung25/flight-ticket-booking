@@ -1,18 +1,5 @@
 "use client";
 
-// app/[locale]/search/FilterableFlightList.jsx
-//
-// C2 — lọc phía CLIENT trên danh sách đã có sẵn từ server (KHÔNG gọi lại
-// API/DB khi đổi bộ lọc — đúng đặc tả C2 trong chuc-nang-he-thong.md: lọc là
-// thao tác tức thời trên kết quả C1 đã trả về, không phải 1 lượt search
-// mới). Nhận `flights` đã serialize sẵn (plain JSON, không còn ObjectId/Date
-// thô) từ page.js.
-//
-// FlightCard vẫn là Server Component thuần (không "use client") — render
-// được bình thường từ trong Client Component này vì bản thân nó không dùng
-// API nào chỉ có ở server (chỉ dùng lib/timezone + next-intl Link, cả 2 đều
-// chạy được ở browser).
-
 import { useMemo, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import FlightCard from "./FlightCard";
@@ -25,11 +12,7 @@ const TIME_SLOTS = [
 ];
 
 function departureHourVN(isoString) {
-  // Giờ khởi hành hiển thị trên FlightCard LUÔN quy đổi giờ VN (toVN) —
-  // khung giờ lọc ở đây PHẢI tính theo đúng giờ VN đó, không phải giờ UTC
-  // thô lưu trong DB, nếu không 1 chuyến hiện "08:00" trên thẻ có thể lại bị
-  // xếp nhầm khung "Đêm khuya" nếu tính theo UTC — cùng nguyên tắc múi giờ
-  // đã áp dụng xuyên suốt dự án (xem lib/timezone.js).
+  // Giờ khởi hành hiển thị trên FlightCard luôn quy đổi giờ VN (toVN).
   const hour = new Date(isoString).toLocaleString("en-US", {
     timeZone: "Asia/Ho_Chi_Minh",
     hour: "numeric",
@@ -39,12 +22,7 @@ function departureHourVN(isoString) {
 }
 
 export default function FilterableFlightList({ flights, locale, leg, searchContext, dateLabel = "" }) {
-  // useTranslations (hook CLIENT-safe của next-intl) — KHÔNG nhận `t` qua
-  // props từ page.js: getTranslations() phía server trả về 1 HÀM, mà hàm
-  // không truyền được qua ranh giới Server Component -> Client Component
-  // (Next.js sẽ throw lỗi ngay). FlightCard vẫn nhận `t` qua props như cũ —
-  // hợp lệ ở đây vì lúc này cả 2 đều đã nằm trong client tree (chỉ props từ
-  // SERVER component crossing vào CLIENT component mới bị cấm truyền hàm).
+  // useTranslations (hook client-safe của next-intl) — không nhận `t` qua props từ page.js.
   const t = useTranslations("SearchResults");
 
   const prices = flights.map((f) => f.base_price.economy);
@@ -63,7 +41,6 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
   }, [flights, locale]);
 
   // sessionStorage — giữ bộ lọc khi đổi ngôn ngữ (trang unmount/remount).
-  // Key gắn với leg để không nhầm giữa bộ lọc chặng đi và chặng về (khứ hồi).
   const FILTER_KEY = `fl_filter_${leg ?? "outbound"}`;
   function readFilter(key, fallback) {
     try {
@@ -80,9 +57,7 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
   const [selectedAirlines, setSelectedAirlines] = useState([]);
   const [sortBy, setSortBy] = useState("time");
 
-  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
-  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
-  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  // Render lần đầu bằng giá trị mặc định (giống server — server không đọc được sessionStorage).
   useEffect(() => {
     const id = setTimeout(() => {
       setMaxPrice(readFilter("maxPrice", maxPriceOverall));

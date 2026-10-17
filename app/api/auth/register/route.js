@@ -1,9 +1,3 @@
-// app/api/auth/register/route.js
-//
-// C8 — đăng ký tài khoản. Chỉ TẠO user, KHÔNG tự đăng nhập luôn (client tự
-// gọi `signIn("credentials", {...})` sau khi đăng ký thành công ở trang
-// /register — giữ 2 việc tách bạch, dễ debug khi có lỗi).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { registerUser, AuthError } from "@/services/authService";

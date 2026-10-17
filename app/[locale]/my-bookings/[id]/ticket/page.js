@@ -1,15 +1,3 @@
-// app/[locale]/my-bookings/[id]/ticket/page.js
-//
-// C7 — xem lại vé điện tử. Nằm trong PROTECTED_SEGMENTS qua tiền tố
-// "my-bookings" (proxy.js: `(my-bookings)(/.*)?`) nên auth() ở đây LUÔN có
-// session hợp lệ, giống các trang booking/* khác.
-//
-// Gọi THẲNG issueTicket() thay vì fetch GET /api/bookings/[id]/ticket của
-// chính mình (đã server-side sẵn, tiết kiệm 1 round-trip — cùng lý do các
-// trang khác trong app/[locale] đã áp dụng). Route API vẫn giữ lại cho nút
-// "Gửi lại qua email" (ResendButton — Client Component, PHẢI gọi qua fetch
-// vì là hành động sau khi trang đã tải xong).
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { guardActivePage } from "@/lib/guardActivePage";
 import dbConnect from "@/lib/mongodb";
@@ -54,9 +42,7 @@ export default async function TicketPage({ params }) {
     );
   }
 
-  // KHÔNG dùng notFound() (404) cho trường hợp không đúng chủ — dễ khiến
-  // khách tưởng nhầm link, trong khi bản chất là vấn đề quyền hạn. Hiện
-  // thông báo riêng, cùng cách app/[locale]/payment/page.js đã làm.
+  // Không dùng notFound() (404) cho trường hợp không đúng chủ — dễ khiến khách tưởng nhầm link.
   if (String(booking.user_id) !== String(session.user.id)) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-sand-50 px-4 py-24 text-center">
@@ -73,9 +59,7 @@ export default async function TicketPage({ params }) {
   try {
     ({ ticketData } = await issueTicket({ bookingId: id }));
   } catch (err) {
-    // Log lỗi THẬT ra terminal — không có dòng này thì mọi lỗi không phải
-    // TicketError bị nuốt hoàn toàn, chỉ còn message chung chung hiện cho
-    // khách, không cách nào biết nguyên nhân thật để debug.
+    // Log lỗi thật ra terminal — không có dòng này thì mọi lỗi không phải TicketError bị nuốt hoàn toàn.
     console.error("TicketPage error:", err);
     errorMessage = err instanceof TicketError ? localizeApiMessage(err.message, locale) : t("genericError");
   }
@@ -157,11 +141,7 @@ export default async function TicketPage({ params }) {
                     {p.document_id ? ` · ${p.document_id}` : ""})
                   </span>
                 </p>
-                {/* Không gán được TÊN CHẶNG cho từng ghế ở đây — ticketData.legs
-                    không mang flight_id (chỉ có ở ticketData.passengers[].seats[]),
-                    xem services/ticketService.buildTicketData(). Liệt kê phẳng
-                    số ghế + hạng ghế là đủ cho 1 vé điện tử, không bắt buộc phải
-                    gắn đúng chặng ở màn hình này. */}
+                {/* Không gán được tên chặng cho từng ghế ở đây — ticketData.legs không mang flight_id. */}
                 <p className="text-ink/60">
                   {p.seats
                     .map(

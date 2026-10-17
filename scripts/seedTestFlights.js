@@ -1,22 +1,3 @@
-// scripts/seedTestFlights.js
-//
-// Tạo chuyến bay CHUYÊN ĐỂ TEST các mốc thời gian (hủy vé 3 mốc, check-in) —
-// mốc giờ tính từ THỜI ĐIỂM CHẠY script, không cố định ngày:
-//
-//   TS30  HAN→SGN  khởi hành sau ~30 giờ  -> hủy vé: mốc  > 24h  (hoàn 100%)
-//   TS31  SGN→HAN  khởi hành sau ~36 giờ  -> chặng về của TS30 (test khứ hồi, cùng hãng, cách >2h)
-//   TS10  HAN→SGN  khởi hành sau ~10 giờ  -> hủy vé: mốc 3–24h (phạt phí cố định)
-//                                            và ĐANG TRONG cửa sổ check-in (24h→2h trước giờ bay)
-//   TS02  HAN→SGN  khởi hành sau ~2.5 giờ -> hủy vé: mốc  < 3h  (hoàn 0đ)
-//                                            và vẫn còn trong cửa sổ check-in (đóng lúc còn 2h)
-//
-// LƯU Ý: chuyến TS02/TS10 sắp khởi hành thật — làm test sớm, để lâu sẽ trượt
-// sang mốc khác. Muốn test lại thì chạy lại script (tạo bộ mới; mã chuyến bay
-// gắn thêm giờ chạy để không trùng).
-//
-// Điều kiện: đã chạy `node scripts/seedSample.js` (cần hãng VN + tàu bay demo).
-// Chạy: node scripts/seedTestFlights.js
-
 const fs = require("fs");
 const path = require("path");
 

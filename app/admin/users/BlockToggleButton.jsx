@@ -1,11 +1,5 @@
 "use client";
 
-// app/admin/users/BlockToggleButton.jsx
-//
-// A4 — nút khóa/mở khóa. router.refresh() sau khi thành công để bảng ở
-// page.js (Server Component) tự re-fetch dữ liệu mới — KHÔNG tự cập nhật
-// state cục bộ song song với server (tránh 2 nguồn sự thật lệch nhau).
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

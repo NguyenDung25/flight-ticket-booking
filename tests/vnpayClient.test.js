@@ -1,8 +1,3 @@
-// tests/vnpayClient.test.js
-//
-// Kiểm thử chữ ký HMAC-SHA512 của VNPay (lib/vnpayClient.js) — không gọi mạng thật. vnpayClient
-// đọc biến môi trường lúc gọi, nên đặt ở đầu file là đủ.
-
 process.env.VNPAY_TMN_CODE = "TESTTMN1";
 process.env.VNPAY_HASH_SECRET = "TESTSECRETKEY0123456789ABCDEFGHI";
 process.env.VNPAY_PAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
@@ -17,8 +12,7 @@ const vnpay = require("../lib/vnpayClient");
 const SECRET = process.env.VNPAY_HASH_SECRET;
 const hmac = (data) => crypto.createHmac("sha512", SECRET).update(Buffer.from(data, "utf-8")).digest("hex");
 
-// Cách ký nguyên văn trong code mẫu Node.js của VNPay (sortObject + querystring.stringify encode:false)
-// — dùng làm "đáp án" độc lập để bắt lỗi nếu buildSignData lệch quy ước của VNPay.
+// Cách ký nguyên văn trong code mẫu Node.js của VNPay (sortObject + querystring.stringify encode:false).
 function vnpaySampleSignData(obj) {
   const sorted = {};
   const keys = Object.keys(obj).map(encodeURIComponent).sort();

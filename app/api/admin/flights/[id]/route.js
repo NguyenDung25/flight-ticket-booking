@@ -1,23 +1,3 @@
-// app/api/admin/flights/[id]/route.js
-//
-// A1 — xem/sửa/xóa 1 chuyến bay. PATCH CHỈ cho sửa field không ảnh hưởng cấu
-// trúc ghế đã sinh (giờ bay, giá, status) — `aircraft_id` KHÔNG được sửa sau
-// khi tạo (đúng comment trong models/Flight.js: sửa aircraft_id sẽ làm lệch
-// hẳn seats[] đã sinh, không có cơ chế re-sync) — nếu body có gửi kèm
-// `aircraft_id` khác giá trị hiện tại, từ chối rõ ràng (400) thay vì âm thầm
-// bỏ qua, đúng ghi chú (v): "PUT luôn từ chối nếu body chứa aircraft_id khác
-// giá trị hiện tại (bất kể có booking hay không)".
-//
-// Hủy chuyến bay THẬT SỰ (kèm cascade hủy toàn bộ booking liên quan, A8) là
-// 1 hành động RIÊNG, có route riêng (POST .../cancel-bulk) — route PATCH này
-// CHỈ đổi field trên chính Flight, KHÔNG tự động đụng tới Booking nào.
-//
-// Ghi chú (v): sửa departure_time hoặc XÓA chuyến bay khi đã có booking hiệu
-// lực (pending_payment/confirmed) sẽ làm sai lệch dữ liệu vé đã bán — cả 2
-// hành động BẮT BUỘC đi qua flightService.assertNoActiveBooking() trước khi
-// động vào DB. Sửa base_price/status/flight_number không cần chặn (không ảnh
-// hưởng gì tới vé đã bán).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
@@ -26,11 +6,7 @@ import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
 import { assertNoActiveBooking } from "@/services/flightService";
 import { validatePatch, changedSensitiveFields } from "@/lib/flightPatchRules";
-// Side-effect import — KHÔNG dùng biến này, chỉ cần chạy mongoose.model("Airline"/
-// "Aircraft", ...) trước khi .populate() bên dưới gọi tới. Không có 2 dòng
-// này, Next.js/Turbopack bundle route này riêng ở dev có thể KHÔNG bao giờ
-// nạp 2 model đó, khiến populate ném MissingSchemaError (xem comment đầy đủ
-// ở services/flightService.js — cùng 1 lớp bug).
+// Side-effect import — không dùng biến này, chỉ cần chạy mongoose.model.
 import "@/models/Airline";
 import "@/models/Aircraft";
 import { logAdminAction } from "@/lib/adminLog";
@@ -72,10 +48,7 @@ export async function PATCH(request, { params }) {
     const { id } = await params;
     const body = await request.json();
 
-    // aircraft_id không nằm trong EDITABLE_FIELDS nên vốn đã bị bỏ qua khi
-    // build `updates` bên dưới — nhưng nếu client cố tình gửi kèm 1 giá trị
-    // KHÁC aircraft_id hiện tại, phải báo lỗi rõ ràng (400) thay vì lặng lẽ
-    // bỏ qua khiến client tưởng đã đổi thành công (đúng ghi chú v).
+    // aircraft_id không nằm trong EDITABLE_FIELDS nên vốn đã bị bỏ qua khi build `updates` bên dưới.
     if (body?.aircraft_id !== undefined) {
       const current = await Flight.findById(id).select("aircraft_id");
       if (!current) {
@@ -92,9 +65,7 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    // Chỉ lấy đúng field cho phép sửa — bỏ qua mọi field khác (kể cả nếu
-    // client cố tình gửi aircraft_id/seats/airline_id lên, đã xử lý riêng ở
-    // trên khi aircraft_id thực sự khác giá trị hiện tại).
+    // Chỉ lấy đúng field cho phép sửa — bỏ qua mọi field khác.
     const updates = {};
     for (const field of EDITABLE_FIELDS) {
       if (body?.[field] !== undefined) updates[field] = body[field];
@@ -114,8 +85,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
 
-    // L2/L3: findByIdAndUpdate không chạy pre("validate") nên kiểm tra tay;
-    // đồng thời từ chối status "cancelled" (phải dùng cancel-bulk, A8).
+    // L2/L3: findByIdAndUpdate không chạy pre("validate") nên kiểm tra tay; đồng thời từ chối status "cancelled".
     validatePatch(updates, {
       departure_time: current.departure_time,
       arrival_time: current.arrival_time,
@@ -125,8 +95,7 @@ export async function PATCH(request, { params }) {
       hasBusinessSeats: current.seats?.some((s) => s.seat_class === "business"),
     });
 
-    // Ghi chú (v): chỉ chặn khi field nhạy cảm THỰC SỰ đổi giá trị. UI luôn gửi
-    // đủ form, nên so theo "có mặt trong body" sẽ chặn cả việc chỉ sửa flight_number.
+    // Ghi chú (v): chỉ chặn khi field nhạy cảm thực sự đổi giá trị.
     if (changedSensitiveFields(updates, current).length > 0) {
       await assertNoActiveBooking(id); // throws FlightError 409 nếu có
     }
@@ -135,8 +104,7 @@ export async function PATCH(request, { params }) {
     if (!flight) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
-    // Tài liệu (v/A8): đổi status → cancelled là sửa trạng thái đơn thuần, KHÔNG tự hủy booking.
-    // Cảnh báo admin nếu còn vé đang hiệu lực để họ chủ động bấm "Hủy chuyến & xử lý vé liên quan".
+    // Tài liệu (v/A8): đổi status → cancelled là sửa trạng thái đơn thuần, không tự hủy booking.
     const body2 = flight.toObject();
     if (updates.status === "cancelled") {
       const stranded = await Booking.exists({
@@ -159,13 +127,7 @@ export async function PATCH(request, { params }) {
   }
 }
 
-/**
- * A1 (ghi chú v) — xóa hẳn 1 chuyến bay, CHỈ khi không còn booking hiệu lực
- * nào phụ thuộc (pending_payment/confirmed) — đúng
- * `mongodb-schema-design.md` liệt kê `DELETE /api/admin/flights`. Chưa từng
- * có route này trước đây; UI admin (FlightsTable.jsx) hiện chưa có nút Xóa,
- * chỉ mới thêm API — nối nút bấm ở UI là việc riêng, tách khỏi PATCH ở trên.
- */
+/** A1 (ghi chú v) — xóa hẳn 1 chuyến bay, chỉ khi không còn booking hiệu lực nào phụ thuộc. */
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();

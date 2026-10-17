@@ -1,8 +1,3 @@
-// app/admin/ancillaries/page.js
-//
-// Admin → Dịch vụ bổ sung: sửa bảng giá hành lý ký gửi + suất ăn (services/ancillaryPricingService.js).
-// Gọi thẳng service (không qua API) — đúng convention các page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import { toVN } from "@/lib/timezone";

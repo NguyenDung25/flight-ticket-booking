@@ -1,15 +1,3 @@
-// models/Promotion.js
-//
-// Bám sát mục 7 (Promotion) của mongodb-schema-design.md.
-// A5 — tùy chọn, làm sau cùng nếu còn thời gian.
-//
-// Ghi chú (p) — 2 điểm dễ sai khi code:
-// 1) "Không giới hạn" có thể là usage_limit KHÔNG TỒN TẠI (field vắng mặt)
-//    hoặc tồn tại nhưng = null tường minh — phải check cả 2 dạng, chỉ
-//    $exists: false sẽ bỏ sót trường hợp lưu null tường minh.
-// 2) Khi booking dùng mã bị hủy → KHÔNG giảm lại used_count (đánh đổi có chủ
-//    đích để tránh race-condition, không phải bug).
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -28,23 +16,13 @@ const PromotionSchema = new Schema(
 PromotionSchema.index({ code: 1 }, { unique: true });
 
 PromotionSchema.pre("validate", function () {
-  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng
-  // throw, giống cách đã sửa ở models/Flight.js.
+  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng throw.
   if (this.valid_until <= this.valid_from) {
     throw new Error("valid_until phải sau valid_from.");
   }
 });
 
-/**
- * Update atomic tăng used_count, chống vượt hạn mức do race-condition đồng
- * thời (ghi chú p). Gọi hàm này thay vì tự viết updateOne rải rác ở nhiều nơi
- * — giữ đúng 1 chỗ xử lý logic "có/không usage_limit" để tránh lệch nhau.
- *
- * @param {String} code
- * @returns {Promise<Object|null>} document đã cập nhật, hoặc null nếu không
- *   áp dụng được (mã không tồn tại, hết hạn mức, hoặc hết hiệu lực thời gian
- *   — tùy điều kiện `extraMatch` truyền vào ở service gọi hàm này).
- */
+/** Update atomic tăng used_count, chống vượt hạn mức do race-condition đồng thời (ghi chú p). */
 PromotionSchema.statics.incrementUsage = async function (code) {
   const Promotion = this;
 
@@ -60,8 +38,7 @@ PromotionSchema.statics.incrementUsage = async function (code) {
   );
   if (limited) return limited;
 
-  // Nhánh 2: không giới hạn — tăng thẳng, KHÔNG so sánh used_count < usage_limit
-  // (usage_limit rỗng sẽ chặn nhầm nếu lỡ đưa vào cùng điều kiện $expr ở trên)
+  // Nhánh 2: không giới hạn — tăng thẳng, không so sánh used_count < usage_limit.
   const unlimited = await Promotion.findOneAndUpdate(
     {
       code,

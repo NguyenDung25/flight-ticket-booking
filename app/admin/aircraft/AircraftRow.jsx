@@ -1,14 +1,5 @@
 "use client";
 
-// app/admin/aircraft/AircraftRow.jsx
-//
-// A2 — 1 dòng máy bay, có sửa tại chỗ + xóa. "Sửa" mở hàng phụ ngay dưới dòng để đổi tên và CẤU HÌNH
-// GHẾ THEO HẠNG (số hàng + số ghế mỗi hàng của business / economy), sinh bằng lib/seatLayout.js
-// (cùng công thức với AircraftForm). Chỉ gửi seat_map_template khi admin THỰC SỰ đổi cấu hình ghế —
-// nếu chỉ đổi tên thì giữ nguyên sơ đồ cũ (kể cả sơ đồ nhập tay không theo layout chuẩn).
-//
-// Lưu ý hiển thị cho admin: sửa sơ đồ KHÔNG đổi ghế của chuyến bay đã tạo (ghi chú u).
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import SeatLayoutFields from "@/components/admin/SeatLayoutFields";

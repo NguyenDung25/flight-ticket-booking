@@ -1,13 +1,3 @@
-// app/api/admin/aircraft/[id]/route.js
-//
-// A2 — sửa / xóa 1 loại máy bay (bổ sung cho app/api/admin/aircraft/route.js chỉ có GET/POST).
-//
-// PUT (cũng nhận PATCH): đổi `name` và/hoặc thay cả `seat_map_template` + `total_seats`.
-// Sửa template KHÔNG ảnh hưởng chuyến bay đã tạo — Flight.seats[] là bản deep copy tại
-// thời điểm tạo chuyến (ghi chú u), nên chỉ các chuyến bay TẠO SAU mới dùng sơ đồ mới.
-//
-// DELETE: chặn (409) nếu còn Flight dùng loại máy bay này (Flight.aircraft_id).
-
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";

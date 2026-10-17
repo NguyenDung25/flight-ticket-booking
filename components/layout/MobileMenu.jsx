@@ -1,11 +1,5 @@
 "use client";
 
-// components/layout/MobileMenu.jsx
-//
-// Hamburger + drawer nav cho mobile. Tách riêng khỏi Header (Server Component)
-// vì cần useState để toggle mở/đóng. Dùng Link từ next-intl/navigation để
-// giữ locale khi điều hướng — cùng convention với Header.jsx.
-
 import { useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { hideCurrentPage } from "./navFilter";
@@ -45,7 +39,7 @@ export default function MobileMenu({ links, logoutLabel = null }) {
           <nav className="flex flex-col gap-4">
             {visibleLinks.map((l) =>
               l.plain ? (
-                // Đích nằm NGOÀI [locale] (VD /admin) -> <a> thường, không prefix locale.
+                // Đích nằm ngoài [locale] (VD /admin) -> <a> thường, không prefix locale.
                 <a
                   key={l.href}
                   href={l.href}

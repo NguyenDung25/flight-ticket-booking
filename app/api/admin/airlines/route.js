@@ -1,8 +1,3 @@
-// app/api/admin/airlines/route.js
-//
-// A2 — CRUD hãng bay. Đơn giản, không cần service riêng (chỉ validate cơ
-// bản qua chính Mongoose schema — unique index trên `code`).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

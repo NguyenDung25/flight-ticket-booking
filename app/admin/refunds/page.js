@@ -1,21 +1,8 @@
-// app/admin/refunds/page.js
-//
-// A7 admin view — nhật ký hoàn tiền, CHỈ ĐỌC (đúng đặc tả: "trang read-only
-// nhật ký hoàn tiền", không có nút sửa/xóa nào ở đây). Gộp cả 2 trạng thái
-// `refunded` (hoàn tiền tự động thành công) và `payment_error_manual_refund`
-// (lỗi xử lý, cần admin tự hoàn tay ngoài hệ thống — xem paymentService) vì
-// cả 2 đều là việc "tiền đã ra khỏi luồng bình thường", admin cần thấy
-// chung 1 chỗ để theo dõi, không tách 2 trang riêng.
-//
-// Gọi thẳng Booking.find() (KHÔNG qua route API riêng) — đúng convention
-// mọi page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
-// Side-effect import cho populate("user_id") — cùng lý do đã ghi chú ở
-// app/admin/bookings/page.js / app/api/admin/bookings/route.js.
+// Side-effect import cho populate("user_id").
 import "@/models/User";
 
 export const metadata = {

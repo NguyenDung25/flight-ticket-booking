@@ -1,6 +1,3 @@
-// e2e/seed-checkin.cjs — dữ liệu cho test E2E check-in (chạy sau scripts/seedSample.js, trên database E2E):
-// 1 chuyến khởi hành sau ~10 giờ (đang trong khung check-in 24h -> 2h) + 1 booking ĐÃ THANH TOÁN có hành lý
-// ký gửi 20kg + suất ăn. Không qua VNPay — chỉ dùng trong database E2E tạm (bị xóa sau khi chạy test).
 const mongoose = require("mongoose");
 const Airline = require("../models/Airline");
 const Aircraft = require("../models/Aircraft");

@@ -1,18 +1,3 @@
-// app/[locale]/booking/passengers/page.js
-//
-// C4+C5 — nhập hành khách + chọn ghế TRÊN CÙNG 1 màn hình (đúng đặc tả C4:
-// "Diễn ra cùng màn hình với C5 — không phải 2 bước tách rời hoàn toàn").
-// File này CHỈ lo phần Server Component (đăng nhập, nạp Flight kèm seats[]
-// đầy đủ) — toàn bộ tương tác (hold/release ghế, thêm/xóa hành khách, submit
-// booking + thanh toán) nằm ở PassengersForm.jsx (Client Component).
-//
-// Route nằm trong PROTECTED_SEGMENTS (proxy.js) nên `auth()` ở đây LUÔN có
-// session hợp lệ (JWT) — không cần tự redirect. Vẫn KHÔNG được coi session
-// này là đủ để tạo booking/giữ ghế thật: mọi API hold-seat/bookings/payments
-// đều tự gọi lại requireActiveUser() để đọc is_blocked TRỰC TIẾP từ DB
-// (ghi chú q) — session ở đây chỉ dùng để hiển thị UI (preferred_language,
-// user id để tô màu ghế "bạn đang giữ").
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
@@ -22,19 +7,7 @@ import User from "@/models/User";
 import PassengersForm from "./PassengersForm";
 import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 
-/**
- * Mongoose doc -> plain JSON an toàn để truyền qua Client Component.
- *
- * QUAN TRỌNG (không chỉ là ép kiểu): Flight.seats[].held_by là ObjectId của
- * NGƯỜI DÙNG KHÁC (bất kỳ khách nào đang giữ ghế đó) — nếu đưa thẳng
- * JSON.parse(JSON.stringify(flight)) ra client component, giá trị này lọt
- * vào RSC payload gửi qua trình duyệt, tức là MỌI khách đang xem trang này
- * đều đọc được id tài khoản của người khác đang giữ ghế nào. Thay vì gửi
- * held_by thô, chỉ gửi held_by_me (boolean, so sánh SẴN Ở SERVER) — vừa đủ
- * để PassengersForm biết "ghế này mình đang giữ từ trước" mà không lộ danh
- * tính người khác. checked_in/checked_in_at/boarding_pass_code cũng bỏ hẳn —
- * không liên quan gì tới màn hình đặt vé (chỉ dùng ở C10 check-in).
- */
+/** Mongoose doc -> plain JSON an toàn để truyền qua Client Component. */
 function toPlainFlight(doc, currentUserId) {
   const plain = JSON.parse(JSON.stringify(doc));
   const now = Date.now();
@@ -79,8 +52,7 @@ export default async function BookingPassengersPage({ params, searchParams }) {
 
   await dbConnect();
 
-  // Email chưa xác thực -> chưa cho chọn ghế (API hold-seat/bookings cũng chặn, đây chỉ để báo sớm,
-  // khỏi để khách nhập hết hành khách rồi mới bị từ chối).
+  // Email chưa xác thực -> chưa cho chọn ghế.
   const me = await User.findById(session.user.id).select("email_verified").lean();
   if (me?.email_verified === false) {
     const tAccount = await getTranslations("Account");
@@ -103,8 +75,7 @@ export default async function BookingPassengersPage({ params, searchParams }) {
       returnFlight = await getFlightDetail(returnFlightId);
     }
   } catch (err) {
-    // Log lỗi THẬT ra terminal trước — không có dòng này, mọi lỗi không
-    // phải FlightError bị nuốt hoàn toàn, không cách nào debug được.
+    // Log lỗi thật ra terminal trước — không có dòng này, mọi lỗi không phải FlightError bị nuốt hoàn toàn.
     console.error("BookingFlowPage error:", err);
     errorMessage = err instanceof FlightError ? t("errorNotFound") : tCommon("error");
   }

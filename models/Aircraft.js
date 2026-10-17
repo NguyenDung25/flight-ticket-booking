@@ -1,13 +1,3 @@
-// models/Aircraft.js
-//
-// Bám sát mục 4 (Aircraft) của mongodb-schema-design.md.
-// Ghi chú (u): seat_map_template là NGUỒN DUY NHẤT để sinh Flight.seats[] khi
-// admin tạo chuyến bay (A1) — admin không nhập tay ghế cho từng chuyến.
-//
-// Lưu ý quan trọng: seat_map_template.length === total_seats KHÔNG được
-// validate tự động (ngoài phạm vi đồ án, mục 6) — admin tự đảm bảo đúng khi
-// nhập Aircraft. KHÔNG thêm validate cho việc này ở đây hay ở service khác.
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -28,15 +18,7 @@ const AircraftSchema = new Schema(
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
-/**
- * Deep copy seat_map_template → mảng seats[] sẵn sàng gắn vào 1 Flight mới
- * (A1, ghi chú u). Dùng structuredClone để đảm bảo mỗi Flight có bản ghế độc
- * lập hoàn toàn — sửa seats của Flight A không được ảnh hưởng Aircraft gốc
- * hay bất kỳ Flight B nào khác dùng chung Aircraft này.
- *
- * KHÔNG validate seat_map_template.length === total_seats ở đây (xem ghi chú
- * đầu file) — chỉ đơn thuần copy nguyên trạng.
- */
+/** Deep copy seat_map_template → mảng seats[] sẵn sàng gắn vào 1 Flight mới (A1, ghi chú u). */
 AircraftSchema.methods.cloneSeatMapForFlight = function () {
   const template = structuredClone(this.seat_map_template.map((s) => ({
     seat_number: s.seat_number,

@@ -1,9 +1,3 @@
-// models/Airline.js
-//
-// Bám sát mục 3 (Airline) của mongodb-schema-design.md.
-// Seed ban đầu từ AirLabs (scripts/seedAirlabs.js), sau đó CÓ trang admin CRUD
-// riêng (A2) — khác với Airport ở chỗ này.
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 

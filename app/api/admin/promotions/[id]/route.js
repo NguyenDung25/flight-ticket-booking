@@ -1,24 +1,3 @@
-// app/api/admin/promotions/[id]/route.js
-//
-// A5 — sửa/xóa mã khuyến mãi (bổ sung cho route.js chỉ có GET/POST, đúng đặc
-// tả "POST/PUT/DELETE /api/admin/promotions").
-//
-// PATCH — chỉ cho sửa discount_percent, valid_from, valid_until, usage_limit.
-// KHÔNG cho sửa `code` (mã đã in/gửi cho khách, đổi mã = 1 mã khác hẳn — muốn
-// đổi thì xóa và tạo mới) và KHÔNG cho sửa `used_count` (do
-// Promotion.incrementUsage() tự tăng atomic). Dùng findById + save() (không
-// phải findByIdAndUpdate) để pre-validate của model (valid_until > valid_from)
-// luôn chạy trên GIÁ TRỊ SAU KHI GỘP với dữ liệu cũ; save() chỉ ghi các path đã
-// đổi nên không đè lên used_count đang được tăng đồng thời bởi booking khác.
-//
-// Ngày nhận "YYYY-MM-DD" -> quy đổi qua dayRangeVN() y hệt route POST (ghi chú
-// ab): valid_from = 00:00 VN của ngày chọn, valid_until = 00:00 VN của NGÀY
-// KẾ TIẾP (mã còn dùng được hết ngày "Đến ngày").
-//
-// DELETE — chặn (409) nếu đã có booking dùng mã (Booking.promotion_id): xóa sẽ
-// làm booking cũ trỏ tới mã không còn tồn tại. Muốn ngừng dùng thì sửa
-// valid_until cho hết hạn.
-
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";

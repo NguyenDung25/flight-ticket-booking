@@ -1,6 +1,3 @@
-// tests/ancillaries.test.js — hành lý ký gửi + suất ăn (lib/ancillaries.js): giá tính ở server theo hạng
-// ghế thật và bảng giá hiện hành, cộng vào tiền chặng; admin sửa bảng giá có kiểm tra dữ liệu; email/vé
-// hiển thị đúng. Không cần MongoDB.
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

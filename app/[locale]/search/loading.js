@@ -1,14 +1,3 @@
-// app/[locale]/search/loading.js
-//
-// Next.js App Router special file — TỰ ĐỘNG hiện trong lúc page.js (Server
-// Component) đang chạy searchFlights()/dbConnect() (issue UI đã sửa: trước
-// đây tìm kiếm trên mạng chậm sẽ trắng trang, không có phản hồi gì). KHÔNG
-// nhận props (locale/searchParams) — đây là quy ước riêng của Next.js cho
-// loading.js, khác hẳn page.js — nên component này CỐ TÌNH không có chữ nào
-// cần dịch, chỉ dựng khung skeleton nhấp nháy mô phỏng đúng bố cục
-// FlightCard.jsx, để không phải phụ thuộc next-intl (không có locale ở đây
-// để gọi getTranslations).
-
 function SkeletonCard() {
   return (
     <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-sand-100 bg-white p-5">

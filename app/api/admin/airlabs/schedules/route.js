@@ -1,20 +1,3 @@
-// app/api/admin/airlabs/schedules/route.js
-//
-// A1 — hỗ trợ "tự điền từ AirLabs" khi admin tạo chuyến bay (FlightForm.jsx):
-// tra lịch bay có sẵn của 1 tuyến (dep_iata -> arr_iata) để lấy mã chuyến bay,
-// hãng, giờ bay/đến thay vì gõ tay.
-//
-// Gọi AirLabs Ở SERVER (không gọi thẳng từ trình duyệt) — AIRLABS_API_KEY là
-// bí mật, đặt trong .env.local và KHÔNG được lộ ra bundle client (F12). Chỉ
-// admin gọi được (requireAdminUser) để không ai lạm dụng hạn mức API.
-//
-// AirLabs /schedules trả lịch bay của tuyến (giờ theo UTC ở dep_time_utc/
-// arr_time_utc). Route bỏ chuyến codeshare, lưu tạm kết quả theo tuyến (tiết kiệm
-// hạn mức 1.000 request/tháng của gói free) và đổi sang giờ VN (dep_vn/arr_vn dạng "YYYY-MM-DDTHH:mm",
-// đúng định dạng input datetime-local) — form chỉ cần điền thẳng, admin vẫn
-// tự chọn ngày bay. Kết quả tự điền chỉ là GỢI Ý, admin có thể sửa lại trước
-// khi lưu (mọi validate thật vẫn ở POST /api/admin/flights).
-
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
@@ -72,10 +55,9 @@ export async function GET(request) {
       );
     }
 
-    // Bỏ chuyến codeshare, bỏ trùng, sắp theo giờ VN, KHÔNG cắt bớt (lib/airlabsSchedules.js).
+    // Bỏ chuyến codeshare, bỏ trùng, sắp theo giờ VN, không cắt bớt (lib/airlabsSchedules.js).
     const schedules = normalizeSchedules(payload?.response);
-    // Không lưu kết quả RỖNG: AirLabs chỉ trả các chuyến còn lại trong ngày, tra lúc tối muộn có thể ra
-    // 0 chuyến — lưu lại thì sáng hôm sau tra tiếp vẫn nhận kết quả rỗng cũ suốt 6 giờ.
+    // Không lưu kết quả rỗng: AirLabs chỉ trả các chuyến còn lại trong ngày, tra lúc tối muộn có thể ra 0 chuyến.
     if (schedules.length > 0) setCachedSchedules(dep, arr, schedules);
 
     return NextResponse.json({ schedules, cached: false });

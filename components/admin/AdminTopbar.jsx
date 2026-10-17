@@ -1,11 +1,5 @@
 "use client";
 
-// components/admin/AdminTopbar.jsx
-//
-// Thanh trên cùng khu Admin: tên trang đang mở, nút về giao diện khách, email admin, đăng xuất.
-// Là client component chỉ để đọc usePathname (lấy tên trang); đăng xuất dùng lại signOutAction của
-// khu khách (components/layout/authActions.js) — server action import được từ client component.
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutAction } from "@/components/layout/authActions";

@@ -1,16 +1,5 @@
 "use client";
 
-// app/admin/flights/CancelFlightButton.jsx
-//
-// A8 — hủy chuyến bay thật (cascade hủy/hoàn tiền toàn bộ booking liên
-// quan). Cùng pattern xác nhận 2 bước + bắt buộc lý do như
-// app/admin/bookings/CancelBookingButton.jsx (A3) — giữ nhất quán UI trong
-// khu Admin, không tự nghĩ ra pattern mới.
-//
-// Nguy hiểm hơn hẳn A3 (ảnh hưởng NHIỀU booking cùng lúc, không thể hoàn
-// tác), nên hiện thêm 1 dòng cảnh báo rõ trong khối xác nhận, khác
-// CancelBookingButton.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -50,8 +39,7 @@ export default function CancelFlightButton({ flightId, status }) {
         throw new Error(data?.message || "Có lỗi xảy ra.");
       }
       setResult(data.affected_booking_count);
-      // Chờ admin đọc số booking bị ảnh hưởng trước khi router.refresh() xóa
-      // luôn khối kết quả này — refresh ngay sẽ làm mất thông báo vừa hiện.
+      // Chờ admin đọc số booking bị ảnh hưởng trước khi router.refresh() xóa luôn khối kết quả này.
       setTimeout(() => router.refresh(), 2000);
     } catch (err) {
       setError(err.message);

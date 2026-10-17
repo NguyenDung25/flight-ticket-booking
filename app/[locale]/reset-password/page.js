@@ -1,6 +1,3 @@
-// app/[locale]/reset-password/page.js — đặt mật khẩu mới từ link trong email (?token=...).
-// Trang công khai; token được kiểm tra ở POST /api/auth/reset-password khi gửi form.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";

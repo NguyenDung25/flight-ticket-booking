@@ -1,9 +1,3 @@
-// tests/businessRules.test.js
-//
-// Test tự động cho các quy tắc nghiệp vụ THUẦN (không cần MongoDB/Next): chạy bằng
-//   npm test
-// (node:test có sẵn trong Node, không cần cài thêm thư viện).
-
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

@@ -1,9 +1,3 @@
-// app/api/auth/forgot-password/route.js
-//
-// Quên mật khẩu: POST { email, locale } -> gửi link đặt lại mật khẩu (hạn 30 phút, dùng 1 lần).
-// LUÔN trả cùng 1 câu dù email có tồn tại hay không (không cho dò email nào đã đăng ký). Giới hạn
-// số lần gọi theo IP (lib/clientIp.js) để chống spam hộp thư người khác.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { handleApiError } from "@/lib/apiError";
@@ -24,7 +18,7 @@ export async function POST(request) {
         { status: 429 }
       );
     }
-    recordFailure(key); // đếm MỌI yêu cầu (không chỉ yêu cầu sai) — tối đa 5 lần / 15 phút / IP
+    recordFailure(key); // đếm mọi yêu cầu (không chỉ yêu cầu sai) — tối đa 5 lần / 15 phút / IP
 
     await dbConnect();
     const body = (await request.json().catch(() => null)) ?? {};

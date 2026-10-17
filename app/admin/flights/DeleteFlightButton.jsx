@@ -1,22 +1,5 @@
 "use client";
 
-// app/admin/flights/DeleteFlightButton.jsx
-//
-// A1 (ghi chú v) — xóa HẲN 1 chuyến bay (DELETE /api/admin/flights/[id]).
-// Cùng pattern xác nhận 2 bước với CancelFlightButton.jsx (A8) để nhất quán
-// UI trong khu Admin — KHÔNG dùng modal (dự án cố tình không có
-// Modal/dialog riêng, xem comment gốc app/[locale]/my-bookings/BookingList.jsx).
-//
-// KHÁC CancelFlightButton: route DELETE đã tự chặn (409, qua
-// assertNoActiveBooking) nếu chuyến còn booking hiệu lực (pending_payment/
-// confirmed) — nút này KHÔNG tự kiểm tra lại điều đó ở client, chỉ cần hiện
-// đúng data?.message trả về khi bị 409, đúng nguyên tắc "server là nguồn sự
-// thật" đã dùng xuyên suốt các nút khác (Edit/Cancel) trong FlightsTable.jsx.
-//
-// KHÔNG cần ô nhập lý do như Hủy chuyến (A8) — xóa hẳn khỏi DB không phải
-// hành động nghiệp vụ cần lưu vết lý do, khác cancel-bulk (còn cascade sang
-// Booking, cần giải thích cho khách qua email/log).
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -40,8 +23,7 @@ export default function DeleteFlightButton({ flightId }) {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        // 409 (còn booking hiệu lực) dùng chung message do
-        // assertNoActiveBooking ném ra — hiện thẳng, không tự diễn giải lại.
+        // 409 (còn booking hiệu lực) dùng chung message do assertNoActiveBooking ném ra — hiện thẳng.
         throw new Error(data?.message || "Có lỗi xảy ra.");
       }
       router.refresh();

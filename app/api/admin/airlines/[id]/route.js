@@ -1,13 +1,3 @@
-// app/api/admin/airlines/[id]/route.js
-//
-// A2 — sửa / xóa 1 hãng bay (bổ sung cho app/api/admin/airlines/route.js chỉ có GET/POST).
-//
-// PUT (cũng nhận PATCH): thay `code` + `name.vi` + `name.en`. Cả 3 đều bắt buộc —
-// đúng như lúc tạo — để không vô tình để trống tên 1 ngôn ngữ (C11 hiển thị cả 2).
-//
-// DELETE: chặn (409) nếu còn Flight nào đang tham chiếu hãng này (Flight.airline_id),
-// tránh để lại chuyến bay "mồ côi" không hiển thị được tên hãng.
-
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";

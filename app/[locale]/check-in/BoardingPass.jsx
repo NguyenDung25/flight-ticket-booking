@@ -1,11 +1,5 @@
 "use client";
 
-// app/[locale]/check-in/BoardingPass.jsx
-//
-// C10 — thẻ lên máy bay sau khi check-in: thông tin chuyến/ghế, mã QR, nút In / Lưu PDF và hướng dẫn
-// tại sân bay. Nhãn theo `Booking.locale` (lib/boardingPass.js), KHÔNG theo ngôn ngữ giao diện —
-// cùng quy tắc với vé điện tử (C7).
-
 import { useMemo, useRef } from "react";
 import Button from "@/components/ui/Button";
 import { toVN } from "@/lib/timezone";

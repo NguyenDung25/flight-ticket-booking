@@ -1,13 +1,5 @@
 "use client";
 
-// components/ui/DatePicker.jsx
-//
-// CỐ TÌNH dùng <input type="date"> gốc thay vì tự vẽ lịch — mọi trình duyệt
-// hiện đại đều có UI chọn ngày sẵn (kể cả mobile, quan trọng vì đồ án không
-// có thời gian test đa thiết bị kỹ), không kéo thêm thư viện ngoài chỉ cho
-// 1 form. Nhận `min`/`max` (chuỗi "YYYY-MM-DD") qua props như input gốc —
-// nơi gọi tự tính (VD ngày về không được trước ngày đi).
-
 import { useId } from "react";
 
 export default function DatePicker({ label, error, id, className = "", ...props }) {

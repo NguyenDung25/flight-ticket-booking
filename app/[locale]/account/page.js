@@ -1,8 +1,3 @@
-// app/[locale]/account/page.js
-//
-// Trang Tài khoản (bổ sung C8): xem email, sửa họ tên, đổi mật khẩu. Nằm trong PROTECTED_SEGMENTS
-// (proxy.js) — bắt buộc đăng nhập; guardActivePage() kiểm tra is_blocked / phiên hết hiệu lực từ DB.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { auth } from "@/auth";
 import { guardActivePage } from "@/lib/guardActivePage";

@@ -1,11 +1,5 @@
 "use client";
 
-// app/admin/airlines/AirlineRow.jsx
-//
-// A2 — 1 dòng hãng bay, có sửa tại chỗ + xóa (xác nhận 2 bước, cùng pattern
-// DeleteFlightButton.jsx). Server là nguồn sự thật: 409 khi còn chuyến bay thuộc
-// hãng này sẽ được hiện nguyên message do API trả về.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

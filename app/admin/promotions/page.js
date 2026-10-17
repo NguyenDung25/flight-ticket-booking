@@ -1,12 +1,3 @@
-// app/admin/promotions/page.js
-//
-// A5 — quản lý mã khuyến mãi (tùy chọn, đúng kế hoạch "làm sau cùng nếu còn
-// thời gian"). Cùng mức tối giản với app/admin/aircraft, app/admin/airlines:
-// có thêm sửa/xóa qua PromotionsTable.jsx (route [id]/route.js).
-//
-// Gọi thẳng Promotion.find() (KHÔNG qua /api/admin/promotions) — đúng
-// convention mọi page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Promotion from "@/models/Promotion";
@@ -34,9 +25,7 @@ export default async function AdminPromotionsPage() {
       id: String(p._id),
       code: p.code,
       discount_percent: p.discount_percent,
-      // valid_until lưu ở DB là 00:00 VN của NGÀY KẾ TIẾP (xem route POST) —
-      // trừ 1ms để ra đúng ngày CUỐI CÙNG còn hiệu lực mà admin đã chọn (trước
-      // đây bảng hiển thị lệch +1 ngày).
+      // valid_until lưu ở DB là 00:00 VN của ngày kế tiếp (xem route POST).
       valid_from_date: toVN(p.valid_from).format("YYYY-MM-DD"),
       valid_until_date: toVN(new Date(p.valid_until.getTime() - 1)).format("YYYY-MM-DD"),
       valid_from_label: toVN(p.valid_from).format("DD/MM/YYYY"),

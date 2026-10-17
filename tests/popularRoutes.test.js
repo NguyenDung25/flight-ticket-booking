@@ -1,4 +1,3 @@
-// Khối "Tuyến bay phổ biến" trang chủ: dựng thẻ từ số liệu thật, giá, ngày link, ảnh (không cần MongoDB).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {

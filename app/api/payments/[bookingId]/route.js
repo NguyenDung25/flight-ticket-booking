@@ -1,11 +1,3 @@
-// app/api/payments/[bookingId]/route.js
-//
-// C6 — khách bấm "Thanh toán": cần đăng nhập, chỉ chủ booking mới gọi được →
-// paymentService.initiatePayment() trả về payUrl của VNPay để FE redirect.
-//
-// IPN của VNPay KHÔNG tới đây — VNPay gọi GET /api/payments/vnpay-ipn (URL cấu
-// hình cố định ở trang quản trị merchant, xem app/api/payments/vnpay-ipn/route.js).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
@@ -29,8 +21,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ message: "Không tìm thấy booking." }, { status: 404 });
     }
     if (String(booking.user_id) !== String(user._id)) {
-      // Không tiết lộ booking có tồn tại hay không cho người không sở hữu —
-      // 403 kèm message chung, khớp mức độ chi tiết các route khác đang dùng.
+      // Không tiết lộ booking có tồn tại hay không cho người không sở hữu — 403 kèm message chung.
       return NextResponse.json(
         { message: "Bạn không có quyền thanh toán booking này." },
         { status: 403 }

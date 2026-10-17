@@ -1,5 +1,3 @@
-// tests/airlabsSchedules.test.js — A1: xử lý kết quả AirLabs /schedules cho nút tự điền lịch bay
-// (bỏ codeshare, không cắt bớt, đổi giờ VN) và bộ nhớ đệm theo tuyến. Không gọi mạng.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {

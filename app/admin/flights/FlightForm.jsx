@@ -1,20 +1,5 @@
 "use client";
 
-// app/admin/flights/FlightForm.jsx
-//
-// A1 — tạo chuyến bay mới. Cùng convention với AircraftForm/AirlineForm
-// (form thô luôn hiện phía trên bảng, không modal — xem comment
-// app/[locale]/my-bookings/BookingList.jsx: dự án cố tình không có
-// Modal/dialog riêng trong components/ui, không tự chế thêm chỉ cho 1 chỗ).
-//
-// KHÔNG gửi seats[] lên — API (POST /api/admin/flights) tự sinh từ
-// Aircraft.cloneSeatMapForFlight(), form chỉ gửi đúng field mà route đó đọc.
-//
-// origin_code/dest_code chọn qua <select> (danh sách Airport có sẵn, đã seed
-// từ AirLabs) thay vì gõ tay — tránh admin gõ sai mã IATA 3 ký tự, lỗi chỉ lộ
-// ra khi khách tìm kiếm không thấy chuyến (khó debug hơn nhiều so với chặn
-// ngay ở đây).
-
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { nowVN } from "@/lib/timezone";
@@ -73,9 +58,6 @@ export default function FlightForm({ airlines, aircraft, airports }) {
   }
 
   // Chọn 1 lịch bay -> tự điền số hiệu, hãng (nếu hệ thống đã có hãng đó) và giờ.
-  // Nếu admin ĐÃ chọn ngày khởi hành thì giữ ngày đó; chưa chọn thì mặc định NGÀY MAI (giờ VN) —
-  // AirLabs trả lịch của hôm nay, lấy nguyên ngày đó dễ ra chuyến có giờ đã qua. Chỉ lấy giờ/thời
-  // lượng từ AirLabs. Cộng/trừ trên chuỗi "…Z" (UTC giả) để không lệ thuộc múi giờ máy.
   function applySchedule(s) {
     const durationMs = new Date(`${s.arr_vn}:00Z`) - new Date(`${s.dep_vn}:00Z`);
     const datePart = form.departure_time
@@ -108,8 +90,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
       setError("Điểm đi và điểm đến không được trùng nhau.");
       return;
     }
-    // Cùng điều kiện với models/Flight.js pre-validate (ghi chú s) — chặn
-    // sớm ở client, tránh 1 round-trip vô ích khi chắc chắn sẽ bị API từ chối.
+    // Cùng điều kiện với models/Flight.js pre-validate (ghi chú s) — chặn sớm ở client.
     if (selectedAircraft?.has_business_seats && !form.price_business) {
       setError("Tàu bay này có ghế business — bắt buộc nhập giá business.");
       return;
@@ -127,12 +108,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
           aircraft_id: form.aircraft_id,
           origin_code: form.origin_code,
           dest_code: form.dest_code,
-          // input datetime-local không mang timezone — trình duyệt admin
-          // mặc định chạy giờ VN (đúng giả định lib/timezone.js đã ghi ở đầu
-          // file: mọi mốc thời gian đối chiếu qua GMT+7), nên new Date(...)
-          // ở đây ra đúng UTC tương ứng mà không cần tự quy đổi thủ công.
-          // datetime-local không mang timezone — thêm "+07:00" tường minh để
-          // new Date() luôn parse đúng là giờ VN bất kể múi giờ máy admin.
+          // input datetime-local không mang timezone — trình duyệt admin mặc định chạy giờ VN.
           departure_time: new Date(form.departure_time + "+07:00").toISOString(),
           arrival_time: new Date(form.arrival_time + "+07:00").toISOString(),
           base_price: {
@@ -211,9 +187,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
               </option>
             ))}
           </select>
-          {/* Không sửa được sau khi tạo (EDITABLE_FIELDS của PATCH bỏ hẳn
-              aircraft_id — xem EditFlightButton.jsx), nên nhắc admin kiểm
-              tra kỹ ngay từ bước tạo, không đợi sửa sau. */}
+          {/* Không sửa được sau khi tạo (EDITABLE_FIELDS của PATCH bỏ hẳn aircraft_id — xem EditFlightButton.jsx). */}
           <p className="text-[11px] text-ink/40">Không sửa được sau khi tạo.</p>
         </div>
       </div>

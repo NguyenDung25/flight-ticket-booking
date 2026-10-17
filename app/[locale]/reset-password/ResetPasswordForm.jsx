@@ -1,8 +1,5 @@
 "use client";
 
-// app/[locale]/reset-password/ResetPasswordForm.jsx — nhập mật khẩu mới 2 lần rồi gửi kèm token.
-// Thành công -> về trang đăng nhập với thông báo.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";

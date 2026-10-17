@@ -1,9 +1,3 @@
-// services/bookingValidationService.js
-//
-// Toàn bộ validate "phụ thuộc dữ liệu khác" của Booking đặt ở đây, gọi từ API
-// tạo booking (POST /api/bookings, C6) TRƯỚC khi ghi vào DB. Không tin dữ liệu
-// client cho bất kỳ giá trị nào ảnh hưởng tới tiền (ghi chú o) hay giấy tờ (ghi chú aa).
-
 const Flight = require("../models/Flight");
 const { ageInYears, toVN } = require("../lib/timezone");
 const { priceAddons, AncillaryError } = require("../lib/ancillaries");
@@ -23,15 +17,7 @@ class ValidationError extends Error {
   }
 }
 
-/**
- * Ngày sinh phải là ngày có thật, KHÔNG ở tương lai và không quá
- * MAX_PASSENGER_AGE_YEARS tuổi. Trước đây ngày sinh tương lai làm tuổi ÂM và
- * lọt vào nhánh "dưới 14 tuổi" mà không bị chặn (client có `max` ở ô ngày,
- * nhưng gõ tay hoặc gọi API trực tiếp thì server phải tự chặn).
- *
- * So sánh theo NGÀY giờ VN (không so mốc giây) để em bé sinh trong ngày hôm
- * nay không bị coi nhầm là "tương lai" do lệch múi giờ UTC/VN.
- */
+/** Ngày sinh phải là ngày có thật, không ở tương lai và không quá MAX_PASSENGER_AGE_YEARS tuổi. */
 function validatePassengerDateOfBirth(passenger, now = new Date()) {
   const name = passenger.full_name ?? "";
   const raw = passenger.date_of_birth;
@@ -48,12 +34,7 @@ function validatePassengerDateOfBirth(passenger, now = new Date()) {
   }
 }
 
-/**
- * Ghi chú (aa): validate document_type/document_id theo độ tuổi.
- * - >=14 tuổi: bắt buộc có document_id, document_type phải là cccd|passport.
- * - <14 tuổi: chấp nhận birth_certificate, không ép cấu trúc document_id.
- * KHÔNG ảnh hưởng amount — giá vé vẫn tính phẳng theo seat_class (mục 6, ngoài phạm vi).
- */
+/** Ghi chú (aa): validate document_type/document_id theo độ tuổi. */
 function validatePassengerDocument(passenger) {
   // Kiểu/độ dài: chặn object/mảng lọt vào (gây TypeError 500 ở .trim()) và chuỗi khổng lồ.
   if (typeof passenger?.full_name !== "string" || !passenger.full_name.trim() || passenger.full_name.length > 100) {
@@ -81,8 +62,7 @@ function validatePassengerDocument(passenger) {
       );
     }
   } else {
-    // Dưới 14 tuổi: cho phép birth_certificate, document_id có thể là mã định
-    // danh cá nhân hoặc số quyển giấy khai sinh — không ép đủ 12 số như CCCD.
+    // Dưới 14 tuổi: cho phép birth_certificate.
     if (passenger.document_type === "cccd") {
       throw new ValidationError(
         `Hành khách "${passenger.full_name}" dưới ${MIN_AGE_REQUIRE_ID_DOCUMENT} tuổi không thể dùng CCCD, chọn Giấy khai sinh hoặc Hộ chiếu.`
@@ -91,13 +71,7 @@ function validatePassengerDocument(passenger) {
   }
 }
 
-/**
- * MỚI THÊM: chặn 2 hành khách trong CÙNG 1 booking khai TRÙNG số giấy tờ —
- * về mặt logic không thể có 2 người thật cùng 1 số CCCD/hộ chiếu/giấy khai
- * sinh. Bỏ qua document_id RỖNG (trẻ dưới MIN_AGE_REQUIRE_ID_DOCUMENT tuổi
- * hợp lệ không cần điền — xem validatePassengerDocument) — KHÔNG được coi 2
- * document_id rỗng là "trùng nhau".
- */
+/** Chặn 2 hành khách trong cùng 1 booking khai trùng số giấy tờ. */
 function validateNoDuplicateDocumentIds(passengers) {
   const seenBy = new Map(); // document_id (đã trim) -> full_name người đầu tiên khai số đó
   for (const passenger of passengers) {
@@ -112,11 +86,7 @@ function validateNoDuplicateDocumentIds(passengers) {
   }
 }
 
-/**
- * Ghi chú (z): validate khoảng cách transit tối thiểu 2 tiếng giữa chặng đi và
- * chặng về cho vé khứ hồi. Lớp bảo vệ cuối ở service — UI (C3 bước 2) nên lọc
- * trước nhưng không được bỏ qua bước này.
- */
+/** Ghi chú (z): validate khoảng cách transit tối thiểu 2 tiếng giữa chặng đi và chặng về cho vé khứ hồi. */
 function validateRoundTripTransit(outboundFlight, returnFlight) {
   const gap = new Date(returnFlight.departure_time) - new Date(outboundFlight.arrival_time);
   if (gap < MIN_ROUND_TRIP_TRANSIT_MS) {
@@ -126,11 +96,7 @@ function validateRoundTripTransit(outboundFlight, returnFlight) {
   }
 }
 
-/**
- * Chuyến bay phải còn `scheduled` và CHƯA khởi hành mới đặt được. Tìm kiếm đã
- * lọc sẵn, nhưng POST /api/bookings nhận flight_id từ client nên phải tự chặn
- * (chuyến đã hủy hoặc đã bay không được tạo booking dù biết _id).
- */
+/** Chuyến bay phải còn `scheduled` và chưa khởi hành mới đặt được. */
 function assertFlightBookable(flightDoc, now = new Date()) {
   if (flightDoc.status !== "scheduled") {
     throw new ValidationError(
@@ -146,12 +112,7 @@ function assertFlightBookable(flightDoc, now = new Date()) {
   }
 }
 
-/**
- * Mỗi hành khách phải có ĐÚNG 1 ghế trên MỖI chuyến của hành trình; không có
- * ghế thuộc chuyến ngoài hành trình; 2 hành khách không được chung 1 ghế. Giao
- * diện đã ép điều này, nhưng server phải tự kiểm — thiếu ghế thì
- * computeLegAmount tính 0 đồng cho người đó (vé miễn phí qua API trực tiếp).
- */
+/** Mỗi hành khách phải có đúng 1 ghế trên mỗi chuyến của hành trình; không có ghế thuộc chuyến ngoài hành trình. */
 function validateSeatAssignments(passengers, legs) {
   const flightNumbers = new Map(legs.map((l) => [String(l.flightDoc._id), l.flightDoc.flight_number]));
   const seatOwner = new Map(); // `${flightId}:${seat}` -> tên hành khách đầu tiên
@@ -189,11 +150,7 @@ function validateSeatAssignments(passengers, legs) {
   }
 }
 
-/**
- * Ghi chú (o): đối chiếu seat_class client gửi lên với seat_class THẬT trong
- * Flight.seats[seat_number] — không tin dữ liệu client vì ảnh hưởng trực tiếp
- * tới cách tính amount.
- */
+/** Ghi chú (o): đối chiếu seat_class client gửi lên với seat_class thật trong Flight.seats[seat_number]. */
 function assertSeatClassMatches(flightDoc, seatNumber, claimedSeatClass) {
   const realSeat = flightDoc.seats.find((s) => s.seat_number === seatNumber);
   if (!realSeat) {
@@ -209,24 +166,10 @@ function assertSeatClassMatches(flightDoc, seatNumber, claimedSeatClass) {
   return realSeat;
 }
 
-/**
- * MỚI THÊM: xác minh ghế đang thực sự `held` bởi ĐÚNG user đang tạo booking
- * này — bắt buộc phải qua bước hold-seat (C5) trước, không được bỏ qua.
- *
- * Lý do bắt buộc có bước này: nếu thiếu, 1 client có thể gửi thẳng request
- * tạo booking với 1 seat_number đang `available` (chỉ cần đoán đúng
- * seat_class) mà KHÔNG cần gọi hold-seat trước — booking `pending_payment`
- * vẫn được tạo bình thường vì assertSeatClassMatches không quan tâm status
- * ghế. Lỗi chỉ lộ ra SAU KHI VNPay đã trừ tiền thật, ở bước
- * seatService.confirmSeatBooked (điều kiện status: held, held_by: userId sẽ
- * fail vì ghế chưa từng được hold) → booking rơi oan vào
- * `payment_error_manual_refund` dù đáng ra phải bị chặn ngay từ lúc tạo
- * booking, không phải đợi tới lúc thanh toán xong mới phát hiện.
- */
+/** Xác minh ghế đang thực sự `held` bởi đúng user đang tạo booking này — bắt buộc phải qua bước hold-seat. */
 function assertSeatIsHeldByUser(flightDoc, seatNumber, userId, now = new Date()) {
   const seat = flightDoc.seats.find((s) => s.seat_number === seatNumber);
-  // payment_expires_at = held_until − 5 phút (ghi chú y): ghế phải còn giữ > 5 phút nữa thì
-  // booking mới có thời gian thanh toán; held_until thiếu/sai cũng bị coi là không hợp lệ.
+  // payment_expires_at = held_until − 5 phút (ghi chú y).
   const heldUntil = seat?.held_until ? new Date(seat.held_until).getTime() : NaN;
   const tooLate = !(heldUntil - PAYMENT_EXPIRY_BUFFER_MS > now.getTime());
   if (!seat || seat.status !== "held" || String(seat.held_by) !== String(userId) || tooLate) {
@@ -237,10 +180,7 @@ function assertSeatIsHeldByUser(flightDoc, seatNumber, userId, now = new Date())
   }
 }
 
-/**
- * Vé khứ hồi: chặng về phải là chiều NGƯỢC của chặng đi (đi A→B thì về B→A). Trước đây server
- * chỉ kiểm tra transit nên gọi API trực tiếp có thể ghép 2 chặng không liên quan.
- */
+/** Vé khứ hồi: chặng về phải là chiều ngược của chặng đi (đi A→B thì về B→A). */
 function validateRoundTripRoute(outboundFlight, returnFlight) {
   if (
     outboundFlight.origin_code !== returnFlight.dest_code ||
@@ -252,14 +192,7 @@ function validateRoundTripRoute(outboundFlight, returnFlight) {
   }
 }
 
-/**
- * Ghi chú (t): flights[i].amount = Σ (theo từng hành khách có seats[] chứa
- * flight_id = flights[i].flight_id) base_price[seat_class_của_khách_đó].
- *
- * @param {Array} passengers - passengers[] của Booking (đã có seats[] đầy đủ)
- * @param {String} flightId - _id của Flight (leg) cần tính amount
- * @param {Object} basePriceByFlightId - map { [flightId]: { economy, business } }
- */
+/** Ghi chú (t): flights[i].amount = Σ (theo từng hành khách có seats[] chứa flight_id = flights[i].flight_id)… */
 function computeLegAmount(passengers, flightId, basePriceByFlightId) {
   const basePrice = basePriceByFlightId[flightId];
   let amount = 0;
@@ -275,12 +208,7 @@ function computeLegAmount(passengers, flightId, basePriceByFlightId) {
   return amount;
 }
 
-/**
- * Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế THẬT — ghi đè
- * baggage_kg/meal/addons_amount trong passengers[] (giá client gửi lên, nếu có, bị bỏ qua).
- * Gọi SAU assertSeatClassMatches để seat_class đã chắc chắn đúng. `pricing` = bảng giá hiện hành
- * (services/ancillaryPricingService.js); bỏ trống -> bảng giá mặc định.
- */
+/** Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế thật. */
 function applyAddons(passengers, pricing) {
   for (const passenger of passengers) {
     for (const seat of passenger.seats) {
@@ -294,16 +222,7 @@ function applyAddons(passengers, pricing) {
   }
 }
 
-/**
- * Hàm tổng hợp gọi khi tạo booking (C6). Ném ValidationError nếu có bất kỳ vi
- * phạm nào — API route bắt lỗi này và trả về đúng statusCode + message.
- *
- * @param {Object} params
- * @param {Array} params.passengers - dữ liệu hành khách client gửi lên
- * @param {Array} params.legs - [{ flightDoc, leg: 'outbound'|'return' }]
- * @param {String} params.userId - chủ booking, dùng đối chiếu held_by (MỚI THÊM)
- * @param {Object} [params.pricing] - bảng giá dịch vụ bổ sung (lib/ancillaries.js)
- */
+/** Hàm tổng hợp gọi khi tạo booking (C6). */
 async function validateBookingCreation({ passengers, legs, userId, pricing }) {
   // 0) Số lượng hợp lệ + chuyến còn đặt được (chưa hủy, chưa khởi hành)
   if (!Array.isArray(passengers) || passengers.length < 1) {
@@ -324,7 +243,7 @@ async function validateBookingCreation({ passengers, legs, userId, pricing }) {
     validatePassengerDocument(passenger);
   }
 
-  // 1b) Chặn trùng số giấy tờ GIỮA các hành khách trong cùng booking (MỚI THÊM)
+  // 1b) Chặn trùng số giấy tờ giữa các hành khách trong cùng booking
   validateNoDuplicateDocumentIds(passengers);
 
   // 2) Validate transit time nếu khứ hồi
@@ -338,8 +257,7 @@ async function validateBookingCreation({ passengers, legs, userId, pricing }) {
   // 2b) Mỗi hành khách có đúng 1 ghế trên mỗi chuyến, không trùng ghế
   validateSeatAssignments(passengers, legs);
 
-  // 3) Đối chiếu seat_class thật + xác minh ghế đang được CHÍNH user này giữ
-  // cho từng ghế mỗi hành khách đã chọn (ghi chú o + bước MỚI THÊM ở trên).
+  // 3) Đối chiếu seat_class thật + xác minh ghế đang được chính user này giữ cho từng ghế mỗi hành khách đã chọn.
   const flightById = Object.fromEntries(legs.map((l) => [String(l.flightDoc._id), l.flightDoc]));
   for (const passenger of passengers) {
     for (const seat of passenger.seats) {

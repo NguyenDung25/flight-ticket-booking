@@ -1,34 +1,3 @@
-// app/[locale]/search/page.js
-//
-// C1/C2 — hiển thị kết quả tìm kiếm. Đọc trực tiếp searchParams từ URL (do
-// SearchForm.jsx điều hướng qua router.push), gọi THẲNG
-// services/flightService.searchFlights() — Server Component, không cần vòng
-// HTTP qua chính /api/flights/search của mình (cùng lý do page.js trang chủ
-// đã ghi chú: tiết kiệm 1 round-trip vì đã chạy server-side sẵn).
-//
-// searchFlights() ném FlightError khi thiếu/sai tham số (VD thiếu origin) —
-// BẮT BUỘC bọc try/catch hiển thị lỗi thân thiện thay vì để page crash, vì
-// tham số tới từ URL nên khách có thể tự gõ tay sai hoặc sửa link.
-//
-// C2 (lọc theo giá/khung giờ/hãng bay) xử lý phía CLIENT trên kết quả đã có
-// (đúng ghi chú kỹ thuật C2 trong flightService.js) — xem
-// FilterableFlightList.jsx (Client Component nhận danh sách đã serialize
-// sẵn, tự lọc trong browser, KHÔNG gọi lại DB/API khi đổi bộ lọc).
-//
-// LUẬT NGHIỆP VỤ MỚI: khứ hồi bắt buộc CÙNG 1 hãng bay cho cả 2 chặng — ở
-// bước 2, chặng về chỉ hiện đúng hãng của chặng đi đã chọn (lọc ngay bên
-// dưới, sau khi có kết quả từ searchFlights()). CHƯA enforce lại ở
-// /booking/summary (bước 3, chưa xây) — khi làm bước đó PHẢI validate lại
-// (defense in depth), không chỉ tin UI đã lọc đúng, vì khách có thể tự sửa
-// URL để bỏ qua bộ lọc này.
-//
-// WIZARD KHỨ HỒI — TRANG NÀY ĐÓNG VAI TRÒ CẢ BƯỚC 1 LẪN BƯỚC 2 (xem
-// app/[locale]/flights/[id]/page.js để hiểu toàn bộ luồng): mặc định
-// (không có outboundFlightId) = bước 1, chỉ hiện chặng đi. Khi khách đã
-// chọn xong chặng đi (quay lại đây kèm ?outboundFlightId=...) = bước 2, chỉ
-// hiện chặng về + 1 dải xác nhận chuyến đi đã chọn, để không hiện lại chặng
-// đi (tránh chọn nhầm/chọn lại) và giữ ngữ cảnh rõ ràng cho khách.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { searchFlights, getFlightDetail, getDailyMinPrices, FlightError } from "@/services/flightService";
@@ -55,8 +24,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
   const returnDate = sp.returnDate;
   const passengerCount = sp.passengerCount ? Number(sp.passengerCount) : undefined;
 
-  // Có mặt outboundFlightId + đang tìm khứ hồi => đây là BƯỚC 2 của wizard
-  // (xem comment đầu file) — chỉ hiện chặng về, không hiện lại chặng đi.
+  // Có mặt outboundFlightId + đang tìm khứ hồi => đây là bước 2 của wizard — chỉ hiện chặng về.
   const isReturnStep = tripType === "round_trip" && Boolean(sp.outboundFlightId);
 
   let result = null;
@@ -68,26 +36,17 @@ export default async function SearchResultsPage({ params, searchParams }) {
     result = await searchFlights({ origin, destination, departureDate, tripType, returnDate, passengerCount });
 
     if (isReturnStep) {
-      // Chỉ để hiển thị dải xác nhận — lỗi ở đây (VD flight vừa bị admin
-      // hủy giữa chừng) KHÔNG được làm sập cả trang, chỉ đơn giản là không
-      // hiện dải xác nhận đó nữa.
+      // Chỉ để hiển thị dải xác nhận — lỗi ở đây (VD flight vừa bị admin hủy giữa chừng) không được làm sập cả trang.
       try {
         selectedOutbound = await getFlightDetail(sp.outboundFlightId);
       } catch {
         selectedOutbound = null;
       }
 
-      // LUẬT NGHIỆP VỤ: khứ hồi phải CÙNG 1 hãng bay cả 2 chiều — lọc chặng
-      // về chỉ giữ lại đúng hãng của chặng đi đã chọn. So bằng String() vì
-      // airline._id (từ aggregation $lookup) và airline_id._id (từ
-      // populate() của getFlightDetail) đều là ObjectId, so trực tiếp bằng
-      // === sẽ luôn false dù cùng giá trị (2 instance khác nhau).
+      // Luật nghiệp vụ: khứ hồi phải cùng 1 hãng bay cả 2 chiều.
       if (selectedOutbound && result.return) {
         const outboundAirlineId = String(selectedOutbound.airline_id._id);
-        // Ghi chú (z): lọc bỏ chặng về cất cánh trước outbound.arrival_time + 2h
-        // ngay ở UI — tránh khách chọn được rồi mới bị báo lỗi ở service.
-        // Service vẫn validate lại (lớp bảo vệ cuối), nhưng lọc sớm ở đây
-        // giúp UX mượt hơn. Dùng Date để so sánh, outboundArrivalMs là UTC ms.
+        // Ghi chú (z): lọc bỏ chặng về cất cánh trước outbound.arrival_time + 2h ngay ở UI.
         const outboundArrivalMs = new Date(selectedOutbound.arrival_time).getTime();
         const MIN_TRANSIT_MS = 2 * 60 * 60 * 1000; // 2 tiếng tính bằng ms
 
@@ -103,19 +62,12 @@ export default async function SearchResultsPage({ params, searchParams }) {
       }
     }
   } catch (err) {
-    // FlightError (thiếu/sai tham số) -> message đã được service viết sẵn,
-    // an toàn hiển thị thẳng. Lỗi khác (DB down...) -> thông báo chung
-    // chung, KHÔNG lộ chi tiết kỹ thuật ra trang khách xem — nhưng vẫn PHẢI
-    // log ra terminal, nếu không lỗi thật bị nuốt hoàn toàn, không debug được.
+    // FlightError (thiếu/sai tham số) -> message đã được service viết sẵn, an toàn hiển thị thẳng.
     console.error("SearchPage error:", err);
     errorMessage = err instanceof FlightError ? localizeApiMessage(err.message, locale) : tCommon("error");
   }
 
-  // Mang NGUYÊN VẸN ngữ cảnh tìm kiếm (giữ luôn passengerCount dạng chuỗi
-  // gốc từ URL, không phải số đã ép kiểu) sang FlightCard -> trang chi tiết
-  // (C3) — để biết đang ở lần tìm kiếm nào. outboundFlightId cũng được mang
-  // theo sẵn ở đây (undefined nếu chưa có, vô hại) để FlightCard của chặng
-  // về tự động chuyển tiếp nó sang trang chi tiết, không cần sửa FlightCard.
+  // Mang nguyên vẹn ngữ cảnh tìm kiếm.
   const searchContext = {
     origin,
     destination,
@@ -126,13 +78,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
     outboundFlightId: sp.outboundFlightId,
   };
 
-  // Serialize sang plain JSON TRƯỚC khi đưa vào FilterableFlightList (Client
-  // Component) — result.outbound/result.return tới từ Flight.aggregate()
-  // (searchFlights), _id/airline._id vẫn là ObjectId thô, KHÔNG serialize
-  // được nguyên vẹn qua RSC payload nếu không tự chuyển. JSON.stringify tự
-  // gọi .toJSON() của ObjectId (driver mongodb/bson có sẵn) nên ra đúng
-  // string hex, không cần tự viết converter riêng.
-  // Thanh tóm tắt: tên sân bay theo ngôn ngữ đang dùng (thiếu thì hiện mã IATA).
+  // Serialize sang plain JSON trước khi đưa vào FilterableFlightList (Client Component).
   const airportDocs = origin && destination
     ? await Airport.find({ code: { $in: [String(origin).toUpperCase(), String(destination).toUpperCase()] } }, "code name").lean()
     : [];
@@ -143,8 +89,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
   const legFrom = isReturnStep ? destination : origin;
   const legTo = isReturnStep ? origin : destination;
 
-  // Dải chọn ngày: 7 ngày quanh ngày đang xem (không lùi về trước hôm nay), mỗi ngày kèm giá phổ thông
-  // thấp nhất của tuyến — bấm để đổi ngày, giữ nguyên các tham số khác.
+  // Dải chọn ngày: 7 ngày quanh ngày đang xem (không lùi về trước hôm nay).
   const currentDate = isReturnStep ? returnDate : departureDate;
   // "YYYY-MM-DD" -> ngày đó theo giờ VN (qua dayRangeVN: không lệch ngày nếu server chạy múi giờ khác).
   const dayLocale = locale === "en" ? "en" : "vi";

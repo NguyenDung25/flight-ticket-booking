@@ -1,16 +1,5 @@
 "use client";
 
-// app/admin/promotions/PromotionsTable.jsx
-//
-// A5 — bảng mã khuyến mãi + sửa/xóa. Sửa mở 1 hàng phụ ngay dưới dòng (cùng
-// kiểu FlightsTable/EditFlightRow); xóa xác nhận 2 bước ngay trên dòng (không
-// có Modal trong components/ui, xem BookingList.jsx). `code` không sửa được
-// (xem app/api/admin/promotions/[id]/route.js).
-//
-// Dữ liệu ngày nhận từ page.js đã ở dạng "YYYY-MM-DD" giờ VN (valid_from_date /
-// valid_until_date) — valid_until_date là ngày CUỐI CÙNG còn hiệu lực (đã trừ
-// đi mốc "00:00 ngày kế tiếp" lưu ở DB), khớp với ô "Đến ngày" lúc tạo.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

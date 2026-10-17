@@ -1,11 +1,5 @@
 "use client";
 
-// components/ui/Select.jsx
-//
-// Mirror đúng style + convention của Input.jsx (label/error/id-tự-sinh) —
-// dùng cho dropdown điểm đi/điểm đến/số hành khách (C1), và sau này hạng ghế
-// (C4/C5), bộ lọc kết quả (C2).
-
 import { useId } from "react";
 
 export default function Select({

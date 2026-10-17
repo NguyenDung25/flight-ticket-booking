@@ -1,8 +1,5 @@
 "use client";
 
-// app/[locale]/account/ProfileForm.jsx — sửa họ tên hiển thị (PATCH /api/users/me). Email là định danh
-// đăng nhập nên chỉ hiển thị, không sửa ở đây.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";

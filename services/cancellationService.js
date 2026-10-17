@@ -1,16 +1,3 @@
-// services/cancellationService.js
-//
-// Gộp 2 luồng hủy vé KHÁC BẢN CHẤT nhưng dùng chung field trên Booking
-// (refund_amount, cancellation_fee_amount, cancellation_tier, refund_processed_at
-// — ghi chú x):
-// 1) cancelBooking()          — C9 (khách tự hủy) / A3 (admin hủy thay mặt khách),
-//                                khách/admin CHỦ ĐỘNG xin hủy → có thể bị phạt (ghi chú j/w).
-// 2) cancelBookingsForFlight() — A8, hãng bay hủy chuyến do lỗi khách quan →
-//                                KHÔNG phạt khách, chỉ trừ phần chặng đã bay xong.
-//
-// Không dùng MongoDB Transaction (mục 10) — mỗi Booking được xử lý độc lập,
-// atomic ở cấp field của chính document đó qua .save().
-
 const Flight = require("../models/Flight");
 const Booking = require("../models/Booking");
 const seatService = require("./seatService");
@@ -41,11 +28,7 @@ function seatClassOn(passenger, flightId) {
   return seat?.seat_class === "business" ? "business" : "economy";
 }
 
-/**
- * Phần tiền của TỪNG hành khách trong các chặng `legs` — chia `leg.amount` (số tiền thực trả của chặng,
- * đã trừ khuyến mãi) theo tỷ lệ giá ghế + dịch vụ bổ sung của mỗi khách trên chặng đó. Khách cuối nhận
- * phần dư làm tròn, nên tổng các phần luôn đúng bằng tổng tiền các chặng. Thiếu giá (dữ liệu cũ) -> chia đều.
- */
+/** Phần tiền của từng hành khách trong các chặng `legs` — chia `leg.amount`. */
 function passengerShares({ booking, flightMap, legs }) {
   const pax = booking.passengers;
   const shares = pax.map(() => 0);
@@ -72,16 +55,7 @@ function passengerShares({ booking, flightMap, legs }) {
   return shares;
 }
 
-/**
- * Bảng phí hủy (ghi chú j) — tính cho TỪNG hành khách theo hạng ghế của khách và mốc giờ hủy, trên phần
- * tiền của khách đó. Trả về tier THEO ĐÚNG BẢNG — nơi gọi tự quyết định có ghi đè thành `partial` (TH2).
- *   tier "full"      : không mất phí (VD thương gia hủy trước 24h)
- *   tier "none"      : không hoàn đồng nào (VD toàn khách phổ thông hủy dưới 3h)
- *   tier "fixed_fee" : còn lại (có phí, vẫn hoàn một phần)
- *
- * @param {Number} elapsedHours - giờ còn lại tới departure_time mốc (có thể âm nếu đã qua giờ bay)
- * @param {Array<{ seatClass: "economy"|"business", share: Number }>} passengers
- */
+/** Bảng phí hủy (ghi chú j) — tính cho từng hành khách theo hạng ghế của khách và mốc giờ hủy. */
 function computeCancellationFee(elapsedHours, passengers) {
   const window = cancellationWindow(elapsedHours);
   let amount = 0;
@@ -105,15 +79,7 @@ function feeForLegs({ booking, flightMap, legs, refFlightId, now }) {
   return computeCancellationFee(elapsedHours, passengers);
 }
 
-/**
- * Ghi chú (l): chặn hủy nếu bất kỳ ghế nào trong booking đã check-in.
- *
- * QUAN TRỌNG: `checked_in` KHÔNG nằm trên `Booking.passengers[].seats[]` —
- * trường này chỉ tồn tại ở `Flight.seats[]` (đúng theo mongodb-schema-design.md
- * mục 5). Phải tra cứu qua `flightMap` (Flight doc thật), không được check
- * trực tiếp trên sub-document của Booking — nếu không, điều kiện luôn `false`
- * và rào chặn này sẽ không bao giờ có tác dụng.
- */
+/** Ghi chú (l): chặn hủy nếu bất kỳ ghế nào trong booking đã check-in. */
 function assertNoCheckedInSeat(booking, flightMap) {
   const hasCheckedIn = booking.passengers.some((p) =>
     p.seats.some((s) => {
@@ -143,9 +109,7 @@ async function releaseBookingSeats(booking, onlyFlightIds = null) {
   for (const passenger of booking.passengers) {
     for (const seat of passenger.seats) {
       if (targetIds && !targetIds.includes(String(seat.flight_id))) continue;
-      // userId: booking.user_id — forceReleaseSeat bắt buộc khớp held_by
-      // (xem comment ở services/seatService.js), tránh nhả nhầm ghế của
-      // booking khác nếu ghế này đã đổi chủ từ lúc booking hiện tại tạo.
+      // userId: booking.user_id — forceReleaseSeat bắt buộc khớp held_by (xem comment ở services/seatService.js).
       await seatService.forceReleaseSeat({
         flightId: seat.flight_id,
         seatNumber: seat.seat_number,
@@ -155,14 +119,7 @@ async function releaseBookingSeats(booking, onlyFlightIds = null) {
   }
 }
 
-/**
- * C9 (khách tự hủy) / A3 (admin hủy thay mặt khách — dùng CHUNG hàm này,
- * không có API riêng để sửa status thành 'refunded' trực tiếp).
- *
- * @param {String} bookingId
- * @param {String} cancelReason
- * @returns {Promise<Object>} Booking doc sau khi hủy
- */
+/** C9 (khách tự hủy) / A3. */
 async function cancelBooking({ bookingId, cancelReason }) {
   const booking = await Booking.findById(bookingId);
   if (!booking) {
@@ -171,12 +128,7 @@ async function cancelBooking({ bookingId, cancelReason }) {
 
   // --- Nhánh 1 (ghi chú g): chưa thanh toán → hủy ngay, không có gì để hoàn ---
   if (booking.status === "pending_payment") {
-    // Ghi status TRƯỚC bằng update có điều kiện (atomic), CHỈ nhả ghế nếu thắng.
-    // Trước đây: nhả ghế rồi booking.save() (đọc-sửa-ghi, không điều kiện) —
-    // nếu webhook VNPay xác nhận thanh toán đúng lúc này, save() có thể ghi đè
-    // "confirmed" thành "cancelled" VÀ ghế đã bị nhả dù tiền đã thu. Thứ tự
-    // cũng quan trọng: nếu nhả ghế trước rồi mới phát hiện thua race, ghế của
-    // booking đã confirmed sẽ bị nhả oan.
+    // Ghi status trước bằng update có điều kiện (atomic), chỉ nhả ghế nếu thắng.
     const result = await Booking.updateOne(
       { _id: booking._id, status: "pending_payment" },
       { $set: { status: "cancelled", cancel_reason: cancelReason } }
@@ -205,9 +157,7 @@ async function cancelBooking({ bookingId, cancelReason }) {
   const now = nowVN().toDate();
   const plan = planCancellation({ booking, flightMap, now });
 
-  // Chốt trạng thái bằng update CÓ ĐIỀU KIỆN (atomic) TRƯỚC khi nhả ghế: 2 request hủy đồng
-  // thời (bấm đúp, khách + admin) chỉ 1 bên thắng, bên thua nhận 409 — không ghi nhận hoàn tiền
-  // 2 lần. Chỉ bên thắng mới nhả ghế.
+  // Chốt trạng thái bằng update có điều kiện (atomic) trước khi nhả ghế: 2 request hủy đồng thời.
   const claimed = await Booking.findOneAndUpdate(
     { _id: booking._id, status: "confirmed" },
     {
@@ -233,17 +183,11 @@ async function cancelBooking({ bookingId, cancelReason }) {
   return claimed;
 }
 
-/**
- * Hàm THUẦN (không đụng DB) — quyết định mức phí/hoàn tiền và ghế cần nhả khi khách/admin hủy
- * 1 booking `confirmed` (ghi chú j, w). Ném CancellationError 409 nếu không còn gì để hủy.
- *
- * @returns {{ tier: String, fee: Number, refund: Number, releaseFlightIds: Array|null }}
- *   releaseFlightIds = null nghĩa là nhả ghế mọi chặng
- */
+/** Hàm thuần (không đụng DB) — quyết định mức phí/hoàn tiền và ghế cần nhả khi khách/admin hủy 1 booking… */
 function planCancellation({ booking, flightMap, now }) {
   if (booking.trip_type === "one_way") {
     const leg = booking.flights[0];
-    // Ghi chú (j): <3h KỂ CẢ khi chuyến đã khởi hành vẫn áp mốc "late" (không chặn hủy).
+    // Ghi chú (j): <3h kể cả khi chuyến đã khởi hành vẫn áp mốc "late" (không chặn hủy).
     const { tier, fee, refund } = feeForLegs({ booking, flightMap, legs: booking.flights, refFlightId: leg.flight_id, now });
     return { tier, fee, refund, releaseFlightIds: null };
   }
@@ -260,7 +204,7 @@ function planCancellation({ booking, flightMap, now }) {
     return { tier, fee, refund, releaseFlightIds: null };
   }
   if (now < returnFlight.departure_time) {
-    // TH2 — chặng đi đã bay, chặng về chưa: mốc giờ + hạng ghế theo chặng về, CHỈ trên tiền chặng về
+    // TH2 — chặng đi đã bay, chặng về chưa: mốc giờ + hạng ghế theo chặng về, chỉ trên tiền chặng về
     const { fee, refund } = feeForLegs({ booking, flightMap, legs: [returnLeg], refFlightId: returnLeg.flight_id, now });
     // ghi chú w — tier "partial", ghi đè, không dùng tier gốc của bảng
     return { tier: "partial", fee, refund, releaseFlightIds: [returnLeg.flight_id] };
@@ -269,11 +213,7 @@ function planCancellation({ booking, flightMap, now }) {
   throw new CancellationError("Hành trình đã hoàn tất, không thể hủy vé.", 409);
 }
 
-/**
- * Hàm THUẦN — tiền hoàn khi HÃNG hủy chuyến `cancelledFlightId` (A8). Chỉ trừ phần chặng ĐÃ BAY
- * XONG; chính chuyến bị hủy KHÔNG BAO GIỜ được tính là "đã bay" dù giờ khởi hành dự kiến đã
- * qua (hãng hủy thì khách phải được hoàn chặng đó).
- */
+/** Hàm thuần — tiền hoàn khi hãng hủy chuyến `cancelledFlightId` (A8). */
 function computeBulkRefund({ booking, flightMap, cancelledFlightId, now }) {
   const alreadyFlownAmount = booking.flights.reduce((sum, leg) => {
     if (String(leg.flight_id) === String(cancelledFlightId)) return sum;
@@ -283,21 +223,13 @@ function computeBulkRefund({ booking, flightMap, cancelledFlightId, now }) {
   const refundAmount = booking.total_amount - alreadyFlownAmount;
   return {
     refundAmount,
-    // Phần không hoàn (nếu có) là tiền hãng đã thực thu hợp lệ cho chặng đã bay — lưu vào
-    // cancellation_fee_amount để A6 cộng đúng vào doanh thu (ghi chú A8, A6).
+    // Phần không hoàn (nếu có) là tiền hãng đã thực thu hợp lệ cho chặng đã bay.
     feeAmount: booking.total_amount - refundAmount,
     tier: refundAmount === booking.total_amount ? "full" : "partial",
   };
 }
 
-/**
- * A8 — hủy hàng loạt mọi booking liên quan 1 chuyến bay bị hủy do lỗi hãng.
- * KHÔNG áp phí phạt (khác hẳn cancelBooking ở trên) — chỉ trừ phần chặng đã
- * bay xong nếu là vé khứ hồi (ghi chú A8). Bỏ qua rào cản check-in (ghi chú l
- * chỉ áp dụng khi khách chủ động xin hủy).
- *
- * @returns {Promise<Array<String>>} danh sách booking_id đã bị ảnh hưởng
- */
+/** A8 — hủy hàng loạt mọi booking liên quan 1 chuyến bay bị hủy do lỗi hãng. */
 async function cancelBookingsForFlight({ flightId, cancelReason }) {
   if (!cancelReason) {
     throw new CancellationError("cancel_reason là bắt buộc khi hủy hàng loạt.", 400);
@@ -313,11 +245,7 @@ async function cancelBookingsForFlight({ flightId, cancelReason }) {
 
   for (let booking of bookings) {
     if (booking.status === "pending_payment") {
-      // Chưa thu tiền, không có gì để hoàn. Nhả TOÀN BỘ ghế của booking (cả
-      // chặng không liên quan tới flightId này nếu là khứ hồi) — vì booking
-      // không hỗ trợ hủy tách chặng, cả booking chuyển 'cancelled' nên chặng
-      // còn lại (nếu có) cũng không còn hiệu lực, ghế phải được trả lại.
-      // Ghi status có điều kiện TRƯỚC, chỉ nhả ghế nếu thắng race với webhook.
+      // Chưa thu tiền, không có gì để hoàn.
       const result = await Booking.updateOne(
         { _id: booking._id, status: "pending_payment" },
         { $set: { status: "cancelled", cancel_reason: cancelReason } }
@@ -327,8 +255,7 @@ async function cancelBookingsForFlight({ flightId, cancelReason }) {
         affectedIds.push(String(booking._id));
         continue;
       }
-      // Thua race: VNPay vừa xác nhận thanh toán -> đọc lại, xử lý như booking
-      // "confirmed" bên dưới (hoàn tiền) thay vì bỏ sót.
+      // Thua race: VNPay vừa xác nhận thanh toán -> đọc lại, xử lý như booking "confirmed" bên dưới.
       booking = await Booking.findById(booking._id);
       if (!booking || booking.status !== "confirmed") continue;
     }
@@ -359,8 +286,7 @@ async function cancelBookingsForFlight({ flightId, cancelReason }) {
     );
     if (!claimed) continue;
 
-    // Nhả TOÀN BỘ ghế của booking (không chỉ chặng bị hủy): cả booking chuyển 'refunded', chặng
-    // còn lại (nếu khứ hồi) không còn gắn với booking hợp lệ nào nên ghế cũng phải trả lại kho.
+    // Nhả toàn bộ ghế của booking (không chỉ chặng bị hủy): cả booking chuyển 'refunded', chặng còn lại.
     await releaseBookingSeats(claimed);
     affectedIds.push(String(claimed._id));
   }
@@ -368,19 +294,7 @@ async function cancelBookingsForFlight({ flightId, cancelReason }) {
   return affectedIds;
 }
 
-/**
- * Cron job (ghi chú f) — quét `Booking.payment.payment_expires_at` đã quá
- * hạn ở trạng thái `pending_payment`, tự chuyển `cancelled` và nhả ghế.
- * KHÁC với `cancelBooking()` ở trên: đây là khách bỏ ngang CHƯA TỪNG thanh
- * toán (không có tiền để tính hoàn), không phải khách chủ động hủy đơn đã
- * thanh toán — nên không tính `refund_amount`/`cancellation_fee_amount`.
- *
- * Gọi định kỳ từ `cron/releaseExpiredHolds.js` (hoặc tiến trình cron riêng),
- * độc lập với việc nhả ghế quá hạn ở `seatService.releaseExpiredHolds()` —
- * 2 việc này xử lý 2 vấn đề khác nhau dù cùng hệ quả "nhả ghế".
- *
- * @returns {Promise<Number>} số booking đã bị hủy tự động
- */
+/** Cron job (ghi chú f) — quét `Booking.payment.payment_expires_at` đã quá hạn ở trạng thái `pending_payment`. */
 async function cancelExpiredPendingPayments() {
   const now = nowVN().toDate();
   const expiredBookings = await Booking.find({
@@ -390,8 +304,7 @@ async function cancelExpiredPendingPayments() {
 
   let cancelledCount = 0;
   for (const booking of expiredBookings) {
-    // Booking đã có giao dịch VNPay gắn vào (tiền đã trừ) mà vẫn kẹt pending (VD tiến trình xác nhận bị
-    // ngắt giữa chừng) thì TUYỆT ĐỐI không hủy + nhả ghế: chuyển sang xử lý tay để không mất tiền khách.
+    // Booking đã có giao dịch VNPay gắn vào (tiền đã trừ) mà vẫn kẹt pending.
     if (booking.payment?.transaction_id) {
       const flagged = await Booking.updateOne(
         { _id: booking._id, status: "pending_payment", "payment.transaction_id": { $ne: null } },
@@ -402,10 +315,7 @@ async function cancelExpiredPendingPayments() {
       }
       continue;
     }
-    // Ghi status TRƯỚC bằng update có điều kiện (atomic) rồi CHỈ nhả ghế nếu
-    // thắng race. Nếu webhook VNPay vừa chuyển booking sang "confirmed", điều
-    // kiện status: "pending_payment" không còn khớp -> không ghi đè VÀ không
-    // nhả ghế (ghế lúc này đã "booked" hợp lệ của booking đã thu tiền).
+    // Ghi status trước bằng update có điều kiện (atomic) rồi chỉ nhả ghế nếu thắng race.
     const result = await Booking.updateOne(
       { _id: booking._id, status: "pending_payment", "payment.transaction_id": null },
       {
@@ -425,16 +335,7 @@ async function cancelExpiredPendingPayments() {
   return cancelledCount;
 }
 
-/**
- * A3 (ngoại lệ duy nhất cho admin nhập tay số tiền, xem ghi chú y) — tính các field
- * hoàn tiền cho booking `payment_error_manual_refund`. Hàm THUẦN để test được.
- *
- * Admin nhập `refundAmount` = số tiền thực sự hoàn lại khách (thường = toàn bộ số đã trừ).
- * Phần chênh (nếu admin cố ý hoàn ít hơn) ghi vào `cancellation_fee_amount` để báo cáo
- * doanh thu A6 vẫn khớp công thức "doanh thu = confirmed + phí phạt của refunded".
- *
- * @throws {CancellationError} 400 nếu số tiền không phải số nguyên dương hoặc vượt `totalAmount`
- */
+/** A3 (ngoại lệ duy nhất cho admin nhập tay số tiền, xem ghi chú y). */
 function computeManualRefund(totalAmount, refundAmount) {
   const refund = Number(refundAmount);
   if (!Number.isInteger(refund) || refund <= 0) {
@@ -453,23 +354,7 @@ function computeManualRefund(totalAmount, refundAmount) {
   };
 }
 
-/**
- * A3 — admin xử lý tay 1 booking `payment_error_manual_refund`: ghi số tiền hoàn,
- * chuyển `refunded`, nhả các ghế còn `booked` đúng bởi chủ booking này (ghế đã thuộc
- * người khác thì để nguyên — xem seatService.releaseBookedSeatOwnedBy).
- *
- * Giống toàn bộ luồng hoàn tiền khác: hệ thống chỉ GHI NHẬN số tiền, chưa gọi API hoàn
- * tiền của VNPay — admin tự chuyển trả khách ngoài hệ thống rồi ghi nhận ở đây.
- *
- * Atomic: điều kiện `status: payment_error_manual_refund` nằm ngay trong query ghi,
- * 2 admin bấm cùng lúc thì chỉ 1 người thành công.
- *
- * @param {Object} params
- * @param {String} params.bookingId
- * @param {Number|String} params.refundAmount
- * @param {String} [params.note] - ghi chú của admin (VD "Đã chuyển khoản lại ngày ...")
- * @returns {Promise<Object>} Booking doc sau khi cập nhật
- */
+/** A3 — admin xử lý tay 1 booking `payment_error_manual_refund`: ghi số tiền hoàn, chuyển `refunded`. */
 async function resolveManualRefund({ bookingId, refundAmount, note }) {
   const booking = await Booking.findById(bookingId);
   if (!booking) {

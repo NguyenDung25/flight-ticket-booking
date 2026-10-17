@@ -1,9 +1,3 @@
-// models/AdminLog.js
-//
-// Nhật ký thao tác của quản trị viên (bổ sung A1–A8): ai đã làm gì, lúc nào, trên đối tượng nào — để
-// đối soát khi có khiếu nại (VD ai đã hủy vé hộ khách, ai hoàn tiền tay bao nhiêu, ai khóa tài khoản).
-// Chỉ GHI THÊM (append-only): không có API sửa/xóa nhật ký. Ghi qua lib/adminLog.js.
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 

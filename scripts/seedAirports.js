@@ -1,16 +1,3 @@
-// scripts/seedAirports.js
-//
-// Chạy 1 LẦN, thủ công, KHÔNG phải cron: node scripts/seedAirports.js
-//
-// models/Airport.js có ghi chú "chỉ seed qua script từ AirLabs
-// (scripts/seedAirlabs.js)" — file ĐÓ (gọi API AirLabs thật) chưa được viết.
-// Đây là bản TẠM THỜI, nhập tay ~10 sân bay nội địa Việt Nam hay dùng nhất,
-// đủ để test form tìm chuyến (C1) và seed dữ liệu Flight sau này — KHÔNG
-// gọi AirLabs. Khi nào có script AirLabs thật, xóa file này đi.
-//
-// Dùng upsert (KHÔNG insertMany) — chạy lại nhiều lần không tạo trùng, an
-// toàn nếu lỡ chạy 2 lần hoặc muốn thêm sân bay mới vào cùng danh sách.
-
 const mongoose = require("mongoose");
 const Airport = require("../models/Airport");
 

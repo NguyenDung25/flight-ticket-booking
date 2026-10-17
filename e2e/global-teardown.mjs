@@ -1,4 +1,3 @@
-// e2e/global-teardown.mjs — xóa database E2E sau khi chạy xong.
 import mongoose from "mongoose";
 import { E2E_MONGO_URI } from "./env.mjs";
 

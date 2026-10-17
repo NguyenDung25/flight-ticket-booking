@@ -1,23 +1,9 @@
-// app/[locale]/my-bookings/page.js
-//
-// C9 — lịch sử đặt vé. Server Component gọi THẲNG Mongoose (cùng lý do các
-// trang khác đã ghi chú: tiết kiệm 1 round-trip vì đã chạy server-side sẵn)
-// thay vì fetch GET /api/bookings/my của chính mình. Route đó vẫn giữ lại
-// cho các nơi gọi khác (VD gọi lại sau khi hủy vé từ Client Component).
-//
-// Route nằm trong PROTECTED_SEGMENTS (proxy.js) nên auth() ở đây LUÔN có
-// session hợp lệ — không cần tự redirect (giống app/[locale]/booking/*).
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { guardActivePage } from "@/lib/guardActivePage";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
 import Booking from "@/models/Booking";
-// Side-effect import — populate({path:"flights.flight_id"}) bên dưới cần
-// model "Flight" đã được đăng ký, nhưng file này chỉ dùng Booking trực
-// tiếp. Cùng lớp bug MissingSchemaError đã gặp ở services/flightService.js
-// (comment đầy đủ ở đó) — Next.js/Turbopack bundle route riêng ở dev có thể
-// không tình cờ nạp models/Flight.js qua đường nào khác.
+// Side-effect import — populate({path:"flights.flight_id"}) bên dưới cần model "Flight" đã được đăng ký.
 import "@/models/Flight";
 import BookingList from "./BookingList";
 
@@ -37,9 +23,7 @@ export default async function MyBookingsPage({ params }) {
       select: "flight_number origin_code dest_code departure_time arrival_time status",
     });
 
-  // toJSON() của Mongoose Document tự lo ObjectId -> string, Date -> ISO —
-  // an toàn để truyền thẳng qua Client Component (không có field nhạy cảm
-  // nào ở đây khác user, và đây LÀ user đang xem chính booking của họ).
+  // toJSON() của Mongoose Document tự lo ObjectId -> string, Date -> ISO.
   const plainBookings = JSON.parse(JSON.stringify(bookings));
 
   return (

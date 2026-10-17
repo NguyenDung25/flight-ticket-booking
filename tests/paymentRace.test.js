@@ -1,7 +1,3 @@
-// tests/paymentRace.test.js — tính đúng đắn của luồng xác nhận thanh toán khi IPN và
-// syncPaymentStatus() chạy ĐỒNG THỜI, và cron không hủy nhầm booking đã trả tiền.
-// Dùng bản giả của Booking có ngữ nghĩa "cập nhật có điều kiện" (khớp filter rồi mới ghi, trong 1 bước
-// đồng bộ — mô phỏng tính atomic của MongoDB trên 1 document). KHÔNG thay thế test với MongoDB thật.
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

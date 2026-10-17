@@ -1,8 +1,5 @@
 "use client";
 
-// app/[locale]/forgot-password/ForgotPasswordForm.jsx — gửi yêu cầu quên mật khẩu. Server luôn trả cùng
-// 1 câu (không cho biết email có tồn tại không), giao diện hiện câu đó theo ngôn ngữ đang dùng.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Input from "@/components/ui/Input";

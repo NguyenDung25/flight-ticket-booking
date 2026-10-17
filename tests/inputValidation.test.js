@@ -1,10 +1,3 @@
-// tests/inputValidation.test.js
-//
-// Test cho các lỗi logic đầu vào đã sửa: ngày về trước ngày đi, ngày bay quá
-// khứ, số khách âm/vượt giới hạn, ngày sinh tương lai, chuyến đã hủy/đã bay,
-// hành khách thiếu ghế/trùng ghế. Không cần MongoDB: model Flight bị stub tại
-// chỗ (cùng instance mà service đã require). Chạy bằng `npm test`.
-
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -24,7 +17,7 @@ const HOUR = 60 * 60 * 1000;
 const ymd = (offsetDays) => toVN(new Date(Date.now() + offsetDays * DAY)).format("YYYY-MM-DD");
 const baseSearch = { origin: "SGN", destination: "HAN", tripType: "one_way" };
 
-// Stub aggregate để các ca HỢP LỆ không chạm DB; ghi lại pipeline đã gửi.
+// Stub aggregate để các ca hợp lệ không chạm DB; ghi lại pipeline đã gửi.
 function stubAggregate() {
   const calls = [];
   const original = Flight.aggregate;

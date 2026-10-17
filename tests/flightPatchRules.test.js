@@ -1,4 +1,3 @@
-// tests/flightPatchRules.test.js — luật PATCH chuyến bay (L2/L3), không cần MongoDB.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validatePatch, changedSensitiveFields } = require("../lib/flightPatchRules");
@@ -45,7 +44,7 @@ test("gửi lại đúng giá trị cũ KHÔNG tính là thay đổi nhạy cả
 });
 test("đổi giá trị thật thì bị tính là nhạy cảm", () => {
   assert.deepEqual(changedSensitiveFields({ arrival_time: "2026-11-10T04:00:00Z" }, cur), ["arrival_time"]);
-  // đổi bảng giá không làm sai lệch vé đã bán (amount đã chốt trong Booking) → không bị coi là nhạy cảm
+  // Đổi bảng giá không làm sai lệch vé đã bán (amount đã chốt trong Booking) → không bị coi là nhạy cảm
   assert.deepEqual(changedSensitiveFields({ base_price: { economy: 1, business: 2500000 } }, cur), []);
   assert.deepEqual(changedSensitiveFields({ dest_code: "DAD" }, cur), ["dest_code"]);
 });

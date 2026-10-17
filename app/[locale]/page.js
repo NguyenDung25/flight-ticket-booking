@@ -1,6 +1,3 @@
-// app/[locale]/page.js — C1: trang tìm kiếm chuyến bay.
-// Trang chủ: hero (minh họa phẳng) + thẻ tìm chuyến đè lên mép hero, tuyến bay phổ biến, 4 điểm nổi bật.
-
 import fs from "node:fs";
 import path from "node:path";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -33,14 +30,10 @@ export default async function HomePage({ params }) {
     city: a.city,
   }));
 
-  // Ngày hôm nay theo giờ VN (KHÔNG dùng toISOString(): ra ngày UTC nên 0h–7h sáng
-  // giờ VN bị lùi 1 ngày -> link dẫn tới ngày quá khứ và searchFlights từ chối).
+  // Ngày hôm nay theo giờ VN (không dùng toISOString.
   const today = todayStringVN();
 
-  // Khối "Tuyến bay phổ biến": danh sách/thứ tự/ảnh do admin quản lý (Admin → Chuyến bay → Tuyến phổ biến;
-  // chưa tùy chỉnh thì dùng mặc định trong lib/popularRoutes.js). Giá thấp nhất + chuyến gần nhất lấy từ DB
-  // (chuyến scheduled chưa bay). Ảnh: ưu tiên ảnh admin tải lên (MongoDB), rồi ảnh trong
-  // public/images/routes/<mã>.jpg, cuối cùng là hình SVG dự phòng.
+  // Khối "Tuyến bay phổ biến": danh sách/thứ tự/ảnh do admin quản lý.
   const homeRoutes = await listForHome();
   const routeStats = await getRouteStats(homeRoutes.map((r) => [r.origin_code, r.dest_code]));
   const routeCards = buildRouteCards({ stats: routeStats, locale, todayStr: today, routes: homeRoutes }).map((c) => ({
@@ -56,7 +49,7 @@ export default async function HomePage({ params }) {
   const promotions = (await listActivePromotions().catch(() => [])).slice(0, 3).map((p) => ({
     code: p.code,
     percent: p.discount_percent,
-    // valid_until lưu 00:00 VN của NGÀY KẾ TIẾP -> trừ 1ms ra ngày cuối còn hiệu lực (như trang Khuyến mãi).
+    // valid_until lưu 00:00 VN của ngày kế tiếp -> trừ 1ms ra ngày cuối còn hiệu lực (như trang Khuyến mãi).
     until: toVN(new Date(new Date(p.valid_until).getTime() - 1)).format("DD/MM/YYYY"),
     left: p.remaining === null ? tPromo("unlimited") : tPromo("remaining", { count: p.remaining }),
   }));
@@ -76,7 +69,7 @@ export default async function HomePage({ params }) {
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      {/* === HERO: minh họa phẳng (núi, mặt trời, đường bay) — không gradient, không vòng tròn mờ === */}
+      {/* === Hero: minh họa phẳng (núi, mặt trời, đường bay) — không gradient, không vòng tròn mờ === */}
       <section className="relative overflow-hidden bg-sea-50">
         <svg
           aria-hidden="true"
@@ -99,13 +92,13 @@ export default async function HomePage({ params }) {
         </div>
       </section>
 
-      {/* === FORM TÌM CHUYẾN: thẻ trắng đè lên mép dưới hero === */}
+      {/* === Form tìm chuyến: thẻ trắng đè lên mép dưới hero === */}
       <section aria-label={t("searchButton")} className="relative mx-auto -mt-24 w-full max-w-6xl px-6">
         {/* Form rộng tối đa 3xl, canh giữa trang */}
         <SearchForm airports={airports} locale={locale} />
       </section>
 
-      {/* === ƯU ĐÃI ĐANG ÁP DỤNG (thẻ gọn 1 hàng) === */}
+      {/* === Ưu đãi đang áp dụng (thẻ gọn 1 hàng) === */}
       {promotions.length > 0 && (
         <section aria-labelledby="home-promos" className="mx-auto w-full max-w-6xl px-6 pt-14">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -134,7 +127,7 @@ export default async function HomePage({ params }) {
         </section>
       )}
 
-      {/* === TUYẾN BAY PHỔ BIẾN === */}
+      {/* === Tuyến bay phổ biến === */}
       {routeCards.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 pt-14">
           <h2 className="mb-6 text-2xl font-bold tracking-tight text-ink">{t("popularRoutesTitle")}</h2>
@@ -153,7 +146,7 @@ export default async function HomePage({ params }) {
         </section>
       )}
 
-      {/* === ĐIỂM NỔI BẬT === */}
+      {/* === Điểm nổi bật === */}
       <section aria-labelledby="why-us" className="mt-14 border-t border-sand-100 bg-sand-50 py-12">
         <div className="mx-auto mb-8 max-w-6xl px-6">
           <h2 id="why-us" className="text-2xl font-bold tracking-tight text-ink">{t("whyUsTitle")}</h2>

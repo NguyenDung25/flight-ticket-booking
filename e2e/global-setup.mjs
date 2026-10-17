@@ -1,5 +1,3 @@
-// e2e/global-setup.mjs — tạo database E2E sạch: xóa bản cũ (nếu lần trước dừng giữa chừng) rồi chạy seed
-// (tài khoản demo, hãng bay, tàu bay, chuyến HAN↔SGN ngày mai) + dữ liệu check-in (e2e/seed-checkin.cjs).
 import { execFileSync } from "node:child_process";
 import mongoose from "mongoose";
 import { E2E_DB_NAME, E2E_MONGO_URI } from "./env.mjs";

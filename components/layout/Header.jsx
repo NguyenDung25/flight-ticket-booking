@@ -1,14 +1,3 @@
-// components/layout/Header.jsx
-//
-// Server Component — gọi thẳng auth() để biết có session hay không (KHÔNG
-// phải để check is_blocked, việc đó là của lib/requireActiveUser.js ở đúng
-// hành động nhạy cảm — ở đây chỉ để hiện đúng UI đăng nhập/đăng xuất + tên
-// người dùng).
-//
-// MobileMenu (hamburger) tách thành Client Component riêng vì cần useState
-// toggle mở/đóng — Header giữ nguyên Server Component để có thể gọi
-// auth()/getTranslations() trực tiếp không cần "use client".
-
 import { getTranslations } from "next-intl/server";
 import NextLink from "next/link";
 import { auth } from "@/auth";
@@ -34,12 +23,7 @@ export default async function Header() {
     { href: "/cancellation-policy", label: t("cancellationPolicy") },
   ];
 
-  // Nút "Đăng ký" trên thanh header bị ẩn dưới breakpoint sm (chật chỗ) — đưa
-  // vào menu hamburger để khách dùng điện thoại vẫn đăng ký được.
-  // Admin đang xem giao diện khách -> có đường quay lại khu quản trị. /admin KHÔNG nằm dưới
-  // [locale] và có root layout riêng, nên dùng Link của next/link (không prefix locale, Next tự tải
-  // trang mới khi đổi root layout) — KHÔNG dùng Link của next-intl.
-  // Chỉ để hiện nút: quyền thật vẫn do app/admin/layout.js kiểm tra tươi từ DB.
+  // Nút "Đăng ký" trên thanh header bị ẩn dưới breakpoint sm (chật chỗ).
   const isAdmin = session?.user?.role === "admin";
   const adminLink = isAdmin ? { href: "/admin", label: t("adminPanel"), plain: true } : null;
 
@@ -54,9 +38,7 @@ export default async function Header() {
     <header className="relative border-b border-sand-100 bg-white">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 xl:gap-6">
         <div className="flex items-center gap-2">
-          {/* Hamburger — chỉ hiện < lg (chính MobileMenu tự có class
-              "lg:hidden" trên root của nó; 5 mục menu không đủ chỗ ở khổ md), đặt bên trái brand cho quen tay
-              (giống đa số app mobile). */}
+          {/* Hamburger — chỉ hiện < lg. */}
           <MobileMenu links={mobileLinks} logoutLabel={session?.user ? t("logout") : null} />
           {/* Tên web là liên kết về trang chủ (không dùng biểu tượng riêng). */}
           <Link href="/" className="text-xl font-bold tracking-tight text-ink hover:text-coral-600">
@@ -80,11 +62,7 @@ export default async function Header() {
                   {t("adminPanel")}
                 </NextLink>
               )}
-              {/* Tên/email người đang đăng nhập — ẩn trên mobile (đã chật
-                  chỗ với hamburger + logo), chỉ hiện từ sm trở lên. Ưu tiên
-                  hiện `name` nếu auth.js có set (xem callbacks.session ở
-                  auth.js), fallback về `email` vì đó là field CHẮC CHẮN luôn
-                  có (models/User.js bắt buộc, name thì không). */}
+              {/* Tên/email người đang đăng nhập — ẩn trên mobile (đã chật chỗ với hamburger + logo), chỉ hiện từ sm trở lên. */}
               <Link
                 href="/account"
                 title={`${t("account")} — ${session.user.email}`}

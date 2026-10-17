@@ -1,16 +1,3 @@
-// services/checkinService.js
-//
-// C10 — check-in online, làm giống website hãng bay: KHÔNG cần đăng nhập. (1) khách nhập MÃ ĐẶT CHỖ
-// (mã vé điện tử, Booking.booking_code) + HỌ của một hành khách để tra cứu, (2) chọn hành khách + chặng
-// bay, (3) đồng ý quy định ICI, (4) check-in các ghế đã chọn và nhận thẻ lên máy bay.
-//
-// Phần GHI Flight.seats[] (atomic, kiểm tra chuyến hủy/khung giờ, chống double check-in) ủy quyền
-// cho `seatService.checkInSeat()` (mọi thao tác đọc/ghi seats[] tập trung ở seatService.js). File
-// này lo: xác thực mã + họ tên, dựng danh sách ghế để hiển thị, và nội dung thẻ lên máy bay theo
-// `Booking.locale` (cùng quy tắc với vé điện tử C7).
-//
-// API liên quan: POST /api/check-in/lookup, POST /api/flights/[id]/check-in
-
 const { checkedBaggageAllowance, DEFAULT_PRICING } = require("../lib/ancillaries");
 const Booking = require("../models/Booking");
 const Flight = require("../models/Flight");
@@ -32,12 +19,7 @@ class CheckinError extends Error {
 // Cùng 1 thông báo cho "sai mã" và "đúng mã nhưng sai tên" — không cho người dò biết mã nào tồn tại.
 const NOT_FOUND_MESSAGE = "Không tìm thấy vé đã thanh toán khớp với mã đặt chỗ và họ tên hành khách này.";
 
-/**
- * Tìm booking `confirmed` theo mã đặt chỗ + HỌ (hoặc họ tên) của ít nhất 1 hành khách — như website
- * hãng bay, xem lib/bookingCode.passengerNameMatches; không phân biệt hoa/thường/dấu. Tài khoản đặt vé bị khóa thì không cho check-in (ghi chú q).
- *
- * @throws {CheckinError} 400 thiếu/sai định dạng, 404 không khớp, 403 tài khoản đặt vé bị khóa
- */
+/** Tìm booking `confirmed` theo mã đặt chỗ + họ (hoặc họ tên) của ít nhất 1 hành khách — như website hãng bay. */
 async function findBookingByCodeAndName({ bookingCode, passengerName }) {
   const code = normalizeBookingCode(bookingCode);
   const name = normalizePassengerName(passengerName);
@@ -58,11 +40,7 @@ async function findBookingByCodeAndName({ bookingCode, passengerName }) {
   return booking;
 }
 
-/**
- * Booking (đã populate passengers.seats.flight_id kèm seats[]) -> danh sách phẳng 1 dòng / 1 ghế, kèm
- * trạng thái hiển thị. Chuyến bị hãng hủy (booking có thể vẫn `confirmed` tới khi admin chạy A8) ->
- * không cho check-in; trạng thái khung giờ tính sẵn ở server để client không tự suy luận sai.
- */
+/** Booking (đã populate passengers.seats.flight_id kèm seats[]) -> danh sách phẳng 1 dòng / 1 ghế. */
 function buildCheckInItems(booking) {
   const items = [];
   for (const passenger of booking.passengers) {
@@ -105,10 +83,7 @@ function buildCheckInItems(booking) {
   return items;
 }
 
-/**
- * Bước 1 của check-in: tra cứu bằng mã đặt chỗ + họ tên, trả về mọi ghế của booking (mọi hành khách,
- * mọi chặng) — giống website hãng: 1 người trong đoàn có thể làm thủ tục cho cả đoàn.
- */
+/** Bước 1 của check-in: tra cứu bằng mã đặt chỗ + họ tên, trả về mọi ghế của booking. */
 async function lookupForCheckIn({ bookingCode, passengerName }) {
   const booking = await findBookingByCodeAndName({ bookingCode, passengerName });
   await Booking.populate(booking, {
@@ -118,28 +93,10 @@ async function lookupForCheckIn({ bookingCode, passengerName }) {
   return buildCheckInItems(booking);
 }
 
-/**
- * Bước 2: check-in 1 ghế, trả về dữ liệu thẻ lên máy bay + bộ nhãn theo Booking.locale.
- *
- * THỨ TỰ CỐ Ý: xác thực mã + họ tên và kiểm tra ghế thuộc booking TRƯỚC khi gọi
- * `seatService.checkInSeat()` — sai thì từ chối sớm, không ghi `checked_in: true` vào DB.
- *
- * @param {Object} params
- * @param {String} params.flightId
- * @param {String} params.seatNumber
- * @param {String} params.bookingCode - mã đặt chỗ khách nhập
- * @param {String} params.passengerName - họ (hoặc họ tên) 1 hành khách trong booking
- * @param {Boolean} params.iciAccepted - khách đã đồng ý quy định ICI (bắt buộc true)
- * @returns {Promise<Object>} dữ liệu thẻ lên máy bay (lib/boardingPass.js)
- * @throws {CheckinError} 400/404/403 (xem findBookingByCodeAndName), 404 nếu ghế không thuộc booking
- * @throws {SeatConflictError} (ném từ seatService) 409 nếu chuyến đã hủy, ngoài khung giờ,
- *   ghế chưa `booked`, hoặc đã check-in rồi
- */
+/** Bước 2: check-in 1 ghế, trả về dữ liệu thẻ lên máy bay + bộ nhãn theo Booking.locale. */
 async function checkIn({ flightId, seatNumber, bookingCode, passengerName, iciAccepted }) {
   assertValidSeatNumber(seatNumber);
-  // Bước 4 của làm thủ tục trực tuyến: khách phải đọc và đồng ý quy định ICI (hành khách, hành lý)
-  // — kiểm tra ở server, không chỉ dựa vào nút trên giao diện. 422 (không phải 400) để lib/checkinGuard.js
-  // không tính đây là 1 lần dò mã.
+  // Bước 4 của làm thủ tục trực tuyến: khách phải đọc và đồng ý quy định ICI (hành khách, hành lý).
   if (iciAccepted !== true) {
     throw new CheckinError("Vui lòng đọc và đồng ý quy định làm thủ tục trực tuyến (ICI) trước khi check-in.", 422);
   }

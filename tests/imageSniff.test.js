@@ -1,4 +1,3 @@
-// Kiểm tra loại ảnh theo nội dung file (ảnh tuyến bay phổ biến do admin tải lên).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { sniffImageType, MAX_IMAGE_BYTES } = require("../lib/imageSniff");

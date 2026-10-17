@@ -1,10 +1,3 @@
-// app/[locale]/promotions/page.js
-//
-// A5 (phía khách) — liệt kê mã khuyến mãi ĐANG dùng được (còn hiệu lực + còn lượt), lấy thẳng từ
-// bảng Promotion mà admin quản lý ở /admin/promotions. Trang công khai, không cần đăng nhập.
-// Điều kiện "dùng được" nằm ở services/promotionService.listActivePromotions() — cùng điều kiện
-// applyPromotion() dùng khi tạo booking, để mã hiện ở đây áp vào là được.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { listActivePromotions } from "@/services/promotionService";

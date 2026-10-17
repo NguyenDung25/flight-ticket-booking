@@ -1,13 +1,3 @@
-// app/api/users/me/route.js
-//
-// Hồ sơ tài khoản đang đăng nhập:
-// - GET   -> email, họ tên, ngôn ngữ, ngày tạo (trang Tài khoản).
-// - PATCH -> { preferred_language } khi đổi ngôn ngữ (C11) và/hoặc { full_name } ở trang Tài khoản.
-//   KHÔNG nhận email/password/role hay field nào khác — đổi mật khẩu đi riêng qua
-//   POST /api/users/me/password (phải xác nhận mật khẩu hiện tại).
-//
-// requireActiveUser() (ghi chú q): kiểm tra is_blocked trực tiếp từ DB tại thời điểm request.
-
 import { NextResponse } from "next/server";
 import { auth, unstable_update } from "@/auth";
 import dbConnect from "@/lib/mongodb";

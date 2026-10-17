@@ -1,17 +1,3 @@
-// app/[locale]/payment/page.js
-//
-// C6 — khách được VNPay đưa VỀ ĐÂY sau khi thanh toán xong (Return URL build
-// trong services/paymentService.initiatePayment, VNPay nối thêm tham số vnp_*).
-// Trang KHÔNG tin các tham số vnp_* trên URL — chỉ lấy vnp_TxnRef để biết
-// bookingId, rồi để syncPaymentStatus() hỏi thẳng VNPay (querydr) kết quả thật.
-// IPN (GET /api/payments/vnpay-ipn) có thể tới TRƯỚC hoặc SAU, 2 luồng chạy
-// song song độc lập và đều atomic. Vẫn chưa có kết quả thì khuyên khách tải
-// lại trang sau vài giây (xem message Payment.statusPendingPayment).
-//
-// Route nằm trong PROTECTED_SEGMENTS (proxy.js) — bắt buộc đăng nhập, và ở
-// đây còn đối chiếu thêm booking.user_id đúng người đang xem (không cho xem
-// booking của người khác chỉ bằng cách đổi bookingId trên URL).
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { guardActivePage } from "@/lib/guardActivePage";
 import dbConnect from "@/lib/mongodb";
@@ -55,26 +41,20 @@ export default async function PaymentResultPage({ params, searchParams }) {
   let booking = null;
   if (bookingId) {
     booking = await Booking.findById(bookingId).catch(() => null);
-    // Không cho xem booking của người khác — coi như "không tìm thấy",
-    // KHÔNG phân biệt "không tồn tại" vs "không phải của bạn" (tránh lộ
-    // thông tin booking đó CÓ tồn tại hay không cho người không sở hữu).
+    // Không cho xem booking của người khác — coi như "không tìm thấy".
     if (booking && String(booking.user_id) !== String(session.user.id)) {
       booking = null;
     }
   }
 
-  // Booking còn pending_payment thì hỏi thẳng VNPay kết quả giao dịch gần nhất (IPN
-  // có thể chưa về, hoặc không về được khi chạy local không ngrok). Chỉ chạy SAU khi đã
-  // xác nhận booking đúng của người đang xem. Lỗi gì cũng nuốt — trang vẫn hiển thị
-  // trạng thái hiện tại. Đọc lại booking sau đó để lấy booking_code mới sinh (C7).
+  // Booking còn pending_payment thì hỏi thẳng VNPay kết quả giao dịch gần nhất.
   if (booking?.status === "pending_payment") {
     await syncPaymentStatus(String(booking._id)).catch(() => null);
     booking = await Booking.findById(booking._id).catch(() => booking);
   }
 
   let statusKey = booking ? STATUS_MESSAGE_KEY[booking.status] ?? "statusNotFound" : "statusNotFound";
-  // Chỉ báo "vé đã gửi tới email" khi email THỰC SỰ gửi được (ticket_emailed_at) — SMTP lỗi/chưa cấu
-  // hình thì báo thanh toán thành công + hướng dẫn gửi lại từ trang vé.
+  // Chỉ báo "vé đã gửi tới email" khi email thực sự gửi được (ticket_emailed_at).
   if (booking?.status === "confirmed" && !booking.ticket_emailed_at) {
     statusKey = "statusConfirmedEmailPending";
   }
@@ -93,12 +73,7 @@ export default async function PaymentResultPage({ params, searchParams }) {
         )}
 
         <div className="mt-6 flex flex-col gap-2">
-          {/* Chỉ hiện "Xem vé" khi ĐÃ confirmed (mới có booking_code, xem
-              services/ticketService.js issueTicket — booking_code sinh lúc
-              xem vé lần đầu). "Đặt chỗ của tôi" hiện cho MỌI trạng thái —
-              kể cả pending_payment (webhook chưa xử lý xong) hay lỗi, khách
-              đều cần 1 đường quay lại xem danh sách vé của mình, không chỉ
-              có mỗi "Về trang chủ". */}
+          {/* Chỉ hiện "Xem vé" khi đã confirmed. */}
           {booking?.status === "confirmed" && (
             <Link
               href={`/my-bookings/${booking._id}/ticket`}

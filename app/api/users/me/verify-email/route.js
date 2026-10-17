@@ -1,8 +1,3 @@
-// app/api/users/me/verify-email/route.js
-//
-// Gửi lại link xác thực email cho tài khoản đang đăng nhập (nút ở trang Tài khoản). Tối thiểu 60 giây
-// giữa 2 lần gửi (services/accountService.createEmailVerification).
-
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";

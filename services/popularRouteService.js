@@ -1,11 +1,3 @@
-// services/popularRouteService.js
-//
-// Quản lý danh sách "Tuyến bay phổ biến" của trang chủ (Admin → Chuyến bay → tab "Tuyến phổ biến"):
-// thêm/xóa, ẩn/hiện, đổi thứ tự, tải/xóa ảnh nền. Lỗi nghiệp vụ ném PopularRouteError có statusCode để
-// lib/apiError.js trả đúng mã. Collection rỗng = chưa tùy chỉnh -> trang chủ dùng mặc định (listForHome),
-// admin phải bấm "nạp mặc định" (seedDefaults) rồi mới sửa — tránh tình huống thêm 1 tuyến vào danh sách
-// rỗng làm trang chủ chỉ còn đúng 1 tuyến.
-
 const mongoose = require("mongoose");
 const PopularRoute = require("../models/PopularRoute");
 const Airport = require("../models/Airport");
@@ -43,10 +35,7 @@ async function listForAdmin() {
   return { routes: docs.map(toView), usingDefaults: docs.length === 0 };
 }
 
-/**
- * Danh sách cho trang chủ: tuyến đang bật theo thứ tự admin đặt. Chưa tùy chỉnh -> mặc định trong code.
- * Trả về mảng { origin_code, dest_code, id?, has_image, image_version }.
- */
+/** Danh sách cho trang chủ: tuyến đang bật theo thứ tự admin đặt. */
 async function listForHome() {
   const docs = await PopularRoute.find().sort({ sort_order: 1, created_at: 1 }).lean();
   if (docs.length === 0) {

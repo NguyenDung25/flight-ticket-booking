@@ -1,10 +1,3 @@
-// app/api/flights/search/route.js
-//
-// C1 — tìm kiếm chuyến bay. KHÔNG cần đăng nhập (khách vãng lai xem được kết
-// quả tìm kiếm bình thường — chỉ ĐẶT vé mới bắt buộc đăng nhập, đúng mục 1).
-// Toàn bộ logic đã có sẵn ở services/flightService.js — route chỉ đọc query
-// string, ép kiểu, và map lỗi.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { handleApiError } from "@/lib/apiError";

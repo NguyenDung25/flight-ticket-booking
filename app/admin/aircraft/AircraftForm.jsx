@@ -1,12 +1,5 @@
 "use client";
 
-// app/admin/aircraft/AircraftForm.jsx
-//
-// A2 — thêm máy bay. Admin KHÔNG gõ tay từng ghế: chỉ cấu hình THEO HẠNG (business / economy),
-// mỗi hạng gồm "số hàng" và "số ghế mỗi hàng" (tùy máy bay, không còn cố định 4/6). Form sinh
-// seat_map_template bằng lib/seatLayout.js (business đánh số hàng trước, economy sau) và cho xem
-// trước sơ đồ + tổng ghế trước khi lưu.
-
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SeatLayoutFields from "@/components/admin/SeatLayoutFields";

@@ -1,6 +1,3 @@
-// Vá thanh toán/giữ ghế: IPN VNPay atomic + idempotent, trang kết quả hỏi lại VNPay (querydr),
-// IPN trùng/muộn, không gia hạn giữ ghế vô hạn, đệm 5 phút. Không cần MongoDB (stub tại chỗ).
-
 process.env.MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/test";
 process.env.VNPAY_TMN_CODE = "TESTTMN1";
 process.env.VNPAY_HASH_SECRET = "test-secret";
@@ -220,7 +217,7 @@ test("IPN thất bại của lần thanh toán CŨ (không phải last_order_id)
 });
 
 test("IPN trùng / muộn / gửi lại", async () => {
-  // thành công lần 2 (transId khác) trên booking confirmed -> ghi extra_payments
+  // Thành công lần 2 (transId khác) trên booking confirmed -> ghi extra_payments
   let b = pending({ status: "confirmed", payment: { transaction_id: "1", last_order_id: TXN } });
   let s = stubs({ booking: b, seatResult: okSeats });
   try {

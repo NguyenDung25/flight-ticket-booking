@@ -1,23 +1,3 @@
-// scripts/seedAirlabs.js
-//
-// Chạy 1 LẦN, thủ công, KHÔNG phải cron: node --env-file=.env.local scripts/seedAirlabs.js
-//
-// Bản THẬT thay cho scripts/seedAirports.js (nhập tay 10 sân bay) — gọi
-// AirLabs Airport Database API (https://airlabs.co/docs/airports) để XÁC
-// NHẬN mã IATA còn tồn tại/hợp lệ, nhưng name/city LUÔN lấy từ bảng tra tay
-// CIVIL_AIRPORTS bên dưới (KHÔNG dùng field name/city thô của AirLabs nữa
-// — xem lý do ở 2 ghi chú bên dưới).
-//
-// Sau khi chạy thành công và verify ổn, XÓA scripts/seedAirports.js.
-//
-// CẦN: biến môi trường AIRLABS_API_KEY trong .env.local. Script này chạy
-// bằng `node` trực tiếp, KHÔNG qua Next.js nên KHÔNG tự nạp .env.local —
-// PHẢI chạy kèm flag: node --env-file=.env.local scripts/seedAirlabs.js
-//
-// KHÔNG BAO GIỜ hardcode API key thẳng vào file này — key là bí mật riêng
-// của tài khoản AirLabs, hardcode vào source code nghĩa là commit thẳng lên
-// git (dù .env.local có bị gitignore, file .js này thì KHÔNG).
-
 const mongoose = require("mongoose");
 const Airport = require("../models/Airport");
 
@@ -27,18 +7,7 @@ const AIRLABS_BASE_URL = "https://airlabs.co/api/v9";
 const COUNTRY_CODE = "VN";
 const COUNTRY_NAME_VI = "Việt Nam";
 
-// Danh sách CHÍNH THỨC 22 sân bay DÂN DỤNG đang khai thác của Việt Nam (đã
-// tra chéo 2 nguồn độc lập để xác nhận, không đoán). CHỦ ĐỘNG CHỈ seed đúng
-// 22 mã này — AirLabs country_code=VN còn trả thêm ~20-30 mã khác (sân bay
-// quân sự như Nha Trang cũ/NHA, sân bay nhỏ/đã đóng cửa...) mà đồ án KHÔNG
-// cần: seed thêm các sân bay đó vào dropdown tìm vé là lỗi UX thật sự, vì
-// mãi mãi sẽ không có Flight nào bay tới/đi từ đó — khách chọn được nhưng
-// tìm kiếm luôn ra rỗng.
-//
-// Đây cũng là lý do name/city dùng THẲNG bảng này thay vì field thô của
-// AirLabs — models/Airport.js đã ghi rõ AirLabs không có tên tiếng Việt, và
-// city AirLabs trả cũng chỉ có bản tiếng Anh, trong khi trang này ưu tiên
-// tiếng Việt (defaultLocale "vi").
+// Danh sách chính thức 22 sân bay dân dụng đang khai thác của Việt Nam.
 const CIVIL_AIRPORTS = {
   HAN: { nameVi: "Nội Bài", nameEn: "Noi Bai", city: "Hà Nội" },
   HPH: { nameVi: "Cát Bi", nameEn: "Cat Bi", city: "Hải Phòng" },
@@ -64,12 +33,7 @@ const CIVIL_AIRPORTS = {
   VDO: { nameVi: "Vân Đồn", nameEn: "Van Don", city: "Quảng Ninh" },
 };
 
-/**
- * AirLabs trả lỗi qua HTTP 200 kèm body {"error":{"message","code"}} (xem
- * "Common Errors" trong docs — KHÔNG dùng HTTP status để phát hiện lỗi được).
- * Response thành công có thể là mảng thô [...] HOẶC bọc trong {request,
- * response:[...]} tùy version/tài liệu — xử lý cả 2 khả năng cho chắc.
- */
+/** AirLabs trả lỗi qua HTTP 200 kèm body {"error":{"message","code"}}. */
 async function fetchVietnamAirports() {
   if (!AIRLABS_API_KEY) {
     throw new Error(
@@ -100,10 +64,7 @@ async function main() {
   const rawAirports = await fetchVietnamAirports();
   console.log(`[seedAirlabs] AirLabs trả về ${rawAirports.length} sân bay/sân đỗ ở Việt Nam.`);
 
-  // Chỉ giữ lại sân bay VỪA có mã IATA VỪA nằm trong CIVIL_AIRPORTS — 2 điều
-  // kiện độc lập: mã IATA để chắc chắn AirLabs thật sự biết tới sân bay đó
-  // (không tự bịa dữ liệu), CIVIL_AIRPORTS để lọc bỏ sân bay quân sự/nhỏ mà
-  // đồ án không cần (xem comment ở bảng CIVIL_AIRPORTS).
+  // Chỉ giữ lại sân bay vừa có mã IATA vừa nằm trong CIVIL_AIRPORTS — 2 điều kiện độc lập.
   const matched = rawAirports.filter((a) => a.iata_code && CIVIL_AIRPORTS[a.iata_code]);
   const skippedCodes = rawAirports
     .map((a) => a.iata_code)

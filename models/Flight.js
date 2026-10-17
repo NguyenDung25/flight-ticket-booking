@@ -1,9 +1,3 @@
-// models/Flight.js
-//
-// Bám sát mục 5 (Flight) của mongodb-schema-design.md.
-// Ghế nhúng trong seats[] (ghi chú c) — mọi thao tác giữ/nhả ghế là 1 update
-// atomic trên đúng 1 document, không cần MongoDB Transaction.
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -29,7 +23,7 @@ const FlightSchema = new Schema(
   {
     flight_number: { type: String, required: true },
     airline_id: { type: Schema.Types.ObjectId, ref: "Airline", required: true },
-    aircraft_id: { type: Schema.Types.ObjectId, ref: "Aircraft", required: true }, // KHÔNG cho sửa sau khi tạo (A1)
+    aircraft_id: { type: Schema.Types.ObjectId, ref: "Aircraft", required: true }, // Không cho sửa sau khi tạo (A1)
     origin_code: { type: String, required: true }, // ref: Airport.code
     dest_code: { type: String, required: true }, // ref: Airport.code
     departure_time: { type: Date, required: true },
@@ -50,14 +44,9 @@ const FlightSchema = new Schema(
 // Compound index phục vụ tìm kiếm C1
 FlightSchema.index({ origin_code: 1, dest_code: 1, departure_time: 1 });
 
-// --- Validate tầng schema mức cơ bản (mục 5, ghi chú s) ---
-// Các validate PHỤ THUỘC dữ liệu khác (VD có booking hiệu lực hay không) phải
-// nằm ở tầng service (services/flightService.js), KHÔNG đặt ở đây vì Mongoose
-// pre-save hook không có sẵn quyền truy vấn collection Booking một cách sạch sẽ.
+// --- Validate tầng schema mức cơ bản (mục 5, ghi chú s) --- Các validate phụ thuộc dữ liệu khác.
 FlightSchema.pre("validate", function () {
-  // Mongoose 9 đã bỏ tham số next khỏi pre-hook (callback-style middleware
-  // không còn được hỗ trợ) — báo lỗi bằng throw, KHÔNG dùng next(err) như
-  // các bản Mongoose cũ (xem mongoosejs.com/docs/migrating_to_9.html).
+  // Mongoose 9 đã bỏ tham số next khỏi pre-hook (callback-style middleware không còn được hỗ trợ).
   if (this.origin_code === this.dest_code) {
     throw new Error("origin_code không được trùng dest_code.");
   }

@@ -1,8 +1,3 @@
-// app/api/admin/popular-routes/[id]/route.js
-//
-// PATCH  — { active: boolean } ẩn/hiện, hoặc { direction: "up" | "down" } đổi thứ tự.
-// DELETE — xóa tuyến (và ảnh của nó). Điểm đi/đến không sửa được: muốn đổi thì xóa và thêm tuyến mới.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

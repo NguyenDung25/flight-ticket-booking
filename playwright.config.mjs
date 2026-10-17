@@ -1,11 +1,3 @@
-// playwright.config.mjs — test giao diện tự động (E2E) bằng Playwright.
-//
-// Chạy: npm run test:e2e   (build production rồi chạy test; cần MongoDB đang chạy + Google Chrome)
-// - App chạy bản production (`next start`) ở cổng 3100 với database RIÊNG "ftb-e2e" — seed khi bắt
-//   đầu (e2e/global-setup.mjs), xóa khi xong (e2e/global-teardown.mjs). Không đụng DB của app.
-// - Tắt SMTP (không gửi email thật); trang thanh toán VNPay bị chặn trong test (chỉ kiểm tra URL).
-// - Dùng Chrome cài sẵn trên máy (channel "chrome") — không cần `npx playwright install`.
-
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 import { E2E_MONGO_URI, E2E_PORT } from "./e2e/env.mjs";

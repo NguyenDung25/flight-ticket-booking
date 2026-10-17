@@ -1,13 +1,3 @@
-// tests/integration/core.itest.js — test TÍCH HỢP chạy trên MongoDB THẬT (không stub DB): các thao tác
-// cần tính atomic của MongoDB — giữ ghế, tranh ghế, cron nhả ghế, hủy vé đồng thời, IPN + trang kết quả
-// chạy song song, check-in đồng thời, hạn mức mã khuyến mãi, token đặt lại mật khẩu dùng 1 lần, xác thực
-// email, bảng giá dịch vụ bổ sung, nhật ký admin.
-//
-// Chạy: npm run test:integration   (cần MongoDB đang chạy, mặc định mongodb://127.0.0.1:27017)
-// - Mỗi lần chạy tạo 1 database RIÊNG tên "ftb-integration-<thời điểm>" rồi XÓA khi xong — không đụng
-//   database của app. Đặt INTEGRATION_MONGO_URL để trỏ server khác (chỉ phần host, không kèm tên DB).
-// - Không gửi email thật: xóa cấu hình SMTP và thay emailClient.sendTicketEmail bằng hàm đếm.
-
 for (const k of ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"]) delete process.env[k];
 const SERVER = (process.env.INTEGRATION_MONGO_URL || "mongodb://127.0.0.1:27017").replace(/\/+$/, "");
 const DB_NAME = `ftb-integration-${Date.now()}`;

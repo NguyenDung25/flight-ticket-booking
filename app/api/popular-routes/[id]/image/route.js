@@ -1,9 +1,3 @@
-// app/api/popular-routes/[id]/image/route.js
-//
-// GET — phục vụ ảnh nền của thẻ tuyến phổ biến (công khai, trang chủ khách dùng). Loại ảnh lấy từ NỘI DUNG
-// đã được kiểm tra lúc tải lên (chỉ JPEG/PNG/WebP). URL luôn kèm ?v=<mốc cập nhật ảnh> nên cache immutable
-// an toàn: đổi ảnh = URL mới.
-
 import dbConnect from "@/lib/mongodb";
 import { getImage } from "@/services/popularRouteService";
 

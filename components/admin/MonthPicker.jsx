@@ -1,11 +1,5 @@
 "use client";
 
-// components/admin/MonthPicker.jsx
-//
-// Chọn tháng cho trang Tổng quan admin: "← Tháng trước", ô chọn tháng (mọi tháng có doanh thu + tháng hiện
-// tại), "Tháng sau →" và "Về tháng này". Tháng nằm trên URL (?month=YYYY-MM) nên xem lại/chia sẻ được đường
-// dẫn của đúng tháng đó; trang (Server Component) đọc tham số này rồi tính lại mọi số liệu.
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 

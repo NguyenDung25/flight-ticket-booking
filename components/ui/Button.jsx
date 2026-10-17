@@ -1,11 +1,5 @@
 "use client";
 
-// components/ui/Button.jsx
-//
-// "use client" vì component tương tác chung (nhận onClick tuỳ ý từ nơi gọi)
-// — đánh dấu client 1 lần ở đây để mọi nơi khác (kể cả Server Component)
-// dùng được thẳng mà không cần lo boundary.
-
 const VARIANT_CLASSES = {
   // CTA chính (tìm chuyến, thanh toán, xác nhận) — nền cam đất, chữ trắng.
   primary:

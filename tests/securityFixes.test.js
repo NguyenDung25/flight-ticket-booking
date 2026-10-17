@@ -1,10 +1,4 @@
-// tests/securityFixes.test.js
-//
-// Test cho các bản vá bảo mật/race-condition KHÔNG cần MongoDB: các nhánh này
-// ném lỗi TRƯỚC khi chạm DB. Chạy: npm test
-
-// lib/mongodb.js ném lỗi lúc nạp module nếu thiếu MONGO_URI (chỉ đọc biến, chưa
-// kết nối) — đặt giá trị giả; các test dưới đây ném lỗi TRƯỚC khi chạm DB.
+// Ném lỗi lúc nạp module nếu thiếu MONGO_URI (chỉ đọc biến, chưa kết nối) — đặt giá trị giả.
 process.env.MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/test";
 
 const test = require("node:test");

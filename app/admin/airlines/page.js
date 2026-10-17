@@ -1,12 +1,3 @@
-// app/admin/airlines/page.js
-//
-// A2 — quản lý hãng bay: liệt kê + thêm mới (AirlineForm) + sửa/xóa từng dòng
-// (AirlineRow, gọi PUT/DELETE /api/admin/airlines/[id]). Xóa bị chặn nếu còn
-// chuyến bay thuộc hãng.
-//
-// Gọi thẳng Airline.find() (KHÔNG qua /api/admin/airlines) — đúng convention
-// mọi page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Airline from "@/models/Airline";

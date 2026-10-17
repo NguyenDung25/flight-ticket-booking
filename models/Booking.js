@@ -1,10 +1,3 @@
-// models/Booking.js
-//
-// Bám sát mục 6 (Booking) của mongodb-schema-design.md, đã cập nhật
-// document_type (ghi chú aa) trong passengers[].
-// Đây là collection phức tạp nhất — nhúng passengers[], flights[] (tóm tắt
-// từng chặng), payment. Không dùng MongoDB Transaction (mục 10).
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -12,14 +5,12 @@ const PassengerSeatSchema = new Schema(
   {
     flight_id: { type: Schema.Types.ObjectId, ref: "Flight", required: true }, // 1 phần tử / chặng
     seat_number: { type: String, required: true },
-    seat_class: { type: String, enum: ["economy", "business"], required: true }, // gắn theo TỪNG khách (ghi chú m)
-    // Dịch vụ bổ sung của khách này trên chặng này (lib/ancillaries.js) — server tự tính giá, ghi lại
-    // giá lúc đặt. addons_amount đã được cộng vào flights[].amount của chặng.
-    baggage_kg: { type: Number, default: 0 }, // hành lý ký gửi MUA THÊM (chưa gồm phần miễn phí theo hạng)
+    seat_class: { type: String, enum: ["economy", "business"], required: true }, // gắn theo từng khách (ghi chú m)
+    // Dịch vụ bổ sung của khách này trên chặng này (lib/ancillaries.js) — server tự tính giá, ghi lại giá lúc đặt.
+    baggage_kg: { type: Number, default: 0 }, // hành lý ký gửi mua thêm (chưa gồm phần miễn phí theo hạng)
     meal: { type: Boolean, default: false },
     addons_amount: { type: Number, default: 0 },
-    // Số kg TẠI LÚC ĐẶT (admin đổi bảng giá sau đó không làm đổi vé đã bán). Booking cũ không có ->
-    // tính theo bảng giá mặc định.
+    // Số kg tại lúc đặt (admin đổi bảng giá sau đó không làm đổi vé đã bán).
     carry_on_kg: { type: Number },
     checked_baggage_kg: { type: Number }, // tổng ký gửi được mang = đã gồm theo hạng + mua thêm
   },
@@ -29,8 +20,7 @@ const PassengerSeatSchema = new Schema(
 const PassengerSchema = new Schema(
   {
     full_name: { type: String, required: true },
-    // Ghi chú aa: document_id vẫn là 1 trường String chung, document_type chỉ
-    // dùng để biết cách diễn giải/validate document_id, KHÔNG tách nhiều field.
+    // Ghi chú aa: document_id vẫn là 1 trường String chung.
     document_type: {
       type: String,
       enum: ["cccd", "passport", "birth_certificate"],
@@ -66,25 +56,14 @@ const ExtraPaymentSchema = new Schema(
 const PaymentSchema = new Schema(
   {
     method: { type: String, default: "vnpay" },
-    // KHÔNG đặt `default: null` — sparse unique index (bên dưới) chỉ loại
-    // trừ document mà field HOÀN TOÀN VẮNG MẶT (undefined), không loại trừ
-    // field có giá trị null tường minh. `default: null` khiến MỌI booking mới
-    // đều có transaction_id = null tường minh → document thứ 2 trở đi luôn
-    // đụng unique index với document đầu tiên → mọi lần đặt vé sau lần đầu
-    // đều lỗi 409 "Dữ liệu bị trùng" ngay ở bước tạo Booking (đã xác nhận qua
-    // log thật, không phải giả thuyết). Để trống default: field chỉ tồn tại
-    // sau khi services/paymentService.js gán transaction_id thật.
+    // Không đặt `default: null` — sparse unique index (bên dưới) chỉ loại trừ document mà field hoàn toàn vắng mặt.
     transaction_id: { type: String }, // unique + sparse (ghi chú i)
     paid_at: { type: Date, default: null },
     payment_expires_at: { type: Date, default: null }, // = held_until − 5 phút (ghi chú y)
-    // Mã đơn hàng (vnp_TxnRef) của LẦN TẠO THANH TOÁN VNPAY GẦN NHẤT + thời điểm tạo
-    // (vnp_CreateDate, dạng yyyyMMddHHmmss) — services/paymentService.initiatePayment ghi.
-    // Dùng để hỏi lại VNPay (querydr bắt buộc gửi đúng ngày tạo) ở syncPaymentStatus.
-    // Cũng KHÔNG đặt default: null — không nằm trong index nên không bắt buộc, nhưng
-    // giữ nhất quán với transaction_id: field chỉ tồn tại sau khi có giao dịch thật.
+    // Mã đơn hàng (vnp_TxnRef) của lần tạo thanh toán VNPay gần nhất + thời điểm tạo.
     last_order_id: { type: String },
     last_order_date: { type: String },
-    // Khoản thanh toán THỪA (khách trả 2 lần cho 1 booking) — admin hoàn tay.
+    // Khoản thanh toán thừa (khách trả 2 lần cho 1 booking) — admin hoàn tay.
     extra_payments: { type: [ExtraPaymentSchema], default: undefined },
   },
   { _id: false }
@@ -92,9 +71,7 @@ const PaymentSchema = new Schema(
 
 const BookingSchema = new Schema(
   {
-    // Cùng lý do transaction_id ở trên — KHÔNG đặt default: null, để sparse
-    // unique index chỉ loại trừ đúng những booking CHƯA sinh mã (undefined),
-    // không bị coi là trùng nhau vì cùng giá trị null tường minh.
+    // Cùng lý do transaction_id ở trên — không đặt default: null.
     booking_code: { type: String }, // sinh sau khi thanh toán thành công (C7)
     user_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // bắt buộc (ghi chú a)
     trip_type: { type: String, enum: ["one_way", "round_trip"], required: true },
@@ -105,8 +82,7 @@ const BookingSchema = new Schema(
 
     promotion_id: { type: Schema.Types.ObjectId, ref: "Promotion", default: null },
 
-    // Người liên hệ của booking (lib/bookingContact.js) — vé điện tử gửi về contact.email. Booking cũ
-    // tạo trước khi có field này thì không có (gửi về email tài khoản như trước).
+    // Người liên hệ của booking (lib/bookingContact.js) — vé điện tử gửi về contact.email.
     contact: {
       type: new Schema({ email: { type: String }, phone: { type: String } }, { _id: false }),
       default: undefined,
@@ -138,8 +114,7 @@ const BookingSchema = new Schema(
     },
     refund_processed_at: { type: Date, default: null },
 
-    // C7 — lần gần nhất gửi email vé điện tử THÀNH CÔNG (null = chưa gửi được lần nào, VD SMTP chưa
-    // cấu hình). Trang kết quả thanh toán dựa vào đây để không báo "đã gửi email" khi thực ra chưa gửi.
+    // C7 — lần gần nhất gửi email vé điện tử thành công (null = chưa gửi được lần nào, VD SMTP chưa cấu hình).
     ticket_emailed_at: { type: Date, default: null },
   },
   { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
@@ -154,17 +129,9 @@ BookingSchema.index({ booking_code: 1 }, { unique: true, sparse: true });
 BookingSchema.index({ user_id: 1, created_at: -1 });
 BookingSchema.index({ "flights.flight_id": 1, status: 1 }); // giữ compound, xem lý do trong file thiết kế
 
-// --- Validate tầng schema mức cơ bản ---
-// passengers[].seats phải khớp ĐÚNG tập hợp flight_id của flights[] — không chỉ
-// khớp số lượng. VD khứ hồi (2 chặng): nếu 1 hành khách có 2 ghế cùng thuộc
-// chặng đi, thiếu hẳn chặng về, kiểu check "seats.length === flights.length"
-// vẫn pass (2 = 2) dù thiếu chặng — phải so khớp từng flight_id.
-// Validate SÂU HƠN (đối chiếu seat_class thật, tuổi/giấy tờ, transit time...) đặt
-// ở services/bookingValidationService.js vì cần dữ liệu từ collection Flight khác.
+// --- Validate tầng schema mức cơ bản --- passengers[].seats phải khớp đúng tập hợp flight_id của flights[].
 BookingSchema.pre("validate", function () {
-  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng
-  // throw, giống cách đã sửa ở models/Flight.js (xem comment ở đó, tham khảo
-  // mongoosejs.com/docs/migrating_to_9.html).
+  // Mongoose 9 đã bỏ callback-style middleware (tham số next) — báo lỗi bằng throw.
   const expectedFlightIds = this.flights.map((f) => String(f.flight_id)).sort();
   for (const p of this.passengers) {
     const actualFlightIds = p.seats.map((s) => String(s.flight_id)).sort();

@@ -1,16 +1,6 @@
 @import "tailwindcss";
 
-/* ---------------------------------------------------------------------------
-   Bảng màu dự án — nền trắng / kem rất nhạt, MỘT màu nhấn cam đất cho nút chính, chữ nâu đen.
-   Thiết kế lại cho tự nhiên hơn (bỏ gradient, vòng tròn mờ, emoji): giống các trang đặt vé thật.
-   TÊN token giữ nguyên (mọi component đã dùng sẵn sea-*, sand-*, coral-*, ink...), chỉ đổi GIÁ TRỊ:
-   - sand  : nền trang (#FAF7F4) + đường viền (sand-100 nhạt, sand-200 đậm hơn cho ô nhập)
-   - sea   : nâu đỏ đậm — chữ nhấn, liên kết, icon; sea-50/100 là nền nhấn rất nhạt
-   - coral : cam đất — nút chính (tìm chuyến, thanh toán), mục đang chọn
-   - ink   : nâu đen cho chữ thường
-   Tương phản (WCAG AA >= 4.5:1): chữ trắng trên coral-500 = 5.2, trên coral-600 = 7.6;
-   sea-500 trên trắng = 7.6; ink trên sand-50 = 16.
---------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------- Bảng màu dự án. */
 @theme {
   --color-sea-50: #fdf1e7;
   --color-sea-100: #f6dcc6;
@@ -45,8 +35,7 @@ body {
   color: var(--color-ink);
 }
 
-/* C10 — "In / Lưu PDF" thẻ lên máy bay: khi có 1 thẻ được đánh dấu data-print-target (xem
-   app/[locale]/check-in/BoardingPass.jsx), chỉ in đúng thẻ đó, giữ màu nền tiêu đề. */
+/* C10 — "In / Lưu PDF" thẻ lên máy bay: khi có 1 thẻ được đánh dấu data-print-target. */
 @media print {
   body:has([data-print-target]) * {
     visibility: hidden;

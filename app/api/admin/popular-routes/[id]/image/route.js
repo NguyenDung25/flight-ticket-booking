@@ -1,10 +1,3 @@
-// app/api/admin/popular-routes/[id]/image/route.js
-//
-// PUT    — tải ảnh nền cho tuyến (multipart/form-data, field "file"; JPG/PNG/WebP, tối đa 1 MB — kiểm tra
-//          theo NỘI DUNG file ở services/popularRouteService.js, không tin đuôi/Content-Type client gửi).
-// DELETE — xóa ảnh (thẻ quay về hình minh họa mặc định).
-// Ảnh được phục vụ công khai ở app/api/popular-routes/[id]/image/route.js.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

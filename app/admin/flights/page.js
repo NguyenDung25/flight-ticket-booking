@@ -1,17 +1,3 @@
-// app/admin/flights/page.js
-//
-// A1 (tạo/sửa chuyến bay) + A8 (hủy chuyến bay + cascade hủy booking liên
-// quan). FlightForm (tạo mới) dùng ở đây; bảng danh sách + sửa/hủy từng dòng
-// chuyển hết vào FlightsTable (Client Component) — sửa cần mở 1 hàng phụ
-// full-width NGAY DƯỚI dòng đang sửa (xem comment FlightsTable.jsx: dự án
-// không có Modal/dialog riêng, không tự chế thêm 1 component chỉ cho chỗ
-// này), việc đó cần state ở cấp bảng nên không thể để page.js (Server
-// Component) tự render <tr> tĩnh như trước. A2 (Airline/Aircraft) vẫn là
-// trang riêng (app/admin/airlines, app/admin/aircraft).
-//
-// Gọi thẳng Flight.find()/Airline.find()/Aircraft.find()/Airport.find()
-// (KHÔNG qua API) — đúng convention mọi page.js khác trong khu Admin.
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Flight from "@/models/Flight";
@@ -28,8 +14,7 @@ export const metadata = {
   title: "Chuyến bay — Quản trị",
 };
 
-// Tab "Tuyến phổ biến" (?tab=routes): quản lý khối "Tuyến bay phổ biến" ở trang chủ khách — xem
-// PopularRoutesAdmin.jsx / services/popularRouteService.js. Cùng nằm dưới 1 mục menu Chuyến bay.
+// Tab "Tuyến phổ biến" (?tab=routes): quản lý khối "Tuyến bay phổ biến" ở trang chủ khách.
 async function RoutesTab() {
   const [initial, airportDocs] = await Promise.all([
     listForAdmin(),
@@ -80,16 +65,12 @@ export default async function AdminFlightsPage({ searchParams }) {
     aircraft_name: f.aircraft_id?.name ?? "—",
     base_price_economy: f.base_price?.economy ?? null,
     base_price_business: f.base_price?.business ?? null,
-    // Chuyến có ghế business hay không — quyết định base_price.business có
-    // bắt buộc khi sửa hay không (đúng validate models/Flight.js pre-validate,
-    // xem comment FlightsTable.jsx).
+    // Chuyến có ghế business hay không — quyết định base_price.business có bắt buộc khi sửa hay không.
     has_business_seats: f.seats?.some((s) => s.seat_class === "business") ?? false,
     status: f.status,
   }));
 
-  // Chỉ cần các field selects/preview cần dùng — KHÔNG truyền nguyên
-  // seat_map_template (có thể vài trăm phần tử/loại máy bay) qua RSC
-  // boundary chỉ để hiển thị 1 dòng "có ghế business hay không".
+  // Chỉ cần các field selects/preview cần dùng — không truyền nguyên seat_map_template.
   const airlines = airlineDocs.map((a) => ({
     id: String(a._id),
     code: a.code,

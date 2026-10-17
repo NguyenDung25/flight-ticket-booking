@@ -1,13 +1,3 @@
-// app/api/flights/[id]/release-seat/route.js
-//
-// C4/C5 — nhả 1 ghế đang được CHÍNH user này giữ. Gọi khi khách bỏ chọn ghế,
-// hoặc xóa 1 hành khách đã lỡ chọn ghế (side-effect bắt buộc — xem comment
-// C4 trong chuc-nang-he-thong.md, KHÔNG được chỉ xóa state phía client).
-//
-// Ghế không còn `held` bởi đúng user này (đã hết hạn/không tồn tại) là
-// no-op hợp lệ — seatService.releaseSeat trả về null, KHÔNG phải lỗi, vì
-// mục tiêu cuối cùng (ghế không còn giữ bởi user) đã đạt được.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
@@ -39,8 +29,7 @@ export async function POST(request, { params }) {
       userId: user._id,
     });
 
-    // flight === null là no-op hợp lệ (ghế không held bởi user này nữa) —
-    // vẫn trả 200, KHÔNG coi là lỗi (xem JSDoc seatService.releaseSeat).
+    // flight === null là no-op hợp lệ (ghế không held bởi user này nữa) — vẫn trả 200, không coi là lỗi.
     return NextResponse.json({
       flight_id: id,
       seat_number,

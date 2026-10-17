@@ -1,12 +1,3 @@
-// app/api/admin/users/[id]/route.js
-//
-// A4 — khóa/mở khóa tài khoản user. Body: { is_blocked: boolean }.
-//
-// Chặn admin tự khóa CHÍNH MÌNH — không phải rule nghiệp vụ có sẵn ở đâu cả,
-// mà là an toàn thuần túy: tự khóa mình xong sẽ tự đá mình ra khỏi hệ thống
-// ngay (requireAdminUser() đọc is_blocked tươi từ DB mỗi request, xem ghi
-// chú q) — không ai unlock lại được nếu đây là admin duy nhất.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
@@ -51,12 +42,7 @@ export async function PATCH(request, { params }) {
   }
 }
 
-/**
- * A4 — xóa hẳn 1 tài khoản KHÁCH. Chỉ cho xóa khi an toàn dữ liệu:
- * - không tự xóa chính mình, không xóa tài khoản admin;
- * - tài khoản đã có booking (bất kể trạng thái) thì KHÔNG xóa — booking cần user_id để tra
- *   cứu/đối soát doanh thu và hoàn tiền; muốn chặn người này, dùng PATCH is_blocked.
- */
+/** A4 — xóa hẳn 1 tài khoản khách. */
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();

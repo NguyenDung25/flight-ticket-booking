@@ -1,11 +1,3 @@
-// services/ticketService.js
-//
-// C7 — sau khi thanh toán thành công (Booking.status = 'confirmed'), sinh
-// booking_code duy nhất + gửi vé điện tử qua email đúng ngôn ngữ khách đang
-// dùng (Booking.locale, chụp lại User.preferred_language lúc đặt vé).
-//
-// API liên quan: GET /api/bookings/[id]/ticket
-
 const { checkedBaggageAllowance, DEFAULT_PRICING } = require("../lib/ancillaries");
 const crypto = require("crypto");
 const Booking = require("../models/Booking");
@@ -25,8 +17,7 @@ class TicketError extends Error {
   }
 }
 
-// Bỏ các ký tự dễ đọc nhầm khi khách đọc mã cho người khác hoặc gõ tay lại:
-// I/1 (chữ I hoa và số 1), O/0 (chữ O hoa và số 0).
+// Bỏ các ký tự dễ đọc nhầm khi khách đọc mã cho người khác hoặc gõ tay lại: I/1 (chữ I hoa và số 1), O/0.
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function randomCode() {
@@ -37,16 +28,7 @@ function randomCode() {
   return code;
 }
 
-/**
- * Sinh `booking_code` ngẫu nhiên, DUY NHẤT — thử tối đa
- * `BOOKING_CODE_MAX_GENERATION_ATTEMPTS` lần, mỗi lần check trùng qua DB.
- * Index `unique + sparse` ở `Booking` model (mục 6) là lớp bảo vệ CUỐI chống
- * race-condition giữa lúc check và lúc save, KHÔNG thay thế bước check này —
- * bước check ở đây giúp tránh crash do lỗi duplicate key thô khi 2 request
- * cùng lúc random trúng y hệt 1 mã (xác suất cực thấp nhưng không phải 0).
- *
- * @throws {TicketError} 500 nếu thử hết số lần vẫn không ra mã trống
- */
+/** Sinh `booking_code` ngẫu nhiên, duy nhất — thử tối đa `BOOKING_CODE_MAX_GENERATION_ATTEMPTS` lần. */
 async function generateUniqueBookingCode() {
   for (let attempt = 0; attempt < BOOKING_CODE_MAX_GENERATION_ATTEMPTS; attempt++) {
     const code = randomCode();
@@ -66,12 +48,7 @@ async function loadFlightMap(booking) {
   return Object.fromEntries(flightDocs.map((f) => [String(f._id), f]));
 }
 
-/**
- * Build dữ liệu vé dạng thuần (plain object) — dùng chung cho cả template
- * email (`lib/emailClient.js`) lẫn response JSON của
- * `GET /api/bookings/[id]/ticket` (route tự quyết định trả nguyên object này
- * hay chọn lọc field), tránh viết trùng logic gộp dữ liệu ở 2 nơi.
- */
+/** Build dữ liệu vé dạng thuần (plain object) — dùng chung cho cả template email. */
 async function buildTicketData(booking) {
   const flightMap = await loadFlightMap(booking);
 
@@ -116,27 +93,7 @@ async function buildTicketData(booking) {
   };
 }
 
-/**
- * C7 — hàm tổng hợp: sinh `booking_code` (nếu chưa có) + gửi email vé điện
- * tử. IDEMPOTENT theo `booking_code` — gọi lại nhiều lần (VD khách bấm "Xem
- * lại vé" ở `GET /api/bookings/[id]/ticket`) KHÔNG sinh mã mới lần 2.
- *
- * Chỉ gửi email khi XUẤT VÉ LẦN ĐẦU (`booking_code` chưa từng có), hoặc khi
- * `resend: true` được truyền vào TƯỜNG MINH (VD khách bấm nút riêng "Gửi lại
- * vé qua email") — tránh gửi lại mỗi lần khách chỉ mở trang xem vé để xem.
- *
- * Email là phần "nên có" theo tài liệu (không phải điều kiện bắt buộc để có
- * vé hợp lệ) — nếu gửi email THẤT BẠI (SMTP lỗi, sai cấu hình...), hàm KHÔNG
- * ném lỗi và KHÔNG chặn việc trả `booking_code` cho khách; chỉ báo lại qua
- * `emailSent: false` để route/UI tự quyết định hiển thị cảnh báo hay không.
- *
- * @param {Object} params
- * @param {String} params.bookingId
- * @param {Boolean} [params.resend=false]
- * @returns {Promise<{ booking: Object, ticketData: Object, emailSent: Boolean }>}
- * @throws {TicketError} 404 nếu không tìm thấy booking/user, 409 nếu booking
- *   chưa `confirmed` (chưa thanh toán xong thì chưa có gì để xuất vé)
- */
+/** C7 — hàm tổng hợp: sinh `booking_code` (nếu chưa có) + gửi email vé điện tử. */
 async function issueTicket({ bookingId, resend = false }) {
   const booking = await Booking.findById(bookingId);
   if (!booking) {
@@ -151,8 +108,7 @@ async function issueTicket({ bookingId, resend = false }) {
 
   let isFirstIssue = !booking.booking_code;
   if (isFirstIssue) {
-    // Gán mã ATOMIC (chỉ khi chưa có): 2 lần gọi đồng thời (IPN + trang kết quả) không sinh 2 mã
-    // và không gửi email vé 2 lần; bên thua dùng lại mã bên thắng đã ghi.
+    // Gán mã atomic (chỉ khi chưa có): 2 lần gọi đồng thời.
     const code = await generateUniqueBookingCode();
     const claimed = await Booking.findOneAndUpdate(
       { _id: booking._id, status: "confirmed", booking_code: { $exists: false } },
@@ -177,14 +133,11 @@ async function issueTicket({ bookingId, resend = false }) {
   if (isFirstIssue || resend) {
     const user = await User.findById(booking.user_id);
     if (!user) {
-      // Trường hợp cực hiếm (user bị xóa cứng khỏi DB dù ngoài phạm vi đồ án
-      // — hệ thống chỉ có is_blocked, không xóa User thật) — không chặn vé,
-      // chỉ không gửi được email vì không biết gửi tới đâu.
+      // Trường hợp cực hiếm.
       console.error(`Không tìm thấy User ${booking.user_id} để gửi vé điện tử.`);
     } else {
       try {
-        // Gửi về email LIÊN HỆ của booking (khách nhập lúc đặt, có thể đặt hộ người khác); booking cũ
-        // chưa có contact thì gửi về email tài khoản như trước.
+        // Gửi về email liên hệ của booking (khách nhập lúc đặt, có thể đặt hộ người khác).
         await emailClient.sendTicketEmail({ to: booking.contact?.email || user.email, ticketData });
         emailSent = true;
       } catch (err) {

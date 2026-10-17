@@ -1,11 +1,3 @@
-// app/[locale]/search/FlightCard.jsx
-//
-// 1 chuyến bay trong danh sách kết quả (C1/C2), bố cục hàng ngang như các trang đặt vé thật:
-// hãng + số hiệu | giờ đi — thời gian bay — giờ đến | giá phổ thông + nút "Chọn chuyến".
-// Nút dẫn sang trang chi tiết (C3), mang theo TOÀN BỘ ngữ cảnh tìm kiếm + `leg` qua query string để
-// trang chi tiết biết đang chọn chặng nào của lần tìm kiếm nào (khứ hồi: chọn chặng đi xong quay lại
-// chọn chặng về, không mất ngữ cảnh).
-
 import { Link } from "@/i18n/navigation";
 import { toVN } from "@/lib/timezone";
 
@@ -23,7 +15,7 @@ const AIRLINE_TONES = {
 };
 
 export default function FlightCard({ flight, locale, leg, searchContext, t }) {
-  // airline.name là object {vi, en} (models/Airline.js) — KHÔNG phải string.
+  // airline.name là object {vi, en} (models/Airline.js) — không phải string.
   const airlineName = flight.airline.name[locale] ?? flight.airline.name.vi;
   const airlineCode = (flight.airline.code ?? flight.flight_number.slice(0, 2)).toUpperCase();
 

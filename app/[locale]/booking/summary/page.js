@@ -1,12 +1,3 @@
-// app/[locale]/booking/summary/page.js
-//
-// C3 bước 3 — tóm tắt hành trình (1 hoặc 2 chặng đã chọn ở bước 1/2, xem
-// nextHref trong app/[locale]/flights/[id]/page.js) + tổng tiền TẠM TÍNH
-// theo giá economy (chưa chốt — hạng ghế thật của từng khách chỉ biết sau
-// C5). Route nằm trong PROTECTED_SEGMENTS (proxy.js, segment "booking") —
-// BẮT BUỘC đăng nhập mới xem được, đúng mục "Bắt buộc đăng nhập mới đặt
-// được vé" (mục 1, tổng quan) — chặn sớm từ bước xem tóm tắt, không đợi C6.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { getFlightDetail, FlightError } from "@/services/flightService";
@@ -81,8 +72,7 @@ export default async function BookingSummaryPage({ params, searchParams }) {
       returnFlight = await getFlightDetail(returnFlightId);
     }
   } catch (err) {
-    // Log lỗi THẬT ra terminal trước — không có dòng này, mọi lỗi không
-    // phải FlightError bị nuốt hoàn toàn, không cách nào debug được.
+    // Log lỗi thật ra terminal trước — không có dòng này, mọi lỗi không phải FlightError bị nuốt hoàn toàn.
     console.error("BookingFlowPage error:", err);
     errorMessage = err instanceof FlightError ? t("errorNotFound") : tCommon("error");
   }
@@ -91,9 +81,7 @@ export default async function BookingSummaryPage({ params, searchParams }) {
     return <ErrorState message={errorMessage ?? t("errorNotFound")} backLabel={tCommon("back")} />;
   }
 
-  // Tạm tính = economy × số khách, mỗi chặng — CHƯA chốt (ghi rõ trong UI
-  // qua estimatedTotalNote), giá thật tính lại ở services/bookingValidationService
-  // khi tạo booking (C6) dựa trên seat_class THẬT từng khách chọn ở C5.
+  // Tạm tính = economy × số khách, mỗi chặng — chưa chốt (ghi rõ trong UI qua estimatedTotalNote).
   const estimatedTotal =
     outbound.base_price.economy * passengerCount +
     (returnFlight ? returnFlight.base_price.economy * passengerCount : 0);
@@ -136,10 +124,7 @@ export default async function BookingSummaryPage({ params, searchParams }) {
             <p className="text-xl font-semibold text-coral-600">
               {CURRENCY_FORMATTER.format(estimatedTotal)}đ
             </p>
-            {/* Ghi chú "tạm tính" đặt NGAY DƯỚI số tiền (trước đây nằm bên
-                trái, cạnh số hành khách — tách rời trực quan khỏi con số nó
-                đang giải thích, dễ bị đọc lướt qua và hiểu nhầm đây là giá
-                cuối). */}
+            {/* Ghi chú "tạm tính" đặt ngay dưới số tiền. */}
             <p className="mt-1 max-w-[16rem] text-xs text-ink/50">{t("estimatedTotalNote")}</p>
           </div>
         </div>

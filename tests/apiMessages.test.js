@@ -1,5 +1,3 @@
-// tests/apiMessages.test.js — dịch thông báo lỗi API theo ngôn ngữ giao diện; lấy IP không tin
-// X-Forwarded-For giả mạo.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { localizeApiMessage, EXACT } = require("../lib/apiMessages");

@@ -1,6 +1,3 @@
-// tests/reviewFixes.test.js — lỗi tìm được khi rà soát sau khi thêm hành lý/suất ăn và xác thực email:
-// (1) mã khuyến mãi chỉ giảm trên giá vé, không giảm dịch vụ bổ sung, vẫn giữ total = Σ flights[].amount;
-// (2) giới hạn số lần đăng ký theo IP (mỗi lần đăng ký gửi 1 email thật). Không cần MongoDB.
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

@@ -1,7 +1,5 @@
 "use client";
 
-// app/[locale]/promotions/CopyCodeButton.jsx — sao chép mã khuyến mãi vào clipboard.
-
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -9,7 +7,7 @@ export default function CopyCodeButton({ code }) {
   const t = useTranslations("Promotions");
   const [state, setState] = useState("idle"); // idle | copied | failed
 
-  // Dự phòng khi Clipboard API không dùng được (trang mở qua http://<IP LAN>, hoặc tab không có focus).
+  // Dự phòng khi Clipboard API không dùng được (trang mở qua http://<IP lan>, hoặc tab không có focus).
   function legacyCopy() {
     const el = document.createElement("textarea");
     el.value = code;

@@ -1,9 +1,3 @@
-// components/admin/adminNav.jsx
-//
-// Danh sách mục menu bên trái khu Admin + tiêu đề trang cho thanh trên cùng — dùng chung cho
-// AdminSidebar và AdminTopbar (cả hai là client component vì cần usePathname).
-// Thống kê KHÔNG còn là 1 mục menu: số liệu doanh thu nằm ngay ở trang Tổng quan (/admin).
-
 const svgProps = {
   viewBox: "0 0 24 24",
   fill: "none",

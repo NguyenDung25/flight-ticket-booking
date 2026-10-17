@@ -1,12 +1,3 @@
-// app/api/flights/[id]/hold-seat/route.js
-//
-// C5 — giữ 1 ghế trong SEAT_HOLD_DURATION_MS (30 phút), chỉ thành công nếu
-// ghế đang `available`. Toàn bộ logic atomic nằm ở seatService.holdSeat —
-// route này chỉ lo auth + đọc body + gọi service + map lỗi.
-//
-// BẮT BUỘC đăng nhập (requireActiveUser) — đọc thẳng is_blocked từ DB, không
-// tin session/JWT (xem comment lib/requireActiveUser.js).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";

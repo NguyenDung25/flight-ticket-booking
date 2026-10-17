@@ -1,18 +1,3 @@
-// scripts/seedAirlinesFromAirlabs.js
-//
-// Chạy 1 LẦN, thủ công, KHÔNG phải cron: node --env-file=.env.local scripts/seedAirlinesFromAirlabs.js
-//
-// Gọi AirLabs Airlines Database API (https://airlabs.co/docs/airlines) để
-// lấy DANH SÁCH hãng bay Việt Nam thật (mã IATA/ICAO, tên tiếng Anh) — cùng
-// pattern với scripts/seedAirlabs.js (sân bay): AirLabs chỉ dùng để XÁC NHẬN
-// mã hãng bay còn tồn tại/hợp lệ, name.vi LUÔN lấy từ bảng tra tay
-// CIVIL_AIRLINES bên dưới (AirLabs không có tên tiếng Việt — xem comment
-// trong models/Airline.js).
-//
-// CẦN: biến môi trường AIRLABS_API_KEY trong .env.local — script này chạy
-// bằng `node` trực tiếp, PHẢI kèm flag --env-file=.env.local (xem
-// scripts/seedAirlabs.js, cùng lý do).
-
 const mongoose = require("mongoose");
 const Airline = require("../models/Airline");
 
@@ -21,21 +6,7 @@ const AIRLABS_API_KEY = process.env.AIRLABS_API_KEY;
 const AIRLABS_BASE_URL = "https://airlabs.co/api/v9";
 const COUNTRY_CODE = "VN";
 
-// CHỦ ĐỘNG CHỈ seed đúng 4 hãng bay CHỞ KHÁCH, ĐANG khai thác lịch bay
-// thường lệ tại Việt Nam (đã tra chéo nhiều nguồn, tính tới thời điểm viết
-// script — 09/2026) — country_code=VN AirLabs trả về nhiều mã khác không
-// dùng được cho 1 web đặt vé demo:
-//   - VASCO (0V): công ty con của Vietnam Airlines, chỉ bay tuyến ngắn/hải
-//     đảo/thuê chuyến, không bán vé phổ thông qua kênh online thường.
-//   - Pacific Airlines (BL): đã thành công ty con của Vietnam Airlines,
-//     đang tái cơ cấu, không rõ còn bán vé độc lập hay không.
-//   - Bamboo Airways (QH): ĐÃ NGỪNG bay thường lệ từ 22/08/2026 (chuyến bay
-//     thường lệ cuối cùng), không còn bán được vé mới — seed vào sẽ cho ra
-//     1 hãng bay không bao giờ có Flight nào, đúng lỗi UX đã tránh ở
-//     CIVIL_AIRPORTS.
-// Cả 3 trường hợp trên: nếu tình hình thay đổi (Bamboo bay lại, Pacific
-// tách riêng...), chỉ cần thêm dòng vào bảng này rồi chạy lại script — KHÔNG
-// cần sửa gì khác.
+// Chủ động chỉ seed đúng 4 hãng bay chở khách, đang khai thác lịch bay thường lệ tại Việt Nam.
 const CIVIL_AIRLINES = {
   VN: { nameVi: "Vietnam Airlines" },
   VJ: { nameVi: "Vietjet Air" },
@@ -43,10 +14,7 @@ const CIVIL_AIRLINES = {
   "9G": { nameVi: "Sun PhuQuoc Airways" },
 };
 
-/**
- * AirLabs trả lỗi qua HTTP 200 kèm body {"error":{"message","code"}} — cùng
- * hành vi đã ghi chú trong scripts/seedAirlabs.js.
- */
+/** AirLabs trả lỗi qua HTTP 200 kèm body {"error":{"message","code"}}. */
 async function fetchVietnamAirlines() {
   if (!AIRLABS_API_KEY) {
     throw new Error(
@@ -98,9 +66,7 @@ async function main() {
   let upserted = 0;
   for (const code of Object.keys(CIVIL_AIRLINES)) {
     const info = CIVIL_AIRLINES[code];
-    // name.en LẤY THẲNG từ AirLabs nếu khớp được (dữ liệu thật, chính xác
-    // hơn tự gõ tay) — chỉ fallback về nameVi khi AirLabs không trả (hãng đó
-    // nằm trong "missingFromAirlabs" ở trên), còn hơn để trống required field.
+    // name.en lấy thẳng từ AirLabs nếu khớp được (dữ liệu thật, chính xác hơn tự gõ tay).
     const fromAirlabs = rawAirlines.find((a) => a.iata_code === code);
     const nameEn = fromAirlabs?.name || info.nameVi;
 

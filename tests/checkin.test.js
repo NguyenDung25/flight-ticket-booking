@@ -1,5 +1,3 @@
-// tests/checkin.test.js — C10: check-in bằng mã đặt chỗ + họ tên (không cần đăng nhập), chặn chuyến đã
-// hủy, trạng thái khung giờ, thẻ lên máy bay (nhãn theo Booking.locale, mã QR). Không cần MongoDB.
 process.env.MONGO_URI ??= "mongodb://localhost:27017/test";
 const test = require("node:test");
 const assert = require("node:assert/strict");

@@ -1,19 +1,5 @@
 "use client";
 
-// app/[locale]/SearchForm.jsx
-//
-// C1 — form tìm chuyến bay. Validate CLIENT-SIDE trước khi điều hướng (khớp
-// đúng 3 rule đầu của services/flightService.searchFlights — KHÔNG thay thế
-// validate server, chỉ chặn sớm cho UX mượt hơn, /api/flights/search vẫn tự
-// validate lại y hệt).
-//
-// Điều hướng bằng router.push() (KHÔNG dùng <form method="get">) để tự kiểm
-// soát: ẩn hẳn returnDate khỏi query string khi one_way, thay vì gửi field
-// rỗng lên rồi phải lọc ở phía nhận.
-//
-// LƯU Ý: /search (trang kết quả) CHƯA làm (Bước 3) — bấm submit lúc này sẽ
-// ra 404, đúng như /my-bookings lúc Bước 0/1, không phải lỗi.
-
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -29,26 +15,18 @@ const PASSENGER_OPTIONS = Array.from({ length: 9 }, (_, i) => ({
   label: String(i + 1),
 }));
 
-// Ngày hôm nay theo giờ MÁY KHÁCH (YYYY-MM-DD). KHÔNG dùng toISOString(): nó ra
-// ngày UTC nên từ 0h–7h sáng giờ VN sẽ lùi 1 ngày (min của ô ngày bị sai).
+// Ngày hôm nay theo giờ máy khách (YYYY-MM-DD).
 function todayISO() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/**
- * @param {Object} props
- * @param {Array<{code: string, name: {vi: string, en: string}, city: string}>} props.airports
- * @param {"vi"|"en"} props.locale
- */
 export default function SearchForm({ airports, locale }) {
   const t = useTranslations("Home");
   const router = useRouter();
 
-  // Khôi phục state từ sessionStorage khi đổi ngôn ngữ (locale thay đổi →
-  // trang unmount/remount, useState bị reset). Lazy initializer chỉ đọc 1 lần
-  // lúc mount. sessionStorage tự xoá khi đóng tab, tránh hiện lại dữ liệu cũ.
+  // Khôi phục state từ sessionStorage khi đổi ngôn ngữ.
   function readSession(key, fallback) {
     try { return sessionStorage.getItem(key) ?? fallback; } catch { return fallback; }
   }
@@ -63,9 +41,7 @@ export default function SearchForm({ airports, locale }) {
   const [returnDate, setReturnDate] = useState("");
   const [passengerCount, setPassengerCount] = useState("1");
 
-  // Render lần đầu bằng giá trị MẶC ĐỊNH (giống server — server không đọc được sessionStorage), rồi mới
-  // khôi phục lựa chọn cũ sau khi chạy trên trình duyệt; đọc sessionStorage ngay trong useState làm HTML
-  // server và client lệch nhau (lỗi hydration). setTimeout: không setState trực tiếp trong effect.
+  // Render lần đầu bằng giá trị mặc định (giống server — server không đọc được sessionStorage).
   useEffect(() => {
     const id = setTimeout(() => {
       setTripType(readSession("sf_tripType", "one_way"));
@@ -99,8 +75,7 @@ export default function SearchForm({ airports, locale }) {
   function setReturnDateAndSave(v) { setReturnDate(v); saveSession("sf_returnDate", v); }
   function setPassengerCountAndSave(v) { setPassengerCount(v); saveSession("sf_passengerCount", v); }
 
-  // Airport.city KHÔNG có bản dịch riêng (chỉ name.vi/name.en có) — dùng
-  // name[locale] làm nhãn chính để dropdown thực sự đổi theo ngôn ngữ.
+  // Airport.city không có bản dịch riêng (chỉ name.vi/name.en có).
   const airportOptions = airports.map((a) => ({
     value: a.code,
     label: `${a.name[locale] ?? a.name.vi} (${a.code})`,
@@ -153,8 +128,7 @@ export default function SearchForm({ airports, locale }) {
     setDestinationAndSave(o);
   }
 
-  // Tab "Làm thủ tục": kiểm tra sơ bộ rồi chuyển sang trang Check-in, trang đó tự tra cứu. Họ hành khách
-  // đi qua sessionStorage (không đưa lên URL), chỉ mã đặt chỗ nằm trong ?code=.
+  // Tab "Làm thủ tục": kiểm tra sơ bộ rồi chuyển sang trang Check-in, trang đó tự tra cứu.
   function handleCheckIn(e) {
     e.preventDefault();
     const code = normalizeBookingCode(ciCode);
@@ -285,8 +259,7 @@ export default function SearchForm({ airports, locale }) {
         />
       </div>
 
-      {/* Hàng ngày bay + số khách: 2 cột khi một chiều, 3 cột khi khứ hồi — "Số khách" luôn cùng hàng
-          với ngày bay, không bị rơi xuống hàng riêng. */}
+      {/* Hàng ngày bay + số khách: 2 cột khi một chiều, 3 cột khi khứ hồi — "Số khách" luôn cùng hàng với ngày bay. */}
       <div className={`mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 ${tripType === "round_trip" ? "md:grid-cols-3" : ""}`}>
         <DatePicker
           label={t("departureDate")}

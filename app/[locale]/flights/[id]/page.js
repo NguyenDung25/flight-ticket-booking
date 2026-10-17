@@ -1,24 +1,3 @@
-// app/[locale]/flights/[id]/page.js
-//
-// C3 — chi tiết 1 chuyến bay. Đây cũng là nơi quyết định BƯỚC TIẾP THEO của
-// wizard khứ hồi 3 bước (đúng đặc tả gốc: bước 1 chọn chuyến đi, bước 2 chọn
-// chuyến về — danh sách ĐỔI sau bước 1, bước 3 tóm tắt cả 2 chặng + tổng giá
-// trước khi sang C4 nhập hành khách):
-//
-// - one_way                          -> "Chọn chuyến này" đi thẳng
-//   /booking/summary?outboundFlightId=... (bước xác nhận, CHƯA làm — 404 là
-//   đúng, cùng pattern mọi bước trước).
-// - round_trip, leg=outbound (bước 1) -> "Chọn chuyến này" quay lại /search
-//   kèm outboundFlightId — /search TỰ chuyển sang chế độ "bước 2" (chỉ hiện
-//   chặng về), xem app/[locale]/search/page.js. KHÔNG cần dựng màn hình
-//   bước-2 riêng, tái dùng nguyên hạ tầng /search + FlightCard đã có.
-// - round_trip, leg=return (bước 2)   -> "Chọn chuyến này" đi tới
-//   /booking/summary?outboundFlightId=...&returnFlightId=... (bước 3).
-//
-// searchContext (origin/destination/departureDate/tripType/returnDate/
-// passengerCount) LUÔN được mang theo nguyên vẹn qua mọi bước — không được
-// làm rớt ở bất kỳ link nào, nếu không bước sau sẽ thiếu tham số.
-
 import { getTranslations, getLocale, setRequestLocale } from "next-intl/server";
 import dbConnect from "@/lib/mongodb";
 import { getFlightDetail, FlightError } from "@/services/flightService";
@@ -54,10 +33,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
   try {
     flight = await getFlightDetail(id);
   } catch (err) {
-    // Log lỗi THẬT ra terminal — nếu không, lỗi không phải FlightError (VD
-    // CastError do id sai định dạng, DB mất kết nối...) sẽ bị NUỐT hoàn
-    // toàn, chỉ còn "Đã có lỗi xảy ra" hiện cho khách, không cách nào biết
-    // nguyên nhân thật để debug (đây chính xác là bug vừa gặp lúc test).
+    // Log lỗi thật ra terminal — nếu không, lỗi không phải FlightError.
     console.error("FlightDetailPage error:", err);
     errorMessage = err instanceof FlightError ? localizeApiMessage(err.message, locale) : tCommon("error");
   }
@@ -73,8 +49,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
     );
   }
 
-  // searchContext mang theo NGUYÊN VẸN xuyên suốt wizard — spread lại y hệt
-  // những gì FlightCard đã gửi qua, không tự chế thêm/bớt field nào ở đây.
+  // searchContext mang theo nguyên vẹn xuyên suốt wizard — spread lại y hệt những gì FlightCard đã gửi qua.
   const searchContext = {
     origin: sp.origin,
     destination: sp.destination,
@@ -103,10 +78,7 @@ export default async function FlightDetailPage({ params, searchParams }) {
   const economyAvailable = countAvailable(flight.seats, "economy");
   const businessAvailable = countAvailable(flight.seats, "business");
   const hasBusiness = flight.base_price.business !== undefined && flight.base_price.business !== null;
-  // Đúng công thức FlightCard.jsx đã dùng ở trang kết quả tìm kiếm — hết chỗ
-  // nghĩa là CẢ 2 hạng ghế (nếu có business) đều 0, không chỉ riêng economy.
-  // Chỉ tắt nút khi thật sự không còn ghế nào để bán, để không chặn oan
-  // khách muốn đặt business lúc economy đã hết.
+  // Đúng công thức FlightCard.jsx đã dùng ở trang kết quả tìm kiếm — hết chỗ nghĩa là cả 2 hạng ghế.
   const totalAvailable = economyAvailable + (hasBusiness ? businessAvailable : 0);
   const soldOut = totalAvailable === 0;
 

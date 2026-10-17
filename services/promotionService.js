@@ -1,10 +1,3 @@
-// services/promotionService.js
-//
-// A5 (tùy chọn, làm sau cùng — chỉ làm nếu còn thời gian sau tuần 7).
-// Lớp mỏng gọi Promotion.incrementUsage() (đã có atomic update ở model,
-// ghi chú p), thêm kiểm tra hiệu lực thời gian (valid_from/valid_until)
-// TRƯỚC khi thử tăng used_count.
-
 const Promotion = require("../models/Promotion");
 const { nowVN } = require("../lib/timezone");
 
@@ -15,19 +8,7 @@ class PromotionError extends Error {
   }
 }
 
-/**
- * Áp mã khuyến mãi khi tạo booking (C6). Trả về Promotion doc đã tăng
- * used_count nếu hợp lệ, ném lỗi rõ ràng nếu không áp dụng được — để client
- * hiển thị đúng lý do (hết hạn / hết lượt / mã không tồn tại) thay vì 1
- * thông báo chung chung.
- *
- * LƯU Ý: hàm này chỉ ĐƯỢC GỌI 1 LẦN cho mỗi booking, đúng lúc tạo booking —
- * không gọi lại khi retry thanh toán, tránh tăng used_count nhiều lần cho
- * cùng 1 booking.
- *
- * @param {String} code
- * @returns {Promise<Object>} Promotion doc đã cập nhật
- */
+/** Áp mã khuyến mãi khi tạo booking (C6). */
 async function applyPromotion(code) {
   const promotion = await Promotion.findOne({ code: code.toUpperCase() });
   if (!promotion) {
@@ -39,41 +20,22 @@ async function applyPromotion(code) {
     throw new PromotionError(`Mã khuyến mãi "${code}" đã hết hiệu lực.`, 400);
   }
 
-  // Update atomic — xử lý đúng 2 nhánh có/không usage_limit (ghi chú p), đã
-  // đóng gói sẵn ở model, KHÔNG tự viết lại điều kiện ở đây để tránh lệch
-  // logic giữa nhiều nơi gọi.
+  // Update atomic — xử lý đúng 2 nhánh có/không usage_limit (ghi chú p), đã đóng gói sẵn ở model.
   const updated = await Promotion.incrementUsage(promotion.code);
   if (!updated) {
-    // Trường hợp lọt qua check valid_from/valid_until ở trên nhưng vẫn thất
-    // bại ở bước tăng used_count — nghĩa là mã đã hết lượt dùng (usage_limit)
-    // đúng thời điểm race-condition giữa lúc check và lúc update.
+    // Trường hợp lọt qua check valid_from/valid_until ở trên nhưng vẫn thất bại ở bước tăng used_count.
     throw new PromotionError(`Mã khuyến mãi "${code}" đã hết lượt sử dụng.`, 409);
   }
 
   return updated;
 }
 
-/**
- * Tính số tiền được giảm dựa trên discount_percent, áp trên tổng tiền TRƯỚC
- * giảm giá (Σ flights[].amount — ghi chú t). Làm tròn xuống đơn vị đồng.
- */
+/** Tính số tiền được giảm dựa trên discount_percent, áp trên tổng tiền trước giảm giá. */
 function computeDiscountAmount(promotion, totalAmountBeforeDiscount) {
   return Math.floor((totalAmountBeforeDiscount * promotion.discount_percent) / 100);
 }
 
-/**
- * Trừ tiền giảm giá của mã khuyến mãi vào flights[] của booking (sửa trực tiếp `legs`).
- *
- * - Chỉ giảm trên GIÁ VÉ: phần dịch vụ bổ sung (`addons_amount` — hành lý, suất ăn) không được giảm.
- * - Chia xuống TỪNG CHẶNG theo tỷ lệ giá vé của chặng — BẮT BUỘC giữ bất biến
- *   total_amount === Σ flights[].amount (ghi chú t): services/cancellationService.js (A7/C9/A8) dùng
- *   trực tiếp flights[leg].amount (hoàn riêng chặng về, trừ chặng đã bay). Chặng cuối nhận phần dư của
- *   phép làm tròn xuống để tổng giảm đúng bằng số tiền giảm.
- *
- * @param {Array<{ amount: number, addons_amount?: number }>} legs
- * @param {{ discount_percent: number }} promotion
- * @returns {number} tổng số tiền đã giảm
- */
+/** Trừ tiền giảm giá của mã khuyến mãi vào flights[] của booking (sửa trực tiếp `legs`). */
 function applyDiscountToLegs(legs, promotion) {
   const fareOf = (leg) => leg.amount - (leg.addons_amount || 0);
   const fareTotal = legs.reduce((sum, l) => sum + fareOf(l), 0);
@@ -92,15 +54,7 @@ function applyDiscountToLegs(legs, promotion) {
   return discountAmount;
 }
 
-/**
- * Mã đang dùng được NGAY BÂY GIỜ — cho trang Khuyến mãi phía khách: đã tới valid_from, chưa quá
- * valid_until, và còn lượt (không giới hạn, hoặc used_count < usage_limit). Cùng điều kiện với
- * applyPromotion() để khách không thấy mã mà áp vào lại bị từ chối. Sắp mã sắp hết hạn lên trước.
- *
- * @param {Date} [now]
- * @returns {Promise<Array<{code: String, discount_percent: Number, valid_until: Date, remaining: Number|null}>>}
- *   remaining = null nghĩa là không giới hạn lượt
- */
+/** Mã đang dùng được ngay bây giờ — cho trang Khuyến mãi phía khách: đã tới valid_from, chưa quá valid_until. */
 async function listActivePromotions(now = nowVN().toDate()) {
   const docs = await Promotion.find({
     valid_from: { $lte: now },

@@ -1,11 +1,5 @@
 "use client";
 
-// app/admin/users/DeleteUserButton.jsx
-//
-// A4 — xóa hẳn tài khoản khách (DELETE /api/admin/users/[id]). Xác nhận 2 bước, cùng
-// pattern DeleteFlightButton. Server chặn (409) nếu tài khoản đã có booking, và chặn
-// xóa admin / tự xóa — nút chỉ hiện đúng message API trả về.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

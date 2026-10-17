@@ -1,9 +1,3 @@
-// app/api/users/me/password/route.js
-//
-// Đổi mật khẩu khi đang đăng nhập: POST { current_password, new_password }. Thành công thì mọi phiên
-// đăng nhập cũ (kể cả phiên hiện tại) hết hiệu lực — client chuyển khách về trang đăng nhập.
-// Logic + chống dò mật khẩu hiện tại: services/accountService.changePassword().
-
 import { NextResponse } from "next/server";
 import { auth, signOut } from "@/auth";
 import dbConnect from "@/lib/mongodb";

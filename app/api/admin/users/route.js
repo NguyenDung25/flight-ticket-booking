@@ -1,8 +1,3 @@
-// app/api/admin/users/route.js
-//
-// A4 — danh sách user cho admin. Không trả password_hash ra ngoài (dù chỉ
-// admin xem — vẫn không có lý do gì để hash ra khỏi server).
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";

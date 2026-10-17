@@ -1,5 +1,3 @@
-// app/[locale]/register/page.js
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";

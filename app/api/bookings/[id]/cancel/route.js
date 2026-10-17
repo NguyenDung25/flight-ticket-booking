@@ -1,23 +1,3 @@
-// app/api/bookings/[id]/cancel/route.js
-//
-// C9 — khách tự hủy vé của CHÍNH MÌNH / A3 — admin hủy THAY MẶT khách. Method
-// PATCH (đúng theo chuc-nang-he-thong.md: "PATCH /api/bookings/[id]/cancel",
-// dùng chung với A3) — KHÔNG phải POST, vì đây là sửa trạng thái 1 resource
-// đã tồn tại chứ không phải tạo mới.
-//
-// Dùng CHUNG services/cancellationService.cancelBooking với A3 — hàm đó
-// không tự biết "ai đang gọi", nên route này PHẢI tự đối chiếu quyền:
-// - Chủ booking (user_id trùng) -> luôn được hủy (C9).
-// - KHÁC user_id NHƯNG role === "admin" -> vẫn được hủy (A3), BẮT BUỘC phải
-//   tự cung cấp `reason` rõ ràng (KHÔNG cho phép rơi về DEFAULT_CANCEL_REASON
-//   "Khách tự hủy vé." — sẽ SAI SỰ THẬT nếu admin mới là người bấm hủy, ảnh
-//   hưởng tới audit trail/A7 nhật ký hoàn tiền sau này).
-// - Còn lại (khác user_id, không phải admin) -> 403.
-//
-// cancelBooking() tự xử lý mọi rule nghiệp vụ (mốc phí 24h/3h, 3 trường hợp
-// khứ hồi ghi chú w, chặn hủy nếu đã check-in ghi chú l) — route này KHÔNG
-// lặp lại logic đó, chỉ lo auth + phân quyền + map lỗi.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { auth } from "@/auth";
@@ -59,7 +39,7 @@ export async function PATCH(request, { params }) {
     if (isOwner) {
       cancelReason = rawReason || DEFAULT_CANCEL_REASON;
     } else {
-      // A3 — admin hủy thay mặt khách khác: KHÔNG có default, bắt buộc nêu lý do.
+      // A3 — admin hủy thay mặt khách khác: không có default, bắt buộc nêu lý do.
       if (!rawReason) {
         throw new ActiveUserError("Cần nêu rõ lý do khi hủy vé thay mặt khách (A3).", 400);
       }
@@ -68,7 +48,7 @@ export async function PATCH(request, { params }) {
 
     const booking = await cancelBooking({ bookingId: id, cancelReason });
 
-    // Admin hủy THAY khách (A3) -> ghi nhật ký thao tác admin.
+    // Admin hủy thay khách (A3) -> ghi nhật ký thao tác admin.
     if (!isOwner) {
       await logAdminAction(user, {
         action: "booking.cancel", targetType: "booking", targetId: id,

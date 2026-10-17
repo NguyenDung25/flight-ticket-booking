@@ -1,8 +1,3 @@
-// app/admin/logs/page.js
-//
-// Nhật ký thao tác admin (models/AdminLog.js): ai làm gì, lúc nào, trên đối tượng nào. Chỉ đọc — không
-// có nút sửa/xóa. Lọc theo nhóm thao tác qua ?group=..., hiện 200 dòng mới nhất.
-
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import dbConnect from "@/lib/mongodb";
 import AdminLog from "@/models/AdminLog";

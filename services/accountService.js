@@ -1,20 +1,3 @@
-// services/accountService.js
-//
-// Tài khoản khách hàng (bổ sung C8): sửa hồ sơ, đổi mật khẩu, quên mật khẩu / đặt lại mật khẩu.
-//
-// - Đổi hoặc đặt lại mật khẩu ghi `password_changed_at` -> mọi phiên đăng nhập cấp trước đó hết hiệu
-//   lực (lib/requireActiveUser.js), kể cả phiên của người đang dùng mật khẩu cũ trên máy khác.
-// - Token đặt lại mật khẩu: 32 byte ngẫu nhiên, chỉ lưu SHA-256 trong DB, hết hạn sau
-//   PASSWORD_RESET_TTL_MINUTES, dùng 1 lần.
-// - Quên mật khẩu KHÔNG cho biết email có tồn tại hay không (route luôn trả cùng 1 câu).
-//
-// - Xác thực email: tài khoản đăng ký mới có email_verified = false, nhận link (hạn
-//   EMAIL_VERIFY_TTL_HOURS, chỉ lưu SHA-256 của token, dùng 1 lần); bấm link -> email_verified = true.
-//
-// API liên quan: PATCH /api/users/me, POST /api/users/me/password,
-//                POST /api/auth/forgot-password, POST /api/auth/reset-password,
-//                POST /api/users/me/verify-email (gửi lại link), trang /verify-email?token=...
-
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
@@ -39,13 +22,7 @@ async function updateProfile({ user, fullName }) {
   return { full_name: name };
 }
 
-/**
- * Đổi mật khẩu khi đang đăng nhập: phải nhập đúng mật khẩu hiện tại (sai 5 lần thì khóa tạm, dùng
- * chung bộ đếm với đăng nhập). Thành công -> các phiên cũ (kể cả phiên hiện tại) phải đăng nhập lại.
- *
- * @throws {AuthError} 400 mật khẩu mới không hợp lệ/trùng mật khẩu cũ, 401 sai mật khẩu hiện tại,
- *   429 sai quá nhiều lần
- */
+/** Đổi mật khẩu khi đang đăng nhập: phải nhập đúng mật khẩu hiện tại. */
 async function changePassword({ user, currentPassword, newPassword }) {
   const key = `pwchange:${user._id}`;
   if (lockRemainingMs(key) > 0) {
@@ -79,13 +56,7 @@ async function changePassword({ user, currentPassword, newPassword }) {
   );
 }
 
-/**
- * Quên mật khẩu: nếu email thuộc 1 tài khoản đang hoạt động thì tạo token đặt lại mật khẩu.
- * Trả null (KHÔNG ném lỗi) khi email không tồn tại / bị khóa / vừa yêu cầu cách đây chưa đủ
- * PASSWORD_RESET_RESEND_SECONDS — route trả cùng 1 thông báo cho mọi trường hợp.
- *
- * @returns {Promise<{ token: string, user: Object, expiresAt: Date } | null>}
- */
+/** Quên mật khẩu: nếu email thuộc 1 tài khoản đang hoạt động thì tạo token đặt lại mật khẩu. */
 async function requestPasswordReset({ email, now = new Date() }) {
   if (typeof email !== "string" || !email.trim() || email.length > 254) return null;
   const user = await User.findOne({ email: email.trim().toLowerCase() }).select("+password_reset_requested_at");
@@ -109,12 +80,7 @@ async function requestPasswordReset({ email, now = new Date() }) {
   return { token, user, expiresAt };
 }
 
-/**
- * Đặt lại mật khẩu bằng token trong link email. Token dùng 1 lần (xóa ngay khi đặt lại thành công,
- * điều kiện atomic trên token + hạn dùng) và mọi phiên đăng nhập cũ hết hiệu lực.
- *
- * @throws {AuthError} 400 token sai/hết hạn hoặc mật khẩu mới không hợp lệ
- */
+/** Đặt lại mật khẩu bằng token trong link email. */
 async function resetPassword({ token, newPassword, now = new Date() }) {
   if (typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token)) {
     throw new AuthError("Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.", 400);
@@ -141,13 +107,7 @@ async function resetPassword({ token, newPassword, now = new Date() }) {
   return { email: updated.email };
 }
 
-/**
- * Tạo token xác thực email cho tài khoản CHƯA xác thực (ghi đè token cũ — link cũ hết hiệu lực).
- * `force` bỏ qua giới hạn gửi lại (dùng ngay sau khi đăng ký).
- *
- * @returns {Promise<{ token: string, expiresAt: Date }>}
- * @throws {AuthError} 409 đã xác thực rồi, 429 vừa gửi cách đây chưa đủ EMAIL_VERIFY_RESEND_SECONDS
- */
+/** Tạo token xác thực email cho tài khoản chưa xác thực (ghi đè token cũ — link cũ hết hiệu lực). */
 async function createEmailVerification({ userId, now = new Date(), force = false }) {
   const user = await User.findById(userId).select("+email_verify_sent_at");
   if (!user) throw new AuthError("Tài khoản không tồn tại.", 401);
@@ -167,12 +127,7 @@ async function createEmailVerification({ userId, now = new Date(), force = false
   return { token, expiresAt, user };
 }
 
-/**
- * Xác thực email bằng token trong link (atomic: token đúng + còn hạn, xóa token ngay khi dùng).
- *
- * @returns {Promise<{ email: string }>}
- * @throws {AuthError} 400 token sai / hết hạn / đã dùng
- */
+/** Xác thực email bằng token trong link (atomic: token đúng + còn hạn, xóa token ngay khi dùng). */
 async function verifyEmail({ token, now = new Date() }) {
   if (typeof token !== "string" || !/^[0-9a-f]{64}$/.test(token)) {
     throw new AuthError("Link xác thực email không hợp lệ hoặc đã hết hạn.", 400);

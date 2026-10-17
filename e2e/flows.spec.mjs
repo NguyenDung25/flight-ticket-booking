@@ -1,5 +1,3 @@
-// e2e/flows.spec.mjs — các luồng chính trên trình duyệt thật (Chrome) với app bản production + database
-// E2E riêng (xem playwright.config.mjs). Tài khoản demo lấy từ scripts/seedSample.js (mật khẩu mặc định).
 import { test, expect } from "@playwright/test";
 import mongoose from "mongoose";
 import { E2E_MONGO_URI } from "./env.mjs";
@@ -159,7 +157,7 @@ test("trang chủ, tab Làm thủ tục: nhập mã + họ tên -> sang trang ch
 });
 
 test("admin sửa bảng giá dịch vụ bổ sung: chặn dữ liệu sai, giá mới hiện ở bước đặt vé, có nhật ký", async ({ page }) => {
-  // Đặt CUỐI file: test này đổi bảng giá của database E2E.
+  // Đặt cuối file: test này đổi bảng giá của database E2E.
   await login(page, { email: "admin@example.com", password: "Admin@123" });
   await page.goto("/admin/ancillaries");
   await expect(page.getByRole("heading", { name: "Dịch vụ bổ sung", level: 1 })).toBeVisible();

@@ -1,6 +1,3 @@
-// app/[locale]/forgot-password/page.js — Quên mật khẩu: nhập email để nhận link đặt lại mật khẩu
-// (POST /api/auth/forgot-password). Trang công khai.
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Card from "@/components/ui/Card";

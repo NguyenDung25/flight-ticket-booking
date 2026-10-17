@@ -1,10 +1,3 @@
-// app/[locale]/cancellation-policy/page.js
-//
-// Chính sách hủy vé cho khách — trang tĩnh, công khai. MỌI con số (mốc giờ, mức phạt, thời gian
-// giữ ghế, khung check-in) đọc thẳng từ config/constants.js, cùng nguồn với
-// services/cancellationService.js — đổi chính sách ở constants thì trang này tự đổi theo, không
-// thể lệch với luật thật trong code (A7, ghi chú j/l/w; A8).
-
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   CANCELLATION_FULL_REFUND_THRESHOLD_HOURS,
@@ -19,7 +12,6 @@ import Card from "@/components/ui/Card";
 const vnd = (n) => `${n.toLocaleString("vi-VN")}đ`;
 
 // Ví dụ minh họa mốc giữa: 2 khách, tổng 3.000.000đ, hủy trước giờ bay 10 tiếng.
-// Ví dụ trên trang: phần tiền vé của 1 khách phổ thông và 1 khách thương gia trong cùng booking.
 const EXAMPLE_ECONOMY = 1_000_000;
 const EXAMPLE_BUSINESS = 3_000_000;
 

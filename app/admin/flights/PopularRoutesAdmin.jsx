@@ -1,12 +1,5 @@
 "use client";
 
-// app/admin/flights/PopularRoutesAdmin.jsx
-//
-// Tab "Tuyến phổ biến" (Admin → Chuyến bay): quản lý khối "Tuyến bay phổ biến" ở trang chủ khách —
-// thêm/xóa tuyến, ẩn/hiện, đổi thứ tự, tải/xóa ảnh nền. Giá "Từ ..." và chuyến gần nhất KHÔNG chỉnh ở đây:
-// luôn lấy từ chuyến bay thật. Mọi thao tác gọi /api/admin/popular-routes/...; mỗi API trả về danh sách mới
-// nhất { routes, usingDefaults } nên component tự cập nhật state, không cần tải lại trang.
-
 import { useRef, useState } from "react";
 
 const MAX_BYTES = 1024 * 1024;

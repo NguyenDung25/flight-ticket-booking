@@ -1,18 +1,9 @@
-// app/api/admin/bookings/route.js
-//
-// A3 — danh sách MỌI booking cho admin (khác /api/bookings/my, chỉ trả
-// booking của chính user đang đăng nhập). Lọc theo status qua query param
-// tùy chọn (?status=confirmed) — hữu ích khi danh sách dài.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Booking from "@/models/Booking";
-// Side-effect import — populate("user_id") bên dưới cần model User đã được
-// nạp, cùng lớp bug với models/Airline.js đã ghi chú ở app/api/admin/flights
-// (MissingSchemaError nếu route này bundle riêng, không tình cờ đi kèm file
-// khác đã require User trước).
+// Side-effect import — populate("user_id") bên dưới cần model User đã được nạp.
 import "@/models/User";
 
 const VALID_STATUSES = [

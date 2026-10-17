@@ -1,14 +1,5 @@
 "use client";
 
-// app/admin/bookings/ManualRefundButton.jsx
-//
-// A3 — ngoại lệ DUY NHẤT cho admin nhập tay số tiền hoàn: booking
-// `payment_error_manual_refund` (VNPay trừ tiền thành công nhưng ghế đã mất do
-// race-condition, ghi chú y). Gọi PATCH /api/admin/bookings/[id].
-//
-// Hệ thống chỉ GHI NHẬN số tiền — admin tự chuyển trả khách ngoài hệ thống (VNPay hoàn
-// tiền tự động chưa làm, xem A7). Số tiền mặc định = toàn bộ số khách đã bị trừ.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

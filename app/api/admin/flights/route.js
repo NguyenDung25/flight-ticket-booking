@@ -1,20 +1,10 @@
-// app/api/admin/flights/route.js
-//
-// A1 — tạo chuyến bay mới. `seats[]` KHÔNG nhận từ client — luôn sinh từ
-// `Aircraft.cloneSeatMapForFlight()` (ghi chú u, models/Aircraft.js) để đảm
-// bảo mỗi Flight có bản ghế độc lập, đúng nguồn duy nhất là seat_map_template.
-
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Aircraft from "@/models/Aircraft";
-// Side-effect import — GET bên dưới populate("airline_id") nhưng model
-// "Airline" chưa từng được require ở file này (chỉ dùng Aircraft trực tiếp
-// để tạo Flight) -> MissingSchemaError nếu route này bundle riêng, không
-// tình cờ đi kèm file khác đã nạp Airline model (cùng lớp bug với
-// services/flightService.js, xem comment đầy đủ ở đó).
+// Side-effect import — GET bên dưới populate("airline_id") nhưng model "Airline" chưa từng được require ở file…
 import "@/models/Airline";
 import { logAdminAction } from "@/lib/adminLog";
 
@@ -79,8 +69,7 @@ export async function POST(request) {
       return NextResponse.json({ message: "Không tìm thấy aircraft_id tương ứng." }, { status: 404 });
     }
 
-    // Nguồn ghế DUY NHẤT — xem ghi chú đầu file, KHÔNG nhận seats[] từ body
-    // dù client có cố tình gửi lên.
+    // Nguồn ghế duy nhất — xem ghi chú đầu file, không nhận seats[] từ body dù client có cố tình gửi lên.
     const seats = aircraft.cloneSeatMapForFlight();
 
     const flight = await Flight.create({

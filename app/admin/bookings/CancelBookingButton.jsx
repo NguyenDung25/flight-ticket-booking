@@ -1,15 +1,5 @@
 "use client";
 
-// app/admin/bookings/CancelBookingButton.jsx
-//
-// A3 — hủy vé thay mặt khách. Dùng CHUNG route PATCH /api/bookings/[id]/cancel
-// với C9 (khách tự hủy) — route đó tự phân biệt "đang gọi là chủ booking hay
-// admin" qua session, ở ĐÂY chỉ cần gọi đúng endpoint kèm reason.
-//
-// reason BẮT BUỘC khi admin hủy (route sẽ từ chối 400 nếu thiếu, xem comment
-// trong route) — dùng form nhỏ mở rộng tại chỗ thay vì window.prompt() để
-// không phụ thuộc UI trình duyệt, nhất quán với style Input/Button đã có.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

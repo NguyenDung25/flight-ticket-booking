@@ -1,12 +1,3 @@
-// cron/releaseExpiredHolds.js
-//
-// Chạy như 1 tiến trình Node RIÊNG, song song với `next dev`/`next start`:
-//   node cron/releaseExpiredHolds.js
-//
-// Next.js không có sẵn tiến trình nền chạy liên tục — route trong app/api chỉ
-// chạy khi có request tới, nên không dùng route để làm cron thật. Đây là lựa
-// chọn (1) đã nêu trong README (đơn giản nhất cho đồ án demo local).
-
 const mongoose = require("mongoose");
 const cron = require("node-cron");
 const { releaseExpiredHolds } = require("../services/seatService");
@@ -33,8 +24,7 @@ async function runOnce() {
       );
     }
 
-    // Việc 2 (ghi chú f) — độc lập với việc nhả ghế ở trên, xử lý booking
-    // chưa từng thanh toán mà quá payment_expires_at.
+    // Việc 2 (ghi chú f) — độc lập với việc nhả ghế ở trên.
     const cancelledCount = await cancelExpiredPendingPayments();
     if (cancelledCount > 0) {
       console.log(`[cron] Đã tự động hủy ${cancelledCount} booking quá hạn thanh toán.`);

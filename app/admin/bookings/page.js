@@ -1,17 +1,9 @@
-// app/admin/bookings/page.js
-//
-// A3 — danh sách MỌI booking, admin xem + hủy hộ khách. Gọi thẳng
-// Booking.find() (KHÔNG qua /api/admin/bookings) — page.js đã chạy
-// server-side sẵn, giống mọi page.js khác trong dự án (xem app/admin/users/page.js).
-// Route API vẫn giữ cho phần hủy (cần tương tác client, dùng chung với C9).
-
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
-// Side-effect import cho populate("user_id") — xem giải thích trong
-// app/api/admin/bookings/route.js.
+// Side-effect import cho populate("user_id") — xem giải thích trong app/api/admin/bookings/route.js.
 import "@/models/User";
 
 export const metadata = {
@@ -37,9 +29,7 @@ export default async function AdminBookingsPage() {
     .limit(200)
     .lean();
 
-  // Map về mảng thuần trước khi truyền cho Client Component (CancelBookingButton)
-  // — _id/user_id._id là ObjectId (BSON), không tự serialize qua ranh giới
-  // Server -> Client Component.
+  // Map về mảng thuần trước khi truyền cho Client Component (CancelBookingButton) — _id/user_id._id là ObjectId.
   const bookings = bookingDocs.map((b) => ({
     id: String(b._id),
     booking_code: b.booking_code,
@@ -91,9 +81,7 @@ export default async function AdminBookingsPage() {
                 <td className="px-4 py-3">{b.passengerCount}</td>
                 <td className="px-4 py-3">{CURRENCY_FORMATTER.format(b.total_amount)}đ</td>
                 <td className="px-4 py-3 text-ink/60">
-                  {/* timeZone tường minh — .toLocaleString mặc định theo múi
-                      giờ máy chủ, không phải giờ VN (cùng bẫy đã gặp ở
-                      scripts/seedSample.js, xem comment ở đó). */}
+                  {/* timeZone tường minh — .toLocaleString mặc định theo múi giờ máy chủ, không phải giờ VN. */}
                   {b.created_at
                     ? new Date(b.created_at).toLocaleString("vi-VN", {
                         timeZone: "Asia/Ho_Chi_Minh",

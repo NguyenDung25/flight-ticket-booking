@@ -1,19 +1,3 @@
-// app/admin/page.js
-//
-// Trang Tổng quan khu Admin — thống kê doanh thu (A6) THEO THÁNG. Mặc định là tháng hiện tại (giờ VN); chọn
-// tháng khác bằng ô chọn / "Tháng trước" / bấm cột biểu đồ (?month=YYYY-MM) để xem lại các tháng trước. Mọi
-// số đều cùng 1 tháng: doanh thu, vé đã bán, đơn đã hủy, xếp hạng tuyến bay; riêng biểu đồ cột chồng vẽ 12
-// tháng liền nhau kết thúc ở tháng đang xem để so sánh xu hướng, và "Cần hoàn tiền tay" là việc tồn đọng
-// HIỆN TẠI nên không theo tháng. Các mục quản lý đã có ở menu bên trái nên không lặp lại ở đây.
-//
-// Gọi thẳng statsService (đúng convention mọi page.js khu Admin), KHÔNG qua /api/admin/stats/revenue.
-// Doanh thu = tiền vé của các đơn THANH TOÁN trong tháng (confirmed, theo payment.paid_at) + phí phạt hủy vé
-// thực thu XỬ LÝ trong tháng (refunded, theo refund_processed_at); phần hoàn lại khách không tính — xem
-// services/statsService.js. Tổng doanh thu các tuyến của 1 tháng khớp doanh thu tháng đó.
-//
-// Lịch sử: file này từng bị thiếu khiến /admin 404 dù layout vẫn hiện (Next.js yêu cầu layout có ít nhất
-// 1 page.js khớp đúng segment) — vẫn phải có page.js ở đây.
-
 import Link from "next/link";
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
