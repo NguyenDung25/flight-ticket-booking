@@ -32,6 +32,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  agentRules: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
