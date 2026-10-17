@@ -17,7 +17,7 @@ export async function loginAction(_prevState, formData) {
     ? rawCallbackUrl
     : "/";
 
-  // Biết role trước khi thiết lập session — xem giải thích ở đầu file vì sao không đọc role sau signIn() nữa.
+  // Lấy role ngay khi kiểm tra mật khẩu để chọn trang đích, không phải đọc lại session sau signIn().
   let user;
   try {
     user = await verifyCredentials({ email, password });
@@ -32,7 +32,7 @@ export async function loginAction(_prevState, formData) {
     throw err;
   }
 
-  // callbackUrl mặc định "/" không phải đích đến có Ý nghĩa (không phải trang bị proxy.js/admin layout chặn).
+  // callbackUrl mặc định "/" không phải đích đến có ý nghĩa (không phải trang bị proxy.js/admin layout chặn).
   const hasExplicitDestination = callbackUrl && callbackUrl !== DEFAULT_CUSTOMER_LANDING;
   const destination = hasExplicitDestination
     ? callbackUrl

@@ -145,7 +145,7 @@ async function getFlightDetail(flightId) {
   const flight = await Flight.findById(flightId)
     .populate("airline_id", "code name")
     .populate("aircraft_id", "name");
-  // Cố Ý trả đủ field (kể cả seats[].held_by).
+  // Cố ý trả đủ field (kể cả seats[].held_by).
 
   if (!flight) {
     throw new FlightError("Không tìm thấy chuyến bay.", 404);

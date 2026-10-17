@@ -69,7 +69,7 @@ export async function POST(request) {
       return NextResponse.json({ message: "Không tìm thấy aircraft_id tương ứng." }, { status: 404 });
     }
 
-    // Nguồn ghế duy nhất — xem ghi chú đầu file, không nhận seats[] từ body dù client có cố tình gửi lên.
+    // Ghế chỉ sinh từ sơ đồ của máy bay, không nhận seats[] từ body.
     const seats = aircraft.cloneSeatMapForFlight();
 
     const flight = await Flight.create({

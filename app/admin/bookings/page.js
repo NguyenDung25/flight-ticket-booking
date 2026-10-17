@@ -3,7 +3,7 @@ import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
-// Side-effect import cho populate("user_id") — xem giải thích trong app/api/admin/bookings/route.js.
+// Side-effect import — populate("user_id") cần model User đã được nạp.
 import "@/models/User";
 
 export const metadata = {

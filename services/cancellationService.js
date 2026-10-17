@@ -109,7 +109,7 @@ async function releaseBookingSeats(booking, onlyFlightIds = null) {
   for (const passenger of booking.passengers) {
     for (const seat of passenger.seats) {
       if (targetIds && !targetIds.includes(String(seat.flight_id))) continue;
-      // userId: booking.user_id — forceReleaseSeat bắt buộc khớp held_by (xem comment ở services/seatService.js).
+      // userId: booking.user_id — forceReleaseSeat bắt buộc khớp held_by.
       await seatService.forceReleaseSeat({
         flightId: seat.flight_id,
         seatNumber: seat.seat_number,
