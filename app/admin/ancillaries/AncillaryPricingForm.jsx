@@ -167,14 +167,18 @@ export default function AncillaryPricingForm({ initialPricing }) {
                 />
                 Đã gồm trong vé (miễn phí)
               </label>
-              <Field label="Giá nếu khách mua" suffix="đ">
-                <input
-                  type="number" min={0} step={1000} required disabled={form.meal_included[c.key]}
-                  aria-label={`Giá suất ăn ${c.label}`} className={`${inputClass} disabled:opacity-50`}
-                  value={form.meal_price[c.key]}
-                  onChange={(e) => setPath((f) => ((f.meal_price[c.key] = e.target.value), f))}
-                />
-              </Field>
+              {form.meal_included[c.key] ? (
+                <p className="text-sm text-ink/60">Khách hạng này không phải trả tiền suất ăn.</p>
+              ) : (
+                <Field label="Giá suất ăn" suffix="đ">
+                  <input
+                    type="number" min={0} step={1000} required
+                    aria-label={`Giá suất ăn ${c.label}`} className={inputClass}
+                    value={form.meal_price[c.key]}
+                    onChange={(e) => setPath((f) => ((f.meal_price[c.key] = e.target.value), f))}
+                  />
+                </Field>
+              )}
             </div>
           ))}
         </div>
