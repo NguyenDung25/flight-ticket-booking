@@ -21,7 +21,7 @@ Mở `.env.local`, điền đủ các biến (xem chú thích ngay trong file m�
 | `MONGO_URI` | Kết nối MongoDB |
 | `AUTH_SECRET` | Ký session đăng nhập — sinh bằng `npx auth secret` |
 | `VNPAY_TMN_CODE` / `VNPAY_HASH_SECRET` / `VNPAY_PAY_URL` / `VNPAY_API_URL` | Thanh toán VNPay (môi trường sandbox) |
-| `AIRLABS_API_KEY` | Seed dữ liệu sân bay/hãng bay + tự điền lịch bay khi admin tạo chuyến |
+| `AIRLABS_API_KEY` | Seed dữ liệu sân bay + tự điền lịch bay khi admin tạo chuyến |
 | `SMTP_*`, `EMAIL_FROM` | Gửi email vé điện tử (Gmail cần tạo App Password riêng, không dùng mật khẩu Gmail thật) |
 | `NEXT_PUBLIC_BASE_URL` | Chỉ cần khi test IPN VNPay qua ngrok/tunnel — xem mục 6b |
 
@@ -30,7 +30,8 @@ Mở `.env.local`, điền đủ các biến (xem chú thích ngay trong file m�
 ## 3. Tạo dữ liệu mẫu
 
 ```bash
-npm run seed        # tài khoản admin + khách demo, hãng bay, tàu bay, sân bay
+npm run seed            # tài khoản admin + khách demo, hãng bay, tàu bay
+npm run seed:airports   # 22 sân bay dân dụng Việt Nam (lấy từ AirLabs, cần AIRLABS_API_KEY)
 ```
 
 Lệnh in ra email/mật khẩu tài khoản demo — ghi lại để đăng nhập thử.
@@ -102,7 +103,7 @@ ngrok http 3000
 app/[locale]/        # Giao diện khách — đa ngôn ngữ (vi/en)
 app/admin/            # Giao diện quản trị — KHÔNG qua next-intl
 app/api/              # API routes (REST, không dùng Server Action cho phần nghiệp vụ)
-models/                # 8 Mongoose schema — xem docs/mongodb-schema-design.md
+models/                # 10 Mongoose schema — xem docs/mongodb-schema-design.md
 services/              # Logic nghiệp vụ (tách khỏi route) — seatService, cancellationService, statsService...
 lib/                   # Hạ tầng dùng chung: mongodb, timezone (giờ VN), apiError, vnpayClient, emailClient
 cron/                  # Job chạy nền — xem mục 4
@@ -119,6 +120,7 @@ i18n/, messages/        # Cấu hình + nội dung dịch next-intl
 | `npm run lint` | Kiểm tra ESLint |
 | `npm run cron` | Chạy job nhả ghế/hủy booking quá hạn (chạy song song `dev`) |
 | `npm run seed` | Tạo tài khoản + dữ liệu nền demo |
+| `npm run seed:airports` | Nạp 22 sân bay dân dụng Việt Nam từ AirLabs |
 | `npm run seed:test` | Tạo chuyến bay test theo các mốc giờ hủy vé/check-in |
 | `npm run test:vnpay` | Dựng URL thanh toán thử + gọi API truy vấn VNPay để kiểm tra khóa — không cần chạy web/MongoDB |
 
