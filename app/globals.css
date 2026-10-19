@@ -34,22 +34,3 @@ body {
   background: var(--color-sand-50);
   color: var(--color-ink);
 }
-
-/* C10 — "In / Lưu PDF" thẻ lên máy bay: khi có 1 thẻ được đánh dấu data-print-target. */
-@media print {
-  body:has([data-print-target]) * {
-    visibility: hidden;
-  }
-  [data-print-target],
-  [data-print-target] * {
-    visibility: visible;
-  }
-  [data-print-target] {
-    position: absolute;
-    inset: 0 0 auto 0;
-    margin: 0 auto;
-    max-width: 720px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
