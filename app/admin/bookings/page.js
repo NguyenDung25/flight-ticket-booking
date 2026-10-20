@@ -5,6 +5,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
 // Side-effect import — populate("user_id") cần model User đã được nạp.
 import "@/models/User";
+import "@/models/Flight";
 
 export const metadata = {
   title: "Booking — Quản trị",
@@ -25,10 +26,12 @@ export default async function AdminBookingsPage() {
   await dbConnect();
   const bookingDocs = await Booking.find({}, "-passengers.document_id")
     .populate("user_id", "email full_name")
+    .populate("flights.flight_id", "departure_time")
     .sort({ created_at: -1 })
     .limit(200)
     .lean();
 
+  const now = new Date();
   // Map về mảng thuần trước khi truyền cho Client Component (CancelBookingButton) — _id/user_id._id là ObjectId.
   const bookings = bookingDocs.map((b) => ({
     id: String(b._id),
@@ -40,6 +43,11 @@ export default async function AdminBookingsPage() {
     passengerCount: b.passengers?.length ?? 0,
     total_amount: b.total_amount,
     status: b.status,
+    // Đã bay hết các chặng thì không còn gì để hủy (server cũng chặn) — ẩn nút "Hủy vé".
+    tripCompleted:
+      b.status === "confirmed" &&
+      b.flights.length > 0 &&
+      b.flights.every((f) => f.flight_id?.departure_time && new Date(f.flight_id.departure_time) <= now),
     created_at: b.created_at ? new Date(b.created_at).toISOString() : null,
   }));
 
@@ -92,7 +100,7 @@ export default async function AdminBookingsPage() {
                   <StatusBadge status={b.status} label={STATUS_LABELS[b.status] ?? b.status} />
                 </td>
                 <td className="px-4 py-3">
-                  <CancelBookingButton bookingId={b.id} status={b.status} />
+                  {!b.tripCompleted && <CancelBookingButton bookingId={b.id} status={b.status} />}
                 </td>
               </tr>
             ))}
