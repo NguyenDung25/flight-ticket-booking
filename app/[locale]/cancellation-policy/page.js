@@ -103,6 +103,7 @@ export default async function CancellationPolicyPage({ params }) {
       <Section title={t("otherTitle")}>
         <ul className="list-disc space-y-1 pl-5">
           <li>{t("unpaid", { hold: SEAT_HOLD_DURATION_MINUTES - PAYMENT_EXPIRY_BUFFER_MINUTES })}</li>
+          <li>{t("departed")}</li>
           <li>{t("checkedIn", { hours: CHECK_IN_OPENS_HOURS_BEFORE_DEPARTURE })}</li>
           <li>{t("airlineCancel")}</li>
           <li>{t("promoCode")}</li>

@@ -125,6 +125,10 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
   const outboundLeg = booking.flights.find((f) => f.leg === "outbound");
   const returnLeg = booking.flights.find((f) => f.leg === "return");
   const refundNote = getRefundNote(booking);
+  // Đã bay hết các chặng thì không còn gì để hủy (server cũng chặn) — ẩn nút "Hủy vé".
+  const tripCompleted =
+    booking.status === "confirmed" &&
+    booking.flights.every((f) => f.flight_id?.departure_time && new Date(f.flight_id.departure_time) <= new Date());
 
   async function handleConfirmCancel() {
     setCancelling(true);
@@ -221,9 +225,11 @@ function BookingCard({ booking, onCancelled, t, tCommon }) {
               <PayNowButton bookingId={booking._id} t={t} />
             )}
             {!confirming ? (
-              <Button variant="secondary" onClick={() => setConfirming(true)}>
-                {t("cancelBooking")}
-              </Button>
+              !tripCompleted && (
+                <Button variant="secondary" onClick={() => setConfirming(true)}>
+                  {t("cancelBooking")}
+                </Button>
+              )
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-ink/70">{t("confirmCancelPrompt")}</span>

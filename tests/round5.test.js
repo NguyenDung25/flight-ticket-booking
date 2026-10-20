@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { decideWebhookAction } = require("../services/paymentService");
-const { planCancellation, computeBulkRefund, CancellationError } = require("../services/cancellationService");
+const { planCancellation, computeBulkRefund, CancellationError, assertNoCheckedInSeat } = require("../services/cancellationService");
 const { validateRoundTripRoute, assertSeatIsHeldByUser } = require("../services/bookingValidationService");
 const { assertValidSeatNumber } = require("../services/seatService");
 const throttle = require("../lib/loginThrottle");
@@ -65,14 +65,27 @@ const one = (amount = 1_000_000, pax = 1) => ({
   total_amount: amount,
   flights: [{ flight_id: "F", leg: "outbound", amount }],
 });
-test("#9 một chiều (khách phổ thông): ≥24h phí 300k; 3–24h phí 600k; <3h và đã bay hoàn 0 (ghi chú j)", () => {
+test("#9 một chiều (khách phổ thông): ≥24h phí 300k; 3–24h phí 600k; <3h hoàn 0; đã bay thì không hủy được (ghi chú j)", () => {
   assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(48) } }, now }).refund, 700_000);
   const mid = planCancellation({ booking: one(), flightMap: { F: { departure_time: at(10) } }, now });
   assert.equal(mid.tier, "fixed_fee");
   assert.equal(mid.fee, 600_000);
   assert.equal(mid.refund + mid.fee, 1_000_000);
   assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(1) } }, now }).refund, 0);
-  assert.equal(planCancellation({ booking: one(), flightMap: { F: { departure_time: at(-5) } }, now }).refund, 0);
+  assert.throws(
+    () => planCancellation({ booking: one(), flightMap: { F: { departure_time: at(-5) } }, now }),
+    (e) => e instanceof CancellationError && e.statusCode === 409
+  );
+});
+test("#9 check-in (ghi chú l): chỉ xét chặng bị hủy — đã check-in chặng đi vẫn hủy được chặng về", () => {
+  const booking = { passengers: [{ seats: [{ flight_id: "OUT", seat_number: "1A" }, { flight_id: "RET", seat_number: "2B" }] }] };
+  const map = (outIn, retIn) => ({
+    OUT: { seats: [{ seat_number: "1A", checked_in: outIn }] },
+    RET: { seats: [{ seat_number: "2B", checked_in: retIn }] },
+  });
+  assert.doesNotThrow(() => assertNoCheckedInSeat(booking, map(true, false), ["RET"]));
+  assert.throws(() => assertNoCheckedInSeat(booking, map(false, true), ["RET"]), (e) => e.statusCode === 409);
+  assert.throws(() => assertNoCheckedInSeat(booking, map(true, false)), (e) => e.statusCode === 409); // hủy cả booking
 });
 test("#9 khứ hồi TH1/TH2/TH3 theo ghi chú w", () => {
   const b = { ...rt, trip_type: "round_trip", passengers: [{}] };

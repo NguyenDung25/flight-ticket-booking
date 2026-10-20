@@ -79,10 +79,13 @@ function feeForLegs({ booking, flightMap, legs, refFlightId, now }) {
   return computeCancellationFee(elapsedHours, passengers);
 }
 
-/** Ghi chú (l): chặn hủy nếu bất kỳ ghế nào trong booking đã check-in. */
-function assertNoCheckedInSeat(booking, flightMap) {
+/** Ghi chú (l): chặn hủy nếu có ghế đã check-in trên các chặng sắp bị hủy (mặc định: mọi chặng).
+ *  Khứ hồi đã bay chặng đi: ghế chặng đi đã check-in là bình thường, chỉ xét chặng về. */
+function assertNoCheckedInSeat(booking, flightMap, onlyFlightIds = null) {
+  const targetIds = onlyFlightIds ? onlyFlightIds.map(String) : null;
   const hasCheckedIn = booking.passengers.some((p) =>
     p.seats.some((s) => {
+      if (targetIds && !targetIds.includes(String(s.flight_id))) return false;
       const flightDoc = flightMap[String(s.flight_id)];
       const seatDoc = flightDoc && flightDoc.seats.find((fs) => fs.seat_number === s.seat_number);
       return seatDoc ? seatDoc.checked_in === true : false;
@@ -152,10 +155,9 @@ async function cancelBooking({ bookingId, cancelReason }) {
 
   // --- Nhánh 2 (ghi chú g): đã thanh toán → tính refund_amount theo mốc thời gian ---
   const flightMap = await loadFlightMap(booking);
-  assertNoCheckedInSeat(booking, flightMap); // ghi chú l — cần flightMap để tra Flight.seats[].checked_in
-
   const now = nowVN().toDate();
   const plan = planCancellation({ booking, flightMap, now });
+  assertNoCheckedInSeat(booking, flightMap, plan.releaseFlightIds); // ghi chú l — chỉ xét các chặng bị hủy
 
   // Chốt trạng thái bằng update có điều kiện (atomic) trước khi nhả ghế: 2 request hủy đồng thời.
   const claimed = await Booking.findOneAndUpdate(
@@ -187,7 +189,10 @@ async function cancelBooking({ bookingId, cancelReason }) {
 function planCancellation({ booking, flightMap, now }) {
   if (booking.trip_type === "one_way") {
     const leg = booking.flights[0];
-    // Ghi chú (j): <3h kể cả khi chuyến đã khởi hành vẫn áp mốc "late" (không chặn hủy).
+    // Chuyến đã khởi hành: không cho hủy nữa (giống TH3 của vé khứ hồi).
+    if (now >= flightMap[String(leg.flight_id)].departure_time) {
+      throw new CancellationError("Hành trình đã hoàn tất, không thể hủy vé.", 409);
+    }
     const { tier, fee, refund } = feeForLegs({ booking, flightMap, legs: booking.flights, refFlightId: leg.flight_id, now });
     return { tier, fee, refund, releaseFlightIds: null };
   }
@@ -409,6 +414,7 @@ module.exports = {
   computeBulkRefund,
   computeCancellationFee,
   cancellationWindow,
+  assertNoCheckedInSeat,
   passengerShares,
   computeManualRefund,
   resolveManualRefund,
