@@ -34,3 +34,8 @@ body {
   background: var(--color-sand-50);
   color: var(--color-ink);
 }
+
+/* Ẩn biểu tượng và bảng báo lỗi của Next.js khi chạy dev (thẻ này không có ở bản build). Lỗi vẫn ghi ở terminal và console. */
+nextjs-portal {
+  display: none !important;
+}
