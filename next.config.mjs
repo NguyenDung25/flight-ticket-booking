@@ -33,6 +33,7 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   agentRules: false,
+  devIndicators: false, // ẩn biểu tượng "N" của Next.js ở góc màn hình khi chạy dev
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

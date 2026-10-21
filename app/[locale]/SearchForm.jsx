@@ -237,7 +237,7 @@ export default function SearchForm({ airports, locale }) {
           placeholder={t("chooseAirport")}
           value={origin}
           onChange={(e) => setOriginAndSave(e.target.value)}
-          options={airportOptions}
+          options={airportOptions.filter((o) => o.value !== destination)}
         />
         <button
           type="button"
@@ -255,7 +255,7 @@ export default function SearchForm({ airports, locale }) {
           placeholder={t("chooseAirport")}
           value={destination}
           onChange={(e) => setDestinationAndSave(e.target.value)}
-          options={airportOptions}
+          options={airportOptions.filter((o) => o.value !== origin)}
         />
       </div>
 

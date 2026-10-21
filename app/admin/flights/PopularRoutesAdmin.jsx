@@ -120,7 +120,7 @@ export default function PopularRoutesAdmin({ initial, airports }) {
                 </label>
                 <select id="pr-origin" value={origin} onChange={(e) => setOrigin(e.target.value)} className={selectCls}>
                   <option value="">— Chọn sân bay —</option>
-                  {airports.map((a) => (
+                  {airports.filter((a) => a.code !== dest).map((a) => (
                     <option key={a.code} value={a.code}>
                       {a.label}
                     </option>
@@ -133,7 +133,7 @@ export default function PopularRoutesAdmin({ initial, airports }) {
                 </label>
                 <select id="pr-dest" value={dest} onChange={(e) => setDest(e.target.value)} className={selectCls}>
                   <option value="">— Chọn sân bay —</option>
-                  {airports.map((a) => (
+                  {airports.filter((a) => a.code !== origin).map((a) => (
                     <option key={a.code} value={a.code}>
                       {a.label}
                     </option>

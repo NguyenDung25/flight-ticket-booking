@@ -202,7 +202,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
             className="w-56 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
           >
             <option value="">— Chọn điểm đi —</option>
-            {airports.map((a) => (
+            {airports.filter((a) => a.code !== form.dest_code).map((a) => (
               <option key={a.code} value={a.code}>
                 {a.label}
               </option>
@@ -218,7 +218,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
             className="w-56 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
           >
             <option value="">— Chọn điểm đến —</option>
-            {airports.map((a) => (
+            {airports.filter((a) => a.code !== form.origin_code).map((a) => (
               <option key={a.code} value={a.code}>
                 {a.label}
               </option>

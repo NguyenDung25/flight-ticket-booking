@@ -50,7 +50,6 @@ export default async function Header() {
         <DesktopNav links={navLinks} />
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <LanguageSwitcher />
           {session?.user ? (
             <>
               {isAdmin && (
@@ -93,6 +92,8 @@ export default async function Header() {
               </Link>
             </>
           )}
+          {/* Ô chọn ngôn ngữ nằm sát mép phải header. */}
+          <LanguageSwitcher />
         </div>
       </div>
     </header>
