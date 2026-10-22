@@ -6,7 +6,9 @@ import Airport from "@/models/Airport";
 import { Link } from "@/i18n/navigation";
 import { todayStringVN } from "@/lib/timezone";
 import SearchForm from "./SearchForm";
-import PopularRoutesCarousel from "@/components/home/PopularRoutesCarousel";
+import PopularRoutesGrid from "@/components/home/PopularRoutesGrid";
+import Airline from "@/models/Airline";
+import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 import { getRouteStats } from "@/services/routeStatsService";
 import { listForHome } from "@/services/popularRouteService";
 import { buildRouteCards, resolveRouteImage } from "@/lib/popularRoutes";
@@ -14,6 +16,15 @@ import { CANCELLATION_FEES } from "@/config/constants";
 import { listActivePromotions } from "@/services/promotionService";
 import { toVN } from "@/lib/timezone";
 import CopyCodeButton from "./promotions/CopyCodeButton";
+
+// Ô mã hãng: màu nền theo hãng (cùng bảng màu với thẻ chuyến bay ở trang kết quả).
+const AIRLINE_TONES = {
+  VN: "bg-[#e3ecf5] text-[#1e3a5f]",
+  VJ: "bg-[#fbe4e1] text-[#8a1c12]",
+  QH: "bg-[#e3f1e8] text-[#1f5135]",
+  VU: "bg-[#efe6f5] text-[#4a2a6a]",
+  "9G": "bg-[#fff1d6] text-[#6b4a00]",
+};
 
 export default async function HomePage({ params }) {
   const { locale } = await params;
@@ -36,7 +47,8 @@ export default async function HomePage({ params }) {
   // Khối "Tuyến bay phổ biến": danh sách/thứ tự/ảnh do admin quản lý.
   const homeRoutes = await listForHome();
   const routeStats = await getRouteStats(homeRoutes.map((r) => [r.origin_code, r.dest_code]));
-  const routeCards = buildRouteCards({ stats: routeStats, locale, todayStr: today, routes: homeRoutes }).map((c) => ({
+  // Lưới 2 hàng: tối đa 8 tuyến (4 thẻ mỗi hàng trên máy tính).
+  const routeCards = buildRouteCards({ stats: routeStats, locale, todayStr: today, routes: homeRoutes }).slice(0, 8).map((c) => ({
     ...c,
     title: t("routeTitle", { from: c.fromCity, to: c.toCity }),
     nextLabel: c.nextTime ? t("routeNextFlight", { time: c.nextTime }) : t("routeNoFlights"),
@@ -54,6 +66,67 @@ export default async function HomePage({ params }) {
     left: p.remaining === null ? tPromo("unlimited") : tPromo("remaining", { count: p.remaining }),
   }));
 
+  // Mục "Dịch vụ bổ sung": số liệu lấy từ bảng giá dịch vụ admin đang áp dụng.
+  const pricing = await getAncillaryPricing();
+  const vnd = (n) => `${Number(n).toLocaleString("vi-VN")}đ`;
+  const packages = pricing.baggage_packages ?? [];
+  const services = [
+    {
+      key: "baggage",
+      title: t("serviceBaggageTitle"),
+      desc: packages.length
+        ? t("serviceBaggageDesc", {
+            minKg: packages[0].kg,
+            maxKg: packages[packages.length - 1].kg,
+            price: vnd(Math.min(...packages.map((p) => p.price))),
+          })
+        : t("serviceBaggageNone"),
+    },
+    {
+      key: "meal",
+      title: t("serviceMealTitle"),
+      desc: pricing.meal_included?.economy
+        ? t("serviceMealIncluded")
+        : t("serviceMealDesc", { price: vnd(pricing.meal_price?.economy ?? 0) }),
+    },
+    { key: "seat", title: t("serviceSeatTitle"), desc: t("serviceSeatDesc") },
+    {
+      key: "business",
+      title: t("serviceBusinessTitle"),
+      desc: t(pricing.meal_included?.business ? "serviceBusinessDesc" : "serviceBusinessDescNoMeal", {
+        kg: pricing.included_checked_kg?.business ?? 0,
+      }),
+    },
+  ];
+
+  // Mục "Đối tác": các hãng có trong hệ thống; logo lấy từ public/airlines/<mã hãng>.svg|png, thiếu file thì hiện ô mã hãng.
+  const airlineLogo = (code) => {
+    const rel = ["svg", "png"]
+      .map((ext) => `/airlines/${code}.${ext}`)
+      .find((r) => fs.existsSync(path.join(process.cwd(), "public", r)));
+    if (!rel) return null;
+    // Tỉ lệ khung (rộng / cao): SVG đọc viewBox, PNG đọc kích thước trong phần header của file.
+    const buf = fs.readFileSync(path.join(process.cwd(), "public", rel));
+    let aspect = 4;
+    if (rel.endsWith(".png")) {
+      aspect = buf.readUInt32BE(16) / buf.readUInt32BE(20);
+    } else {
+      const vb = /viewBox="\s*[\d.-]+[\s,]+[\d.-]+[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(buf.toString("utf8"));
+      if (vb) aspect = Number(vb[1]) / Number(vb[2]);
+    }
+    return { src: rel, aspect };
+  };
+  const airlines = (await Airline.find({}, "code name").sort({ code: 1 }).lean()).map((a) => ({
+    code: a.code,
+    name: a.name[locale] ?? a.name.vi,
+    logo: airlineLogo(a.code),
+  }));
+  // Cân logo theo diện tích: chiều rộng tỉ lệ với căn bậc hai tỉ lệ khung, logo dài nhất chiếm hết bề ngang ô.
+  const maxAspect = Math.max(1, ...airlines.filter((a) => a.logo).map((a) => a.logo.aspect));
+  for (const a of airlines) {
+    if (a.logo) a.logo.widthPct = Math.round(100 * Math.sqrt(a.logo.aspect / maxAspect));
+  }
+
   // Icon nét (stroke) cho phần "điểm nổi bật" — vẽ SVG, không dùng emoji.
   const featureIcons = {
     seat: <path d="M5 11V6a2 2 0 012-2h10a2 2 0 012 2v5M3 11h18v5H3zM6 16v4M18 16v4" />,
@@ -69,20 +142,14 @@ export default async function HomePage({ params }) {
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      {/* === Hero: minh họa phẳng (núi, mặt trời, đường bay) — không gradient, không vòng tròn mờ === */}
+      {/* === Hero: giữ nền kem + chữ màu cũ; ảnh máy bay hiện dần ở bên phải === */}
       <section className="relative overflow-hidden bg-sea-50">
-        <svg
+        <div
           aria-hidden="true"
-          viewBox="0 0 1280 470"
-          preserveAspectRatio="xMidYMax slice"
-          className="absolute inset-0 h-full w-full"
-        >
-          <circle cx="1040" cy="150" r="70" fill="#f9c79a" />
-          <path d="M0 360 L180 280 L300 330 L470 240 L620 320 L760 260 L900 330 L1060 250 L1280 330 L1280 470 L0 470 Z" fill="#f3d3b8" />
-          <path d="M0 410 L220 340 L420 395 L640 330 L860 400 L1080 350 L1280 400 L1280 470 L0 470 Z" fill="#e9b990" />
-          <path d="M140 210 C 420 60, 760 60, 1110 190" fill="none" stroke="#c9764a" strokeWidth="2" strokeDasharray="2 10" strokeLinecap="round" />
-          <path d="M0 8 L34 0 L0 -8 L7 0 Z" transform="translate(905 92) rotate(18)" fill="#9a3412" />
-        </svg>
+          className="absolute inset-y-0 right-0 w-full bg-cover bg-[70%_center] sm:w-3/4"
+          style={{ backgroundImage: "url(/images/hero.jpg)" }}
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-sea-50 from-30% via-sea-50/80 via-55% to-sea-50/10 sm:via-sea-50/60" />
         <div className="relative mx-auto max-w-6xl px-6 pb-32 pt-14 sm:pb-36 sm:pt-20">
           <p className="mb-3 text-sm font-semibold text-sea-500">{t("heroEyebrow", { count: airports.length })}</p>
           <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
@@ -131,20 +198,48 @@ export default async function HomePage({ params }) {
       {routeCards.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 pt-14">
           <h2 className="mb-6 text-2xl font-bold tracking-tight text-ink">{t("popularRoutesTitle")}</h2>
-          <PopularRoutesCarousel
+          <PopularRoutesGrid
             cards={routeCards}
             labels={{
               from: t("routeFrom"),
               oneWay: t("routeOneWay"),
               buyNow: t("routeBuyNow"),
-              prev: t("routePrev"),
-              next: t("routeNext"),
               region: t("popularRoutesTitle"),
             }}
           />
-          <p className="mt-2 text-xs text-ink/60">{t("routePriceNote")}</p>
+          <p className="mt-3 text-xs text-ink/60">{t("routePriceNote")}</p>
         </section>
       )}
+
+      {/* === Dịch vụ bổ sung === */}
+      <section aria-labelledby="home-services" className="mx-auto w-full max-w-6xl px-6 pt-14">
+        <h2 id="home-services" className="mb-6 text-2xl font-bold tracking-tight text-ink">{t("servicesTitle")}</h2>
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {services.map((s) => (
+            <li key={s.key} className="group relative h-64 overflow-hidden rounded-2xl bg-ink sm:h-80">
+              {/* Ảnh phủ kín ô, tối dần ở nửa dưới để chữ trắng dễ đọc */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.04]"
+                style={{ backgroundImage: `url(/images/services/${s.key}.jpg)`, backgroundPosition: s.key === "baggage" ? "30% center" : "center" }}
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-3 sm:p-5">
+                <h3 className="text-sm font-semibold text-white sm:text-lg">
+                  {/* after: phủ cả thẻ -> bấm bất kỳ đâu trên thẻ đều mở trang giới thiệu dịch vụ */}
+                  <Link
+                    href={`/services/${s.key}`}
+                    className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-coral-500"
+                  >
+                    {s.title}
+                  </Link>
+                </h3>
+                <p className="text-xs leading-relaxed text-white/85 sm:text-sm">{s.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* === Điểm nổi bật === */}
       <section aria-labelledby="why-us" className="mt-14 border-t border-sand-100 bg-sand-50 py-12">
@@ -164,6 +259,39 @@ export default async function HomePage({ params }) {
           ))}
         </div>
       </section>
+
+      {/* === Đối tác === */}
+      {airlines.length > 0 && (
+        <section aria-labelledby="home-airlines" className="border-t border-sand-100 bg-white py-12">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 id="home-airlines" className="text-center text-2xl font-bold tracking-tight text-ink">{t("airlinesTitle")}</h2>
+            <ul className="mx-auto mt-8 grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-4">
+              {airlines.map((a) => (
+                <li
+                  key={a.code}
+                  title={a.name}
+                  className="flex h-24 items-center justify-center rounded-2xl border border-sand-100 bg-white px-5 sm:px-8"
+                >
+                  {a.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- logo tĩnh nhỏ trong public/, không cần tối ưu ảnh
+                    <img src={a.logo.src} alt={a.name} style={{ width: `${a.logo.widthPct}%` }} className="h-auto" />
+                  ) : (
+                    <span className="flex items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${AIRLINE_TONES[a.code] ?? "bg-sand-100 text-ink"}`}
+                      >
+                        {a.code}
+                      </span>
+                      <span className="text-sm font-semibold text-ink sm:text-base">{a.name}</span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

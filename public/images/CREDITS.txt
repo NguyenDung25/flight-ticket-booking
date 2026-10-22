@@ -1,0 +1,15 @@
+Nguồn ảnh dùng trên trang chủ DelayX (đã thu nhỏ và nén lại).
+
+Ảnh do chủ dự án cung cấp (chưa ghi rõ nguồn gốc / giấy phép — cần bổ sung nguồn trước khi dùng ngoài đồ án):
+  hero.jpg               — máy bay bay trên biển mây lúc hoàng hôn (nền khối tìm chuyến bay)
+  services/baggage.jpg   — hai vali ở sảnh sân bay
+  services/meal.jpg      — suất ăn trên máy bay
+  services/business.jpg  — hành khách ngồi ghế hạng thương gia
+
+Ảnh tải từ Wikimedia Commons:
+  services/seat.jpg
+    Ảnh gốc: "Airplane window sunset (Unsplash).jpg" — tác giả Morre Christophe
+    Giấy phép: CC0 (không bắt buộc ghi nguồn)
+    https://commons.wikimedia.org/wiki/File:Airplane_window_sunset_(Unsplash).jpg
+
+Logo hãng bay (public/airlines/) cũng lấy từ Wikimedia Commons.
