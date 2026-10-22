@@ -9,7 +9,13 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import SeatMap from "./SeatMap";
-import { normalizeContactEmail, normalizePhone } from "@/lib/bookingContact";
+import {
+  normalizeContactEmail,
+  normalizePhone,
+  normalizeDocumentId,
+  isValidDocumentId,
+  sanitizeDocumentIdInput,
+} from "@/lib/bookingContact";
 import { localizeApiMessage, currentUiLocale } from "@/lib/apiMessages";
 import { baggageOptions, baggagePrice, checkedBaggageAllowance, priceAddons } from "@/lib/ancillaries";
 
@@ -78,6 +84,8 @@ export default function PassengersForm({
   initialPassengerCount,
   outboundFlight,
   returnFlight,
+  outboundClass = "economy",
+  returnClass = "economy",
 }) {
   const t = useTranslations("Booking");
   const tCommon = useTranslations("Common");
@@ -114,7 +122,20 @@ export default function PassengersForm({
     const saved = readPfSession(SESSION_KEY, null);
     const id = setTimeout(() => {
       if (saved) {
-        if (saved.passengers) setPassengers(saved.passengers);
+        // Bỏ ghế đã gán nhưng khác hạng đang chọn (khách quay lại đổi hạng ở trang chi tiết).
+        const classOk = (leg, seatNumber, list) =>
+          !seatNumber || list?.find((s) => s.seat_number === seatNumber)?.seat_class === chosenClass(leg);
+        if (saved.passengers) {
+          setPassengers(
+            saved.passengers.map((p) => ({
+              ...p,
+              seatByLeg: {
+                outbound: classOk("outbound", p.seatByLeg?.outbound, saved.outboundSeats) ? p.seatByLeg?.outbound ?? null : null,
+                return: classOk("return", p.seatByLeg?.return, saved.returnSeats) ? p.seatByLeg?.return ?? null : null,
+              },
+            }))
+          );
+        }
         if (saved.outboundSeats) setOutboundSeats(saved.outboundSeats);
         if (saved.returnSeats) setReturnSeats(saved.returnSeats);
         if (saved.contact) setContact(saved.contact);
@@ -142,6 +163,10 @@ export default function PassengersForm({
   const [createdBookingId, setCreatedBookingId] = useState(null);
   // A5 — mã khuyến mãi (tùy chọn).
   const [promotionCode, setPromotionCode] = useState("");
+
+  function chosenClass(leg) {
+    return leg === "return" ? returnClass : outboundClass;
+  }
 
   function setSeatLocal(leg, seatNumber, patch) {
     const setter = leg === "outbound" ? setOutboundSeats : setReturnSeats;
@@ -179,6 +204,8 @@ export default function PassengersForm({
         ? "selected"
         : "takenByOtherPassenger";
     }
+    // Chỉ được chọn ghế thuộc hạng đã chọn ở trang chi tiết chuyến bay.
+    if (seat.seat_class !== chosenClass(leg)) return "otherClass";
     if (seat.status === "available") return "available";
     if (seat.status === "held" && seat.held_by_me) {
       return "mineUnassigned";
@@ -310,18 +337,22 @@ export default function PassengersForm({
         return t("errorDocumentTypeForAge");
       }
 
-      // Chặn 2 hành khách trong cùng booking khai trùng số giấy tờ — bỏ qua document_id rỗng.
-      const trimmedId = p.document_id.trim();
-      if (trimmedId) {
-        if (seenDocumentIds.has(trimmedId)) {
+      // Đúng định dạng theo loại giấy tờ, và 2 hành khách trong cùng booking không được trùng số giấy tờ.
+      const documentId = normalizeDocumentId(p.document_id);
+      if (documentId) {
+        if (!isValidDocumentId(p.document_type, documentId)) {
+          return t("errorDocumentIdFormat");
+        }
+        if (seenDocumentIds.has(documentId)) {
           return t("errorDuplicateDocumentId");
         }
-        seenDocumentIds.set(trimmedId, p.full_name);
+        seenDocumentIds.set(documentId, p.full_name);
       }
+    }
 
-      if (!p.seatByLeg.outbound || (returnFlight && !p.seatByLeg.return)) {
-        return t("errorMissingSeats");
-      }
+    // Kiểm tra ghế sau cùng, để lỗi về thông tin hành khách (VD trùng số giấy tờ) được báo trước.
+    if (passengers.some((p) => !p.seatByLeg.outbound || (returnFlight && !p.seatByLeg.return))) {
+      return t("errorMissingSeats");
     }
     return null;
   }
@@ -365,7 +396,7 @@ export default function PassengersForm({
           return {
             full_name: p.full_name.trim(),
             document_type: p.document_type,
-            document_id: p.document_id.trim(),
+            document_id: normalizeDocumentId(p.document_id),
             date_of_birth: p.date_of_birth,
             seats,
           };
@@ -486,7 +517,10 @@ export default function PassengersForm({
               <Select
                 label={t("documentTypeLabel")}
                 value={p.document_type}
-                onChange={(e) => updatePassengerField(index, "document_type", e.target.value)}
+                onChange={(e) => {
+                  updatePassengerField(index, "document_type", e.target.value);
+                  updatePassengerField(index, "document_id", sanitizeDocumentIdInput(e.target.value, p.document_id));
+                }}
                 onFocus={() => setActiveIndex(index)}
                 options={[
                   { value: "cccd", label: t("documentTypeCccd") },
@@ -497,7 +531,10 @@ export default function PassengersForm({
               <Input
                 label={t("documentIdLabel")}
                 value={p.document_id}
-                onChange={(e) => updatePassengerField(index, "document_id", e.target.value)}
+                inputMode={p.document_type === "passport" ? "text" : "numeric"}
+                maxLength={p.document_type === "passport" ? 9 : p.document_type === "cccd" ? 12 : 20}
+                autoComplete="off"
+                onChange={(e) => updatePassengerField(index, "document_id", sanitizeDocumentIdInput(p.document_type, e.target.value))}
                 onFocus={() => setActiveIndex(index)}
               />
               <Input

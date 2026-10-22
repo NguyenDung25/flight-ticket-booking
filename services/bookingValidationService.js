@@ -1,6 +1,7 @@
 const Flight = require("../models/Flight");
 const { ageInYears, toVN } = require("../lib/timezone");
 const { priceAddons, AncillaryError } = require("../lib/ancillaries");
+const { normalizeDocumentId, isValidDocumentId } = require("../lib/bookingContact");
 const {
   MIN_AGE_REQUIRE_ID_DOCUMENT,
   MIN_ROUND_TRIP_TRANSIT_MS,
@@ -47,6 +48,13 @@ function validatePassengerDocument(passenger) {
   ) {
     throw new ValidationError(`Số giấy tờ của hành khách "${passenger.full_name}" không hợp lệ.`);
   }
+  // Lưu số giấy tờ ở dạng chuẩn (không khoảng trắng, viết hoa) rồi kiểm tra định dạng theo loại giấy tờ.
+  passenger.document_id = normalizeDocumentId(passenger.document_id) || null;
+  if (passenger.document_id && !isValidDocumentId(passenger.document_type, passenger.document_id)) {
+    throw new ValidationError(
+      `Số giấy tờ của hành khách "${passenger.full_name}" không đúng định dạng: CCCD gồm 12 chữ số, giấy khai sinh chỉ gồm chữ số, hộ chiếu gồm 6–9 chữ cái hoặc chữ số.`
+    );
+  }
   validatePassengerDateOfBirth(passenger);
   const age = ageInYears(passenger.date_of_birth);
 
@@ -73,9 +81,9 @@ function validatePassengerDocument(passenger) {
 
 /** Chặn 2 hành khách trong cùng 1 booking khai trùng số giấy tờ. */
 function validateNoDuplicateDocumentIds(passengers) {
-  const seenBy = new Map(); // document_id (đã trim) -> full_name người đầu tiên khai số đó
+  const seenBy = new Map(); // document_id (đã chuẩn hóa) -> full_name người đầu tiên khai số đó
   for (const passenger of passengers) {
-    const id = passenger.document_id?.trim();
+    const id = normalizeDocumentId(passenger.document_id);
     if (!id) continue;
     if (seenBy.has(id)) {
       throw new ValidationError(

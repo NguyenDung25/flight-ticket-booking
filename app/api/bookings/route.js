@@ -127,7 +127,7 @@ export async function POST(request) {
 
     // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế).
     const nowTs = new Date();
-    const livePending = { user_id: user._id, status: "pending_payment", payment_expires_at: { $gt: nowTs } };
+    const livePending = { user_id: user._id, status: "pending_payment", "payment.payment_expires_at": { $gt: nowTs } };
     const seatKeys = passengers.flatMap((p) =>
       (p.seats ?? []).map((s) => ({ flight_id: s.flight_id, seat_number: s.seat_number }))
     );
@@ -150,6 +150,30 @@ export async function POST(request) {
         { message: `Bạn có quá nhiều booking đang chờ thanh toán (tối đa ${MAX_PENDING_BOOKINGS_PER_USER}). Hãy thanh toán hoặc hủy bớt.` },
         { status: 429 }
       );
+    }
+
+    // Một hành khách (một số giấy tờ) chỉ có một chỗ trên mỗi chuyến bay, kể cả khi nằm ở đơn đặt vé khác.
+    const documentIds = passengers.map((p) => p.document_id).filter(Boolean);
+    if (documentIds.length > 0) {
+      const flightIds = legs.map((l) => l.flightDoc._id);
+      const clash = await Booking.findOne(
+        {
+          $or: [{ status: "confirmed" }, { status: "pending_payment", "payment.payment_expires_at": { $gt: nowTs } }],
+          passengers: { $elemMatch: { document_id: { $in: documentIds }, "seats.flight_id": { $in: flightIds } } },
+        },
+        "passengers.document_id passengers.seats.flight_id"
+      ).lean();
+      if (clash) {
+        const taken = clash.passengers.find(
+          (p) => documentIds.includes(p.document_id) && p.seats.some((s) => flightIds.some((id) => String(id) === String(s.flight_id)))
+        );
+        return NextResponse.json(
+          {
+            message: `Số giấy tờ "${taken?.document_id ?? documentIds[0]}" đã có trong một đơn đặt vé khác trên cùng chuyến bay — mỗi hành khách chỉ được đặt một chỗ trên một chuyến.`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // passengers[].seats[] đã được validateBookingCreation ghi baggage_kg/meal/addons_amount (giá server).
