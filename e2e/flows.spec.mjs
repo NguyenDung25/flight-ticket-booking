@@ -56,8 +56,9 @@ test("đặt vé 1 chiều có hành lý + suất ăn -> sang VNPay đúng số 
   const q = new URLSearchParams({ origin: "HAN", destination: "SGN", departureDate: tomorrowVN(), tripType: "one_way", passengerCount: "1" });
   await page.goto(`/search?${q}`);
   // Chọn đúng VN200 (giá 1.500.000đ) — tùy giờ chạy, chuyến VN910 của test check-in cũng có thể rơi vào ngày mai.
-  await page.locator("article", { hasText: "VN200" }).getByRole("link", { name: "Chọn chuyến", exact: true }).click();
-  await page.getByRole("link", { name: "Chọn chuyến này" }).first().click();
+  const vn200 = page.locator("article", { hasText: "VN200" });
+  await vn200.getByRole("button", { name: "Chọn chuyến" }).click();
+  await vn200.getByRole("link", { name: "Chọn", exact: true }).first().click(); // thẻ giá Phổ thông
   await page.getByRole("link", { name: "Tiếp tục nhập thông tin hành khách" }).click();
   await expect(page).toHaveURL(/\/booking\/passengers/);
 

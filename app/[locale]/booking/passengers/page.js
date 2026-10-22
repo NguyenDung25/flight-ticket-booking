@@ -91,9 +91,15 @@ export default async function BookingPassengersPage({ params, searchParams }) {
     );
   }
 
+  // Hạng ghế đã chọn ở trang chi tiết chuyến bay (chuyến không bán thương gia thì là phổ thông).
+  const classFor = (flight, value) =>
+    value === "business" && flight.base_price.business != null ? "business" : "economy";
+
   return (
     <PassengersForm
       locale={locale}
+      outboundClass={classFor(outbound, sp.outboundClass)}
+      returnClass={returnFlight ? classFor(returnFlight, sp.returnClass) : null}
       pricing={JSON.parse(JSON.stringify(await getAncillaryPricing()))}
       defaultContactEmail={session.user.email ?? ""}
       tripType={tripType}

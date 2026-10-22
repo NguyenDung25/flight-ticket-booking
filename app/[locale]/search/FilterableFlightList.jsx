@@ -21,13 +21,18 @@ function departureHourVN(isoString) {
   return Number(hour) % 24;
 }
 
-export default function FilterableFlightList({ flights, locale, leg, searchContext, dateLabel = "" }) {
+export default function FilterableFlightList({ flights, locale, leg, searchContext, fareInfo, dateLabel = "" }) {
   // useTranslations (hook client-safe của next-intl) — không nhận `t` qua props từ page.js.
   const t = useTranslations("SearchResults");
 
-  const prices = flights.map((f) => f.base_price.economy);
-  const minPrice = flights.length > 0 ? Math.min(...prices) : 0;
-  const maxPriceOverall = flights.length > 0 ? Math.max(...prices) : 0;
+  // Bộ lọc giá, sắp xếp theo giá và giá trên thẻ chuyến bay đều theo hạng vé đang chọn.
+  const [fareClass, setFareClass] = useState("economy");
+  const priceOf = (f) => (fareClass === "business" ? f.base_price.business ?? null : f.base_price.economy);
+  const hasAnyBusiness = flights.some((f) => f.base_price.business != null);
+  const classFlights = flights.filter((f) => priceOf(f) != null);
+  const prices = classFlights.map(priceOf);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  const maxPriceOverall = prices.length > 0 ? Math.max(...prices) : 0;
 
   const airlineOptions = useMemo(() => {
     const map = new Map();
@@ -60,7 +65,15 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
   // Render lần đầu bằng giá trị mặc định (giống server — server không đọc được sessionStorage).
   useEffect(() => {
     const id = setTimeout(() => {
-      setMaxPrice(readFilter("maxPrice", maxPriceOverall));
+      const savedClass = readFilter("class", "economy") === "business" && hasAnyBusiness ? "business" : "economy";
+      setFareClass(savedClass);
+      const classPrices = flights
+        .map((f) => (savedClass === "business" ? f.base_price.business : f.base_price.economy))
+        .filter((p) => p != null);
+      const lo = classPrices.length ? Math.min(...classPrices) : 0;
+      const hi = classPrices.length ? Math.max(...classPrices) : 0;
+      const savedMax = readFilter("maxPrice", hi);
+      setMaxPrice(savedMax >= lo && savedMax <= hi ? savedMax : hi);
       setSelectedSlots(readFilter("slots", []));
       setSelectedAirlines(readFilter("airlines", []));
       setSortBy(readFilter("sort", "time"));
@@ -83,14 +96,26 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
       return next;
     });
   }
+  function changeFareClass(next) {
+    if (next === fareClass) return;
+    const nextPrices = flights
+      .map((f) => (next === "business" ? f.base_price.business : f.base_price.economy))
+      .filter((p) => p != null);
+    const hi = nextPrices.length ? Math.max(...nextPrices) : 0;
+    setFareClass(next); saveFilter("class", next);
+    setMaxPrice(hi); saveFilter("maxPrice", hi);
+  }
   function resetFilters() {
-    setMaxPrice(maxPriceOverall); saveFilter("maxPrice", maxPriceOverall);
+    const economyMax = Math.max(...flights.map((f) => f.base_price.economy));
+    setFareClass("economy"); saveFilter("class", "economy");
+    setMaxPrice(economyMax); saveFilter("maxPrice", economyMax);
     setSelectedSlots([]); saveFilter("slots", []);
     setSelectedAirlines([]); saveFilter("airlines", []);
   }
 
   const filtered = flights.filter((f) => {
-    if (f.base_price.economy > maxPrice) return false;
+    const price = priceOf(f);
+    if (price == null || price > maxPrice) return false;
 
     if (selectedAirlines.length > 0 && !selectedAirlines.includes(String(f.airline._id))) {
       return false;
@@ -107,14 +132,14 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
     return true;
   });
 
-  // Sắp xếp: mặc định theo giờ bay (server đã sắp sẵn), hoặc giá phổ thông thấp nhất.
+  // Sắp xếp: mặc định theo giờ bay (server đã sắp sẵn), hoặc giá thấp nhất của hạng vé đang chọn.
   const sorted =
     sortBy === "price"
-      ? [...filtered].sort((a, b) => a.base_price.economy - b.base_price.economy || new Date(a.departure_time) - new Date(b.departure_time))
+      ? [...filtered].sort((a, b) => priceOf(a) - priceOf(b) || new Date(a.departure_time) - new Date(b.departure_time))
       : filtered;
 
   const isFilterActive =
-    maxPrice !== maxPriceOverall || selectedSlots.length > 0 || selectedAirlines.length > 0;
+    fareClass !== "economy" || maxPrice !== maxPriceOverall || selectedSlots.length > 0 || selectedAirlines.length > 0;
 
   if (flights.length === 0) {
     return (
@@ -139,6 +164,30 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
             </button>
           )}
         </div>
+
+        {hasAnyBusiness && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-semibold text-ink">{t("filterClassLabel")}</legend>
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-sand-50 p-1">
+              {[
+                ["economy", t("fareEconomy")],
+                ["business", t("fareBusiness")],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={fareClass === key}
+                  onClick={() => changeFareClass(key)}
+                  className={`h-9 rounded-md text-sm font-medium transition-colors ${
+                    fareClass === key ? "bg-white text-sea-700 shadow-sm" : "text-ink/60 hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <div className="flex flex-col gap-2">
           <label htmlFor={`price-${leg}`} className="text-sm font-semibold text-ink">
@@ -219,6 +268,8 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
               locale={locale}
               leg={leg}
               searchContext={searchContext}
+              fareInfo={fareInfo}
+              priceClass={fareClass}
               t={t}
             />
           ))

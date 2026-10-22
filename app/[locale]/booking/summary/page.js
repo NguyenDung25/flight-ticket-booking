@@ -7,6 +7,8 @@ import { toVN } from "@/lib/timezone";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
+const seatClassParam = (value) => (value === "business" ? "business" : "economy");
+
 function FlightRow({ flight, locale, label }) {
   const airlineName = flight.airline_id.name[locale] ?? flight.airline_id.name.vi;
   const departure = toVN(flight.departure_time);
@@ -81,10 +83,16 @@ export default async function BookingSummaryPage({ params, searchParams }) {
     return <ErrorState message={errorMessage ?? t("errorNotFound")} backLabel={tCommon("back")} />;
   }
 
-  // Tạm tính = economy × số khách, mỗi chặng — chưa chốt (ghi rõ trong UI qua estimatedTotalNote).
+  // Hạng ghế khách đã chọn ở trang chi tiết; chuyến không bán hạng thương gia thì quay về phổ thông.
+  const classFor = (flight, value) =>
+    seatClassParam(value) === "business" && flight.base_price.business != null ? "business" : "economy";
+  const outboundClass = classFor(outbound, sp.outboundClass);
+  const returnClass = returnFlight ? classFor(returnFlight, sp.returnClass) : null;
+
+  // Tổng giá vé theo hạng đã chọn; hành lý, suất ăn và khuyến mãi được cộng/trừ ở bước sau, server tính lại khi tạo đơn.
   const estimatedTotal =
-    outbound.base_price.economy * passengerCount +
-    (returnFlight ? returnFlight.base_price.economy * passengerCount : 0);
+    outbound.base_price[outboundClass] * passengerCount +
+    (returnFlight ? returnFlight.base_price[returnClass] * passengerCount : 0);
 
   const nextHref = {
     pathname: "/booking/passengers",
@@ -92,7 +100,8 @@ export default async function BookingSummaryPage({ params, searchParams }) {
       tripType,
       passengerCount: String(passengerCount),
       outboundFlightId,
-      ...(returnFlightId ? { returnFlightId } : {}),
+      outboundClass,
+      ...(returnFlightId ? { returnFlightId, returnClass } : {}),
     },
   };
 
@@ -107,9 +116,9 @@ export default async function BookingSummaryPage({ params, searchParams }) {
 
       <Card className="w-full max-w-2xl p-6">
         <div className="flex flex-col gap-3">
-          <FlightRow flight={outbound} locale={locale} label={t("outboundLabel")} />
+          <FlightRow flight={outbound} locale={locale} label={`${t("outboundLabel")} · ${t(outboundClass)}`} />
           {returnFlight && (
-            <FlightRow flight={returnFlight} locale={locale} label={t("returnLabel")} />
+            <FlightRow flight={returnFlight} locale={locale} label={`${t("returnLabel")} · ${t(returnClass)}`} />
           )}
         </div>
 

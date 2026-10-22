@@ -13,6 +13,7 @@ const STATUS_CLASSES = {
   takenByOtherPassenger: "border-sand-200 bg-sand-100 text-ink/40 cursor-not-allowed",
   heldByOther: "border-sand-200 bg-sand-100 text-ink/30 cursor-not-allowed",
   booked: "border-sand-200 bg-sand-200 text-ink/30 cursor-not-allowed line-through",
+  otherClass: "border-dashed border-sand-200 bg-transparent text-ink/20 cursor-not-allowed",
 };
 
 export default function SeatMap({ seats, onSelect, disabled, legendT }) {
@@ -35,6 +36,7 @@ export default function SeatMap({ seats, onSelect, disabled, legendT }) {
         <LegendDot className="border-sand-200 bg-sand-100" label={legendT("seatStatusHeld")} />
         <LegendDot className="border-sand-200 bg-sand-200" label={legendT("seatStatusBooked")} />
         <LegendDot className="border-sand-200 bg-white ring-1 ring-sea-500/40" label={legendT("seatStatusBusinessClass")} />
+        <LegendDot className="border-dashed border-sand-200 bg-transparent" label={legendT("seatStatusOtherClass")} />
       </div>
 
       <div className="overflow-x-auto">

@@ -70,6 +70,7 @@ async function queryFlightsByLeg({ origin, destination, date }) {
       },
     },
     { $unwind: "$airline" },
+    { $lookup: { from: "aircrafts", localField: "aircraft_id", foreignField: "_id", as: "aircraft" } },
     {
       $project: {
         flight_number: 1,
@@ -79,6 +80,7 @@ async function queryFlightsByLeg({ origin, destination, date }) {
         arrival_time: 1,
         base_price: 1,
         airline: { _id: "$airline._id", code: "$airline.code", name: "$airline.name" },
+        aircraft_name: { $arrayElemAt: ["$aircraft.name", 0] },
         available_seats: buildAvailableSeatsProjection(),
       },
     },

@@ -59,16 +59,24 @@ export default async function FlightDetailPage({ params, searchParams }) {
     passengerCount: sp.passengerCount,
   };
   const leg = sp.leg; // "outbound" | "return", chỉ có ý nghĩa khi tripType round_trip
+  const passengerCount = Math.max(1, Number(sp.passengerCount) || 1);
 
-  const nextHref =
+  // Khách chọn hạng ghế ngay tại đây (mỗi chặng một hạng); hạng đi kèm theo đường dẫn tới bước chọn ghế.
+  const nextHref = (seatClass) =>
     searchContext.tripType === "round_trip" && leg === "outbound"
-      ? { pathname: "/search", query: { ...searchContext, outboundFlightId: id } }
+      ? { pathname: "/search", query: { ...searchContext, outboundFlightId: id, outboundClass: seatClass } }
       : {
           pathname: "/booking/summary",
           query:
             searchContext.tripType === "round_trip"
-              ? { ...searchContext, outboundFlightId: sp.outboundFlightId, returnFlightId: id }
-              : { ...searchContext, outboundFlightId: id },
+              ? {
+                  ...searchContext,
+                  outboundFlightId: sp.outboundFlightId,
+                  outboundClass: sp.outboundClass,
+                  returnFlightId: id,
+                  returnClass: seatClass,
+                }
+              : { ...searchContext, outboundFlightId: id, outboundClass: seatClass },
         };
 
   const airlineName = flight.airline_id.name[locale] ?? flight.airline_id.name.vi;
@@ -81,6 +89,11 @@ export default async function FlightDetailPage({ params, searchParams }) {
   // Đúng công thức FlightCard.jsx đã dùng ở trang kết quả tìm kiếm — hết chỗ nghĩa là cả 2 hạng ghế.
   const totalAvailable = economyAvailable + (hasBusiness ? businessAvailable : 0);
   const soldOut = totalAvailable === 0;
+
+  const classRows = [
+    { key: "economy", label: t("economyLabel"), offered: true, available: economyAvailable, price: flight.base_price.economy },
+    { key: "business", label: t("businessLabel"), offered: hasBusiness, available: businessAvailable, price: flight.base_price.business },
+  ];
 
   return (
     <div className="flex flex-1 flex-col items-center gap-6 bg-sand-50 px-4 py-12 sm:px-16">
@@ -119,44 +132,45 @@ export default async function FlightDetailPage({ params, searchParams }) {
         <div className="mt-6 border-t border-sand-100 pt-4">
           <p className="mb-2 text-sm font-semibold text-ink">{t("seatClass")}</p>
           <div className="flex flex-col gap-2 text-sm">
-            <div className="flex items-center justify-between rounded-lg bg-white/60 px-3 py-2">
-              <span>{t("economyLabel")}</span>
-              <span className="text-ink/60">
-                {t("availableSeatsLabel")}: {economyAvailable}
-              </span>
-              <span className="font-semibold text-coral-600">
-                {CURRENCY_FORMATTER.format(flight.base_price.economy)}đ
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-lg bg-white/60 px-3 py-2">
-              <span>{t("businessLabel")}</span>
-              {hasBusiness ? (
-                <>
-                  <span className="text-ink/60">
-                    {t("availableSeatsLabel")}: {businessAvailable}
-                  </span>
-                  <span className="font-semibold text-coral-600">
-                    {CURRENCY_FORMATTER.format(flight.base_price.business)}đ
-                  </span>
-                </>
-              ) : (
-                <span className="text-ink/40">{t("notOffered")}</span>
-              )}
-            </div>
+            {classRows.map((row) => (
+              <div
+                key={row.key}
+                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-lg bg-white/60 px-3 py-2 sm:grid-cols-[1fr_auto_auto_6.5rem]"
+              >
+                <span className="font-medium text-ink">{row.label}</span>
+                {row.offered ? (
+                  <>
+                    <span className="font-semibold text-coral-600 sm:order-3">
+                      {CURRENCY_FORMATTER.format(row.price)}đ
+                    </span>
+                    <span className="text-ink/60 sm:order-2">
+                      {t("availableSeatsLabel")}: {row.available}
+                    </span>
+                    {row.available >= passengerCount ? (
+                      <Link
+                        href={nextHref(row.key)}
+                        className="inline-flex items-center justify-center rounded-lg bg-coral-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-coral-600 sm:order-4"
+                      >
+                        {t("selectButton")}
+                      </Link>
+                    ) : (
+                      <span className="text-center text-xs text-danger/70 sm:order-4">
+                        {t("notEnoughSeats", { count: passengerCount })}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="col-span-1 text-ink/40 sm:col-span-3">{t("notOffered")}</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
-        {soldOut ? (
+        {soldOut && (
           <span className="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-sand-100 px-5 py-3 text-sm font-medium text-danger/70">
             {t("soldOutLabel")}
           </span>
-        ) : (
-          <Link
-            href={nextHref}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-coral-500 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-coral-600"
-          >
-            {t("selectButton")}
-          </Link>
         )}
       </Card>
     </div>
