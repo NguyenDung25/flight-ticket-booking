@@ -142,20 +142,21 @@ export default async function HomePage({ params }) {
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      {/* === Hero: giữ nền kem + chữ màu cũ; ảnh máy bay hiện dần ở bên phải === */}
-      <section className="relative overflow-hidden bg-sea-50">
+      {/* === Hero: ảnh máy bay nguyên bản; chữ trắng có bóng mờ để không bị chìm vào ảnh === */}
+      <section className="relative overflow-hidden bg-sea-900">
         <div
           aria-hidden="true"
-          className="absolute inset-y-0 right-0 w-full bg-cover bg-[70%_center] sm:w-3/4"
+          className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url(/images/hero.jpg)" }}
         />
-        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-sea-50 from-30% via-sea-50/80 via-55% to-sea-50/10 sm:via-sea-50/60" />
-        <div className="relative mx-auto max-w-6xl px-6 pb-32 pt-14 sm:pb-36 sm:pt-20">
-          <p className="mb-3 text-sm font-semibold text-sea-500">{t("heroEyebrow", { count: airports.length })}</p>
-          <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
+        {/* Dải tối nhẹ chỉ ở mép trái (chỗ có chữ) vì mặt trời trong ảnh nằm ngay sau dòng tiêu đề */}
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 via-50% to-transparent to-75%" />
+        <div className="relative mx-auto max-w-6xl px-6 pb-32 pt-14 text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.55)] sm:pb-36 sm:pt-20">
+          <p className="mb-3 text-sm font-semibold text-white/90">{t("heroEyebrow", { count: airports.length })}</p>
+          <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
             {t("heroTitle")}
           </h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-ink/70 sm:text-lg">{t("heroSubtitle")}</p>
+          <p className="mt-4 max-w-lg text-base leading-relaxed text-white/90 sm:text-lg">{t("heroSubtitle")}</p>
         </div>
       </section>
 

@@ -18,7 +18,7 @@ export default function MobileMenu({ links, logoutLabel = null }) {
         aria-label={open ? "Đóng menu" : "Mở menu"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-sand-100"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-white hover:bg-white/15"
       >
         {open ? (
           // X
