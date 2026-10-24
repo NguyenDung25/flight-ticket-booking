@@ -28,8 +28,8 @@ export default auth((req) => {
     const localeMatch = nextUrl.pathname.match(localePrefixRe);
     const loginPath = localeMatch ? `${localeMatch[0]}/login` : "/login";
     const loginUrl = new URL(loginPath, nextUrl);
-    // Để trang /login biết redirect lại đâu sau khi đăng nhập thành công.
-    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+    // Để trang /login biết redirect lại đâu sau khi đăng nhập thành công (giữ cả query: chuyến bay, hạng vé...).
+    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
