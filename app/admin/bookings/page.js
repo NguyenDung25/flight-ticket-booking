@@ -3,6 +3,7 @@ import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
+import ManualRefundButton from "./ManualRefundButton";
 // Side-effect import — populate("user_id") cần model User đã được nạp.
 import "@/models/User";
 import "@/models/Flight";
@@ -101,6 +102,8 @@ export default async function AdminBookingsPage() {
                 </td>
                 <td className="px-4 py-3">
                   {!b.tripCompleted && <CancelBookingButton bookingId={b.id} status={b.status} />}
+                  {/* Chỉ hiện với đơn "lỗi thanh toán — cần xử lý tay" (khách đã bị trừ tiền nhưng đơn đã hủy). */}
+                  <ManualRefundButton bookingId={b.id} status={b.status} totalAmount={b.total_amount} />
                 </td>
               </tr>
             ))}
