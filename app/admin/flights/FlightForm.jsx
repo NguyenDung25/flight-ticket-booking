@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { nowVN } from "@/lib/timezone";
+import { matchAircraft, aircraftLabel } from "@/lib/airlabsSchedules";
 
 const emptyForm = {
   flight_number: "",
@@ -24,6 +25,8 @@ export default function FlightForm({ airlines, aircraft, airports }) {
   const [collapsed, setCollapsed] = useState(true);
   // Tra cứu lịch bay từ AirLabs để tự điền (xem GET /api/admin/airlabs/schedules)
   const [lookup, setLookup] = useState({ loading: false, error: null, schedules: null, note: null });
+  // Các chuyến AirLabs đã tạo trong lần tra cứu này (giữ danh sách để tạo tiếp chuyến khác).
+  const [created, setCreated] = useState([]);
 
   const selectedAircraft = useMemo(
     () => aircraft.find((a) => a.id === form.aircraft_id) ?? null,
@@ -36,6 +39,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
 
   async function handleLookup() {
     setLookup({ loading: true, error: null, schedules: null, note: null });
+    setCreated([]);
     try {
       const res = await fetch(
         `/api/admin/airlabs/schedules?dep=${form.origin_code}&arr=${form.dest_code}`
@@ -50,7 +54,9 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         note:
           data.schedules.length === 0
             ? "AirLabs không còn chuyến nào của tuyến này trong hôm nay (hoặc tuyến không có chuyến bay thẳng) — hãy nhập tay, hoặc tra lại vào sáng mai."
-            : null,
+            : data.partial
+              ? "Sân bay có nhiều chuyến, mới lấy 500 chuyến đầu tiên của AirLabs để giữ hạn mức — chọn thêm điểm đến để tra đủ một tuyến."
+              : null,
       });
     } catch (err) {
       setLookup({ loading: false, error: err.message, schedules: null, note: null });
@@ -70,17 +76,42 @@ export default function FlightForm({ airlines, aircraft, airports }) {
     );
     setForm((prev) => ({
       ...prev,
+      // Tra theo 1 sân bay: chuyến được chọn quyết định luôn tuyến bay.
+      origin_code: s.dep_iata || prev.origin_code,
+      dest_code: s.arr_iata || prev.dest_code,
       flight_number: s.flight_iata,
       airline_id: matchedAirline ? matchedAirline.id : prev.airline_id,
       departure_time: dep.toISOString().slice(0, 16),
       arrival_time: arr.toISOString().slice(0, 16),
     }));
-    setLookup((prev) => ({
-      ...prev,
-      note: matchedAirline
-        ? "Đã điền số hiệu và giờ bay — kiểm tra lại ngày, tàu bay và giá trước khi tạo."
-        : `Đã điền số hiệu và giờ bay. Hãng ${s.airline_iata ?? "?"} chưa có trong hệ thống — hãy chọn hãng thủ công.`,
-    }));
+    const baseNote = matchedAirline
+      ? "Đã điền số hiệu và giờ bay — kiểm tra lại ngày, tàu bay và giá trước khi tạo."
+      : `Đã điền số hiệu và giờ bay. Hãng ${s.airline_iata ?? "?"} chưa có trong hệ thống — hãy chọn hãng thủ công.`;
+    setLookup((prev) => ({ ...prev, note: `${baseNote} Đang lấy loại máy bay từ AirLabs...` }));
+    fillAircraft(s.flight_iata, baseNote);
+  }
+
+  // Lịch bay của AirLabs không có loại máy bay -> tra thêm theo số hiệu, khớp với danh sách Máy bay của hệ thống.
+  async function fillAircraft(flightIata, baseNote) {
+    let note;
+    try {
+      const res = await fetch(`/api/admin/airlabs/flight?flight_iata=${encodeURIComponent(flightIata)}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message);
+      const code = data.aircraft_icao;
+      const matched = matchAircraft(code, aircraft);
+      if (matched) {
+        setForm((prev) => (prev.flight_number === flightIata ? { ...prev, aircraft_id: matched.id } : prev));
+        note = `${baseNote} AirLabs cho biết chuyến khai thác bằng ${aircraftLabel(code)} — đã chọn máy bay "${matched.name}".`;
+      } else if (code) {
+        note = `${baseNote} AirLabs cho biết chuyến khai thác bằng ${aircraftLabel(code)} (mã ${code}), hệ thống chưa có máy bay này — hãy chọn máy bay thủ công hoặc thêm ở mục Máy bay.`;
+      } else {
+        note = `${baseNote} AirLabs chưa có thông tin loại máy bay của chuyến này — hãy chọn máy bay thủ công.`;
+      }
+    } catch {
+      note = `${baseNote} Không lấy được loại máy bay từ AirLabs — hãy chọn máy bay thủ công.`;
+    }
+    setLookup((prev) => ({ ...prev, note }));
   }
 
   async function handleSubmit(e) {
@@ -121,8 +152,26 @@ export default function FlightForm({ airlines, aircraft, airports }) {
       if (!res.ok) {
         throw new Error(data?.message || "Có lỗi xảy ra.");
       }
-      setForm(emptyForm);
-      setLookup({ loading: false, error: null, schedules: null, note: null });
+      const createdNumber = form.flight_number.trim();
+      const createdKey = `${createdNumber}|${form.origin_code}|${form.departure_time.slice(11)}`;
+      // Giữ tuyến, ngày bay, hãng và giá để tạo tiếp chuyến khác trong danh sách AirLabs.
+      setForm((prev) => ({
+        ...emptyForm,
+        origin_code: prev.origin_code,
+        dest_code: prev.dest_code,
+        airline_id: prev.airline_id,
+        price_economy: prev.price_economy,
+        price_business: prev.price_business,
+        departure_time: prev.departure_time ? prev.departure_time.slice(0, 10) + "T00:00" : "",
+      }));
+      if (lookup.schedules?.length) {
+        setCreated((prev) => [...prev, createdKey]);
+        setLookup((prev) => ({
+          ...prev,
+          error: null,
+          note: `Đã tạo chuyến ${createdNumber}. Chọn chuyến tiếp theo trong danh sách bên dưới.`,
+        }));
+      }
       router.refresh();
     } catch (err) {
       setError(err.message);
@@ -233,13 +282,13 @@ export default function FlightForm({ airlines, aircraft, airports }) {
           <button
             type="button"
             onClick={handleLookup}
-            disabled={!form.origin_code || !form.dest_code || form.origin_code === form.dest_code || lookup.loading}
+            disabled={(!form.origin_code && !form.dest_code) || form.origin_code === form.dest_code || lookup.loading}
             className="rounded-lg border border-sea-700 px-3 py-1.5 text-xs font-medium text-sea-700 transition-colors hover:bg-sea-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {lookup.loading ? "Đang tra cứu..." : "Tra cứu lịch bay từ AirLabs"}
           </button>
           <span className="text-[11px] text-ink/40">
-            Chọn điểm đi/đến trước, rồi bấm để tự điền số hiệu và giờ bay.
+            Chọn điểm đi và/hoặc điểm đến rồi bấm. Chỉ chọn một sân bay thì lấy mọi chuyến đi/đến sân đó.
           </span>
         </div>
         {lookup.error && <p className="text-xs text-danger">{lookup.error}</p>}
@@ -253,19 +302,28 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         )}
         {lookup.schedules && lookup.schedules.length > 0 && (
           <div className="flex max-h-60 flex-col gap-1 overflow-y-auto">
-            {lookup.schedules.map((s) => (
-              <button
-                key={`${s.flight_iata}-${s.dep_vn}`}
-                type="button"
-                onClick={() => applySchedule(s)}
-                className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-1.5 text-left text-xs hover:bg-sea-500/10"
-              >
-                <span className="font-mono font-semibold">{s.flight_iata}</span>
-                <span className="text-ink/60">
-                  {s.dep_vn.slice(11)} → {s.arr_vn.slice(11)} (giờ VN)
-                </span>
-              </button>
-            ))}
+            {lookup.schedules.map((s) => {
+              const isCreated = created.includes(`${s.flight_iata}|${s.dep_iata}|${s.dep_vn.slice(11)}`);
+              return (
+                <button
+                  key={`${s.flight_iata}-${s.dep_vn}`}
+                  type="button"
+                  onClick={() => applySchedule(s)}
+                  className={`flex items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-xs hover:bg-sea-500/10 ${
+                    form.flight_number === s.flight_iata ? "bg-sea-500/15" : "bg-white"
+                  }`}
+                >
+                  <span className="font-mono font-semibold">{s.flight_iata}</span>
+                  <span className="text-ink/70">
+                    {s.dep_iata} → {s.arr_iata}
+                  </span>
+                  <span className="ml-auto text-ink/60">
+                    {isCreated && <span className="mr-2 font-medium text-success">Đã tạo</span>}
+                    {s.dep_vn.slice(11)} → {s.arr_vn.slice(11)} (giờ VN)
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -324,7 +382,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
           disabled={pending}
           className="rounded-lg bg-sea-500 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sea-700 disabled:opacity-50"
         >
-          {pending ? "Đang tạo..." : "Tạo chuyến bay"}
+          {pending ? "Đang thêm..." : "Thêm chuyến bay"}
         </button>
         <button
           type="button"
