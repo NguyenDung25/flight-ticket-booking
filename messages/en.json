@@ -3,6 +3,14 @@
     "name": "DelayX",
     "tagline": "Easy booking, flights across Vietnam"
   },
+  "Support": {
+    "title": "Customer care center",
+    "hotline": "DelayX hotline",
+    "email": "Support email",
+    "hours": "Opening hours",
+    "hoursValue": "24/7",
+    "note": "Need to cancel a ticket or get a manual refund? Contact us with your booking code and we will help."
+  },
   "Metadata": {
     "title": "DelayX — Flight Booking",
     "description": "Search and book flights online"

@@ -3,6 +3,14 @@
     "name": "DelayX",
     "tagline": "Đặt vé dễ dàng, bay khắp Việt Nam"
   },
+  "Support": {
+    "title": "Trung tâm chăm sóc khách hàng",
+    "hotline": "Tổng đài DelayX",
+    "email": "Hòm thư hỗ trợ",
+    "hours": "Giờ hoạt động",
+    "hoursValue": "24/7",
+    "note": "Cần hủy vé hoặc hoàn tiền thủ công? Hãy liên hệ kèm mã đặt chỗ để được hỗ trợ."
+  },
   "Metadata": {
     "title": "DelayX — Đặt vé máy bay",
     "description": "Tìm kiếm và đặt vé máy bay trực tuyến"
