@@ -82,6 +82,20 @@ test("normalizeAircraftCode: chỉ nhận mã ICAO 2–4 ký tự", () => {
   assert.equal(normalizeAircraftCode(null), null);
 });
 
+test("matchAircraft: nhiều máy bay cùng dòng thì chọn tên sát mã nhất, không phụ thuộc thứ tự", () => {
+  const list = [
+    { id: "a", name: "Airbus A320neo" },
+    { id: "b", name: "Airbus A321neo (một hạng)" },
+    { id: "c", name: "Airbus A320" },
+    { id: "d", name: "Airbus A321neo" },
+  ];
+  for (const l of [list, [...list].reverse()]) {
+    assert.equal(matchAircraft("A320", l).id, "c");
+    assert.equal(matchAircraft("A20N", l).id, "a");
+    assert.equal(matchAircraft("A21N", l).id, "d");
+  }
+});
+
 test("matchAircraft: ưu tiên biến thể cụ thể, sau đó dòng chung", () => {
   const list = [
     { id: "1", name: "Airbus A321 (Demo)" },
