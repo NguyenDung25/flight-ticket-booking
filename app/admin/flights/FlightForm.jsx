@@ -187,7 +187,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         onClick={() => setCollapsed(false)}
         className="self-start rounded-lg bg-sea-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sea-700"
       >
-        + Tạo chuyến bay
+        + Thêm chuyến bay
       </button>
     );
   }
