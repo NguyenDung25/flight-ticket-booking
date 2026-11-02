@@ -1,3 +1,4 @@
+import Link from "next/link";
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Booking from "@/models/Booking";
@@ -5,7 +6,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import CancelBookingButton from "./CancelBookingButton";
 import ManualRefundButton from "./ManualRefundButton";
 // Side-effect import — populate("user_id") cần model User đã được nạp.
-import "@/models/User";
+import User from "@/models/User";
 import "@/models/Flight";
 
 export const metadata = {
@@ -22,15 +23,35 @@ const STATUS_LABELS = {
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
-export default async function AdminBookingsPage() {
+const LIST_LIMIT = 200;
+
+export default async function AdminBookingsPage({ searchParams }) {
   await guardAdminPage();
   await dbConnect();
-  const bookingDocs = await Booking.find({}, "-passengers.document_id")
-    .populate("user_id", "email full_name")
-    .populate("flights.flight_id", "departure_time")
-    .sort({ created_at: -1 })
-    .limit(200)
-    .lean();
+  const { q: rawQ } = await searchParams;
+  const q = (typeof rawQ === "string" ? rawQ : "").trim().slice(0, 100);
+
+  // Có từ khóa: tìm đúng mã vé hoặc email khách (kể cả đơn cũ nằm ngoài 200 đơn mới nhất).
+  let filter = {};
+  if (q) {
+    const users = q.includes("@") ? await User.find({ email: q.toLowerCase() }, "_id").lean() : [];
+    filter = { $or: [{ booking_code: q.toUpperCase() }, { user_id: { $in: users.map((u) => u._id) } }] };
+  }
+  const populateFind = (f) =>
+    Booking.find(f, "-passengers.document_id")
+      .populate("user_id", "email full_name")
+      .populate("flights.flight_id", "departure_time")
+      .sort({ created_at: -1 });
+
+  // Đơn "cần hoàn tay" luôn hiện dù cũ đến đâu, nếu không admin không còn chỗ để hoàn tiền cho khách.
+  const [recent, pinned] = await Promise.all([
+    populateFind(filter).limit(LIST_LIMIT).lean(),
+    q ? [] : populateFind({ status: "payment_error_manual_refund" }).lean(),
+  ]);
+  const seen = new Set(recent.map((b) => String(b._id)));
+  const bookingDocs = [...recent, ...pinned.filter((b) => !seen.has(String(b._id)))].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  );
 
   const now = new Date();
   // Map về mảng thuần trước khi truyền cho Client Component (CancelBookingButton) — _id/user_id._id là ObjectId.
@@ -56,7 +77,26 @@ export default async function AdminBookingsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-2xl font-semibold text-sea-900">Booking</h1>
-        <p className="text-sm text-ink/60">{bookings.length} booking gần nhất</p>
+        <p className="text-sm text-ink/60">
+          {q ? `${bookings.length} booking khớp "${q}"` : `${bookings.length} booking gần nhất (đơn cần hoàn tay luôn hiện)`}
+        </p>
+        <form method="get" className="mt-3 flex flex-wrap gap-2">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Mã vé hoặc email khách"
+            aria-label="Tìm booking theo mã vé hoặc email khách"
+            className="w-64 rounded-lg border border-sand-100 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
+          />
+          <button type="submit" className="rounded-lg bg-coral-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-coral-600">
+            Tìm
+          </button>
+          {q && (
+            <Link href="/admin/bookings" className="self-center text-sm font-semibold text-coral-600 underline">
+              Xem tất cả
+            </Link>
+          )}
+        </form>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-sand-100 bg-white">
@@ -110,7 +150,7 @@ export default async function AdminBookingsPage() {
           </tbody>
         </table>
         {bookings.length === 0 && (
-          <p className="px-4 py-6 text-sm text-ink/50">Chưa có booking nào.</p>
+          <p className="px-4 py-6 text-sm text-ink/50">{q ? "Không tìm thấy booking nào." : "Chưa có booking nào."}</p>
         )}
       </div>
     </div>
