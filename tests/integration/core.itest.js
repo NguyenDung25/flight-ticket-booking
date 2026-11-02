@@ -24,7 +24,7 @@ const emailClient = require("../../lib/emailClient");
 const { logAdminAction } = require("../../lib/adminLog");
 const { requireVerifiedEmail } = require("../../lib/requireVerifiedEmail");
 const pricingService = require("../../services/ancillaryPricingService");
-const { applyAddons } = require("../../services/bookingValidationService");
+const { applyAddons, validateBookingCreation } = require("../../services/bookingValidationService");
 const { DEFAULT_PRICING } = require("../../lib/ancillaries");
 
 const HOUR = 3600 * 1000;
@@ -271,6 +271,50 @@ test("bảng giá dịch vụ bổ sung: admin đổi giá chỉ áp dụng book
   const err = await rejects(() => pricingService.updateAncillaryPricing({ raw: { ...raw, carry_on_kg: -3 }, adminId: u._id }));
   assert.equal(err?.statusCode, 400);
   assert.equal((await pricingService.getAncillaryPricing()).carry_on_kg, 10);
+});
+
+test("giá dịch vụ theo hãng: khứ hồi 2 hãng tính đúng bảng giá từng chặng; xóa bảng riêng thì dùng lại giá chung", async () => {
+  const u = await makeUser();
+  const airline2 = await Airline.create({ code: "IX", name: { vi: "Hãng Test 2", en: "Test Air 2" } });
+  const general = { ...DEFAULT_PRICING, baggage_packages: [{ kg: 20, price: 100_000 }], meal_price: { economy: 50_000, business: 50_000 } };
+  const own = { ...DEFAULT_PRICING, baggage_packages: [{ kg: 20, price: 10_000 }], meal_price: { economy: 5_000, business: 5_000 } };
+  await pricingService.updateAncillaryPricing({ raw: general, adminId: u._id });
+  await pricingService.updateAncillaryPricing({ raw: own, adminId: u._id, airlineCode: "IX" });
+
+  // Chặng đi hãng IT (chưa có bảng riêng), chặng về hãng IX (có bảng riêng).
+  const out = await makeFlight(48);
+  const ret = await makeFlight(72);
+  ret.set({ airline_id: airline2._id, origin_code: "SGN", dest_code: "HAN" });
+  await ret.save();
+  for (const f of [out, ret]) await seat.holdSeat({ flightId: f._id, seatNumber: "3A", userId: u._id });
+  const [outDoc, retDoc] = await Promise.all([Flight.findById(out._id), Flight.findById(ret._id)]); // như route: đọc lại chuyến sau khi giữ ghế
+
+  const codeById = { [String(airline._id)]: airline.code, [String(airline2._id)]: airline2.code };
+  const byAirline = await pricingService.getPricingByAirline([airline.code, airline2.code]);
+  const pricingByFlightId = Object.fromEntries(
+    [outDoc, retDoc].map((f) => [String(f._id), byAirline[codeById[String(f.airline_id)]] ?? byAirline[""]])
+  );
+  const bookNow = async () => {
+    const passengers = [{ full_name: "Khu Hoi", document_type: "cccd", document_id: "001090000777", date_of_birth: new Date("1990-01-01"),
+      seats: [out, ret].map((f) => ({ flight_id: f._id, seat_number: "3A", seat_class: "economy", baggage_kg: 20, meal: true })) }];
+    const { amounts } = await validateBookingCreation({
+      passengers, legs: [{ flightDoc: outDoc, leg: "outbound" }, { flightDoc: retDoc, leg: "return" }],
+      userId: u._id, pricing: byAirline[""], pricingByFlightId,
+    });
+    return { passengers, amounts };
+  };
+
+  const first = await bookNow();
+  assert.equal(first.passengers[0].seats[0].addons_amount, 100_000 + 50_000); // hãng IT -> giá chung
+  assert.equal(first.passengers[0].seats[1].addons_amount, 10_000 + 5_000); // hãng IX -> giá riêng
+  assert.equal(first.amounts[String(out._id)], 1_000_000 + 150_000);
+  assert.equal(first.amounts[String(ret._id)], 1_000_000 + 15_000);
+
+  // Xóa bảng riêng -> hãng IX dùng lại giá chung.
+  await pricingService.resetAirlinePricing("IX");
+  const after = await pricingService.getPricingByAirline(["IX"]);
+  assert.equal(after.IX.baggage_packages[0].price, 100_000);
+  assert.equal((await pricingService.getAncillaryPricingInfo("IX")).has_own, false);
 });
 
 test("nhật ký admin: ghi vào collection AdminLog thật", async () => {

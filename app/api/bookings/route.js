@@ -17,7 +17,8 @@ import {
 } from "@/config/constants";
 import Promotion from "@/models/Promotion";
 import { normalizeContact } from "@/lib/bookingContact";
-import { getAncillaryPricing } from "@/services/ancillaryPricingService";
+import Airline from "@/models/Airline";
+import { getPricingByAirline } from "@/services/ancillaryPricingService";
 
 /** payment.payment_expires_at (ghi chú y) = held_until của ghế giữ sớm nhất trong toàn booking, trừ đi buffer. */
 function earliestHeldUntil(flightDocs, passengers) {
@@ -117,12 +118,24 @@ export async function POST(request) {
       leg: f.leg,
     }));
 
+    // Bảng giá dịch vụ bổ sung theo hãng của từng chuyến (hãng chưa có bảng riêng dùng bảng chung).
+    const airlines = await Airline.find({ _id: { $in: flightDocs.map((f) => f.airline_id) } }, "code").lean();
+    const codeByAirlineId = Object.fromEntries(airlines.map((a) => [String(a._id), a.code]));
+    const pricingByAirline = await getPricingByAirline(airlines.map((a) => a.code));
+    const pricingByFlightId = Object.fromEntries(
+      flightDocs.map((f) => [
+        String(f._id),
+        pricingByAirline[codeByAirlineId[String(f.airline_id)]] ?? pricingByAirline[""],
+      ])
+    );
+
     // Ném ValidationError (giấy tờ/tuổi, transit time, seat_class giả mạo, ghế chưa được chính user này giữ...).
     const { amounts } = await validateBookingCreation({
       passengers,
       legs,
       userId: user._id,
-      pricing: await getAncillaryPricing(), // bảng giá dịch vụ bổ sung admin đang áp dụng
+      pricing: pricingByAirline[""], // bảng giá chung (dự phòng)
+      pricingByFlightId,
     });
 
     // Chống spam booking `pending_payment` (đốt lượt mã khuyến mãi, treo ghế).

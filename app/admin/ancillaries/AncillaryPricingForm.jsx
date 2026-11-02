@@ -36,11 +36,12 @@ function Field({ label, suffix, children }) {
   );
 }
 
-export default function AncillaryPricingForm({ initialPricing }) {
+export default function AncillaryPricingForm({ initialPricing, airlineCode = "", hasOwn = false }) {
   const router = useRouter();
   const [form, setForm] = useState(() => toFormState(initialPricing));
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState(null); // { type: "ok" | "error", text }
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const setPath = (updater) => {
     setMessage(null);
@@ -55,12 +56,31 @@ export default function AncillaryPricingForm({ initialPricing }) {
       const res = await fetch("/api/admin/ancillaries", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pricing: form }),
+        body: JSON.stringify({ pricing: form, airline: airlineCode }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.message || "Có lỗi xảy ra.");
       setForm(toFormState(data.pricing));
       setMessage({ type: "ok", text: "Đã lưu bảng giá. Áp dụng cho các booking tạo từ bây giờ." });
+      router.refresh();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Bỏ bảng giá riêng của hãng -> hãng dùng lại giá chung.
+  async function handleResetToGeneral() {
+    setPending(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/ancillaries?airline=${encodeURIComponent(airlineCode)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || "Có lỗi xảy ra.");
+      setForm(toFormState(data.pricing));
+      setConfirmReset(false);
+      setMessage({ type: "ok", text: "Hãng này đã dùng lại bảng giá chung." });
       router.refresh();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -203,6 +223,32 @@ export default function AncillaryPricingForm({ initialPricing }) {
         >
           Hoàn tác thay đổi
         </button>
+        {airlineCode && hasOwn && !confirmReset && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmReset(true)}
+            className="text-sm font-medium text-danger hover:underline"
+          >
+            Dùng lại giá chung
+          </button>
+        )}
+        {confirmReset && (
+          <>
+            <span className="text-sm text-danger">Xóa bảng giá riêng của hãng này?</span>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleResetToGeneral}
+              className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            >
+              Xác nhận
+            </button>
+            <button type="button" disabled={pending} onClick={() => setConfirmReset(false)} className="text-sm font-medium text-ink/60 hover:underline">
+              Bỏ qua
+            </button>
+          </>
+        )}
         {message && (
           <p role={message.type === "error" ? "alert" : "status"} className={`text-sm ${message.type === "error" ? "text-danger" : "text-sea-700"}`}>
             {message.text}

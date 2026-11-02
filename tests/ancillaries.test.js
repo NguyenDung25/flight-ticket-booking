@@ -117,6 +117,22 @@ test("applyAddons ghi đè giá client gửi theo bảng giá truyền vào; com
   assert.equal(amount, 1_000_000 + 3_000_000 + 219_000);
 });
 
+test("applyAddons: mỗi chuyến dùng bảng giá của hãng chuyến đó, chuyến không có bảng riêng dùng bảng chung", () => {
+  const general = normalizePricing(customRaw());
+  const cheap = normalizePricing({ ...customRaw(), baggage_packages: [{ kg: 10, price: 50_000 }], meal_price: { economy: 10_000, business: 10_000 } });
+  const passengers = [
+    {
+      seats: [
+        { flight_id: "f1", seat_number: "1A", seat_class: "economy", baggage_kg: 10, meal: true }, // hãng có bảng riêng
+        { flight_id: "f2", seat_number: "1A", seat_class: "economy", baggage_kg: 10, meal: true }, // hãng dùng bảng chung
+      ],
+    },
+  ];
+  applyAddons(passengers, general, { f1: cheap });
+  assert.equal(passengers[0].seats[0].addons_amount, 50_000 + 10_000);
+  assert.equal(passengers[0].seats[1].addons_amount, 120_000 + 99_000);
+});
+
 test("applyAddons: gói hành lý sai -> ValidationError 400; lỗi dịch được sang tiếng Anh", () => {
   const passengers = [{ seats: [{ flight_id: "f1", seat_number: "1A", seat_class: "economy", baggage_kg: 12 }] }];
   let err;

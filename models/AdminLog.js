@@ -27,6 +27,7 @@ const ADMIN_LOG_ACTIONS = [
   "popular_route.image_update",
   "popular_route.image_delete",
   "ancillary.update",
+  "ancillary.reset",
 ];
 
 const AdminLogSchema = new Schema(

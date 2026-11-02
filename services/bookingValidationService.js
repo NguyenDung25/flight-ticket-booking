@@ -216,12 +216,16 @@ function computeLegAmount(passengers, flightId, basePriceByFlightId) {
   return amount;
 }
 
-/** Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế thật. */
-function applyAddons(passengers, pricing) {
+/**
+ * Tính lại dịch vụ bổ sung (hành lý ký gửi, suất ăn) cho từng ghế theo hạng ghế thật.
+ * pricingByFlightId (tùy chọn): bảng giá của hãng cho từng chuyến; chuyến không có trong map thì dùng pricing.
+ */
+function applyAddons(passengers, pricing, pricingByFlightId = null) {
   for (const passenger of passengers) {
     for (const seat of passenger.seats) {
       try {
-        Object.assign(seat, priceAddons(seat, seat.seat_class, pricing));
+        const seatPricing = pricingByFlightId?.[String(seat.flight_id)] ?? pricing;
+        Object.assign(seat, priceAddons(seat, seat.seat_class, seatPricing));
       } catch (err) {
         if (err instanceof AncillaryError) throw new ValidationError(err.message, err.statusCode);
         throw err;
@@ -231,7 +235,7 @@ function applyAddons(passengers, pricing) {
 }
 
 /** Hàm tổng hợp gọi khi tạo booking (C6). */
-async function validateBookingCreation({ passengers, legs, userId, pricing }) {
+async function validateBookingCreation({ passengers, legs, userId, pricing, pricingByFlightId }) {
   // 0) Số lượng hợp lệ + chuyến còn đặt được (chưa hủy, chưa khởi hành)
   if (!Array.isArray(passengers) || passengers.length < 1) {
     throw new ValidationError("Booking phải có ít nhất 1 hành khách.");
@@ -276,7 +280,7 @@ async function validateBookingCreation({ passengers, legs, userId, pricing }) {
   }
 
   // 3b) Dịch vụ bổ sung — giá tính ở server theo hạng ghế thật
-  applyAddons(passengers, pricing);
+  applyAddons(passengers, pricing, pricingByFlightId);
 
   // 4) Tính amount từng chặng (dùng lại ở nơi gọi để build flights[] của Booking)
   const basePriceByFlightId = Object.fromEntries(

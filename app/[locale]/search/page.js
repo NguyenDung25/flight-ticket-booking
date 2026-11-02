@@ -7,22 +7,26 @@ import "dayjs/locale/vi";
 import { toVN, todayStringVN, dayRangeVN } from "@/lib/timezone";
 import { Link } from "@/i18n/navigation";
 import FilterableFlightList from "./FilterableFlightList";
-import { getAncillaryPricing } from "@/services/ancillaryPricingService";
+import { getPricingByAirline } from "@/services/ancillaryPricingService";
 import { CANCELLATION_FEES, CANCELLATION_FULL_REFUND_THRESHOLD_HOURS } from "@/config/constants";
 
 const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 
 // Quyền lợi của từng hạng vé hiển thị trên thẻ chọn giá vé: lấy từ bảng giá dịch vụ và cấu hình phí hủy hiện hành.
-async function fareInfoFor() {
-  const p = await getAncillaryPricing();
-  const cls = (c) => ({
-    carryOnKg: p.carry_on_kg,
-    checkedKg: p.included_checked_kg?.[c] ?? 0,
-    mealIncluded: Boolean(p.meal_included?.[c]),
-    mealPrice: p.meal_price?.[c] ?? 0,
-    earlyCancelFee: CANCELLATION_FEES[c].early,
-  });
-  return { economy: cls("economy"), business: cls("business"), earlyHours: CANCELLATION_FULL_REFUND_THRESHOLD_HOURS };
+// Trả về { [mã hãng]: thông tin hạng vé, "": bảng chung } — mỗi hãng có thể có bảng giá dịch vụ riêng.
+async function fareInfoFor(airlineCodes) {
+  const byAirline = await getPricingByAirline(airlineCodes);
+  const infoOf = (p) => {
+    const cls = (c) => ({
+      carryOnKg: p.carry_on_kg,
+      checkedKg: p.included_checked_kg?.[c] ?? 0,
+      mealIncluded: Boolean(p.meal_included?.[c]),
+      mealPrice: p.meal_price?.[c] ?? 0,
+      earlyCancelFee: CANCELLATION_FEES[c].early,
+    });
+    return { economy: cls("economy"), business: cls("business"), earlyHours: CANCELLATION_FULL_REFUND_THRESHOLD_HOURS };
+  };
+  return Object.fromEntries(Object.entries(byAirline).map(([code, p]) => [code, infoOf(p)]));
 }
 
 export default async function SearchResultsPage({ params, searchParams }) {
@@ -234,7 +238,7 @@ export default async function SearchResultsPage({ params, searchParams }) {
             locale={locale}
             leg={isReturnStep ? "return" : "outbound"}
             searchContext={searchContext}
-            fareInfo={await fareInfoFor()}
+            fareInfo={await fareInfoFor((isReturnStep ? returnFlights : outboundFlights).map((f) => f.airline?.code))}
             dateLabel={currentDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate) ? vnDay(currentDate).format("dddd, DD/MM/YYYY") : ""}
           />
         )}

@@ -35,6 +35,7 @@ const ACTION_LABELS = {
   "promotion.create": "Tạo mã khuyến mãi",
   "promotion.update": "Sửa mã khuyến mãi",
   "ancillary.update": "Sửa giá hành lý & suất ăn",
+  "ancillary.reset": "Hãng dùng lại giá chung",
   "promotion.delete": "Xóa mã khuyến mãi",
   "aircraft.create": "Thêm máy bay",
   "aircraft.update": "Sửa máy bay",

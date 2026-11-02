@@ -78,7 +78,7 @@ async function apiCall(url, body) {
 
 export default function PassengersForm({
   locale,
-  pricing, // bảng giá dịch vụ bổ sung hiện hành (admin sửa được) — server tính lại khi tạo booking
+  pricingByLeg, // bảng giá dịch vụ bổ sung của hãng từng chặng (admin sửa được) — server tính lại khi tạo booking
   defaultContactEmail = "",
   tripType,
   initialPassengerCount,
@@ -297,7 +297,10 @@ export default function PassengersForm({
   }
 
   // Hạng ghế để tính giá dịch vụ: chưa chọn ghế thì tạm tính như hạng phổ thông.
+  const pricingFor = (leg) => pricingByLeg[leg] ?? pricingByLeg.outbound;
+
   function addonsFor(p, leg) {
+    const pricing = pricingFor(leg);
     const seatClass = seatClassOf(leg, p.seatByLeg[leg]) ?? "economy";
     try {
       return { seatClass, ...priceAddons(p.addonsByLeg?.[leg] ?? emptyAddons(), seatClass, pricing) };
@@ -565,6 +568,7 @@ export default function PassengersForm({
               <div className={`mt-2 grid gap-3 ${returnFlight ? "sm:grid-cols-2" : ""}`}>
                 {(returnFlight ? ["outbound", "return"] : ["outbound"]).map((leg) => {
                   const a = addonsFor(p, leg);
+                  const pricing = pricingFor(leg);
                   return (
                     <div key={leg} className="flex flex-col gap-2 rounded-lg bg-sand-50 p-3">
                       <p className="text-xs font-medium text-ink">

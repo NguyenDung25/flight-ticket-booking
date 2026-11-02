@@ -100,7 +100,12 @@ export default async function BookingPassengersPage({ params, searchParams }) {
       locale={locale}
       outboundClass={classFor(outbound, sp.outboundClass)}
       returnClass={returnFlight ? classFor(returnFlight, sp.returnClass) : null}
-      pricing={JSON.parse(JSON.stringify(await getAncillaryPricing()))}
+      pricingByLeg={JSON.parse(
+        JSON.stringify({
+          outbound: await getAncillaryPricing(outbound.airline_id?.code),
+          return: returnFlight ? await getAncillaryPricing(returnFlight.airline_id?.code) : null,
+        })
+      )}
       defaultContactEmail={session.user.email ?? ""}
       tripType={tripType}
       initialPassengerCount={passengerCount}

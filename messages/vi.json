@@ -527,6 +527,7 @@
     "stepPay": "Kiểm tra lại tổng tiền ở trang tóm tắt rồi thanh toán qua VNPay.",
     "onlyWhenBooking": "Dịch vụ chỉ mua được trong lúc đặt vé. Đơn đặt vé đã thanh toán không mua thêm được, kể cả khi làm thủ tục trực tuyến.",
     "promoNotApplied": "Mã khuyến mãi chỉ giảm giá vé, không giảm tiền dịch vụ.",
+    "airlinePricingNote": "Bảng giá trên là mức chung; mỗi hãng có thể áp dụng giá riêng, giá chính xác hiển thị ở bước chọn chuyến và nhập hành khách.",
     "refundWithTicket": "Khi hủy vé, tiền dịch vụ được cộng chung vào tiền vé và hoàn theo chính sách hủy vé.",
     "cancelEarly": "Hủy trước giờ bay hơn {hours} tiếng",
     "cancelMid": "Hủy trước giờ bay từ {from} đến {to} tiếng",

@@ -84,7 +84,7 @@ export default async function ServicePage({ params }) {
     [t("cancelLate", { hours: fixed }), "late"],
   ];
   // Ghi chú chung cho 2 dịch vụ mua thêm (hành lý, suất ăn).
-  const paidNotes = [t("onlyWhenBooking"), t("promoNotApplied"), t("refundWithTicket")];
+  const paidNotes = [t("onlyWhenBooking"), t("promoNotApplied"), t("refundWithTicket"), t("airlinePricingNote")];
 
   const content = {
     baggage: (

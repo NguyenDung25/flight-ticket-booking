@@ -268,7 +268,7 @@ export default function FilterableFlightList({ flights, locale, leg, searchConte
               locale={locale}
               leg={leg}
               searchContext={searchContext}
-              fareInfo={fareInfo}
+              fareInfo={fareInfo?.[flight.airline?.code] ?? fareInfo?.[""]}
               priceClass={fareClass}
               t={t}
             />
