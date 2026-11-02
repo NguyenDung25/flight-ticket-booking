@@ -21,6 +21,7 @@ export default function PopularRoutesAdmin({ initial, airports }) {
   const [dest, setDest] = useState("");
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
   const fileRefs = useRef({});
 
   const airportByCode = Object.fromEntries(airports.map((a) => [a.code, a]));
@@ -72,7 +73,7 @@ export default function PopularRoutesAdmin({ initial, airports }) {
   }
 
   async function handleDelete(route) {
-    if (!window.confirm(`Xóa tuyến ${route.origin_code} → ${route.dest_code} khỏi trang chủ?`)) return;
+    setConfirmId(null);
     await call(`${route.id}:delete`, `/api/admin/popular-routes/${route.id}`, json("DELETE"));
   }
 
@@ -232,9 +233,21 @@ export default function PopularRoutesAdmin({ initial, airports }) {
                         Xóa ảnh
                       </button>
                     )}
-                    <button type="button" disabled={locked} onClick={() => handleDelete(r)} className={BTN_DANGER}>
-                      Xóa tuyến
-                    </button>
+                    {confirmId === r.id ? (
+                      <>
+                        <span className="text-xs font-medium text-danger">Xóa tuyến này khỏi trang chủ?</span>
+                        <button type="button" disabled={locked} onClick={() => handleDelete(r)} className={BTN_DANGER}>
+                          Xác nhận xóa
+                        </button>
+                        <button type="button" disabled={locked} onClick={() => setConfirmId(null)} className={BTN}>
+                          Bỏ qua
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" disabled={locked} onClick={() => setConfirmId(r.id)} className={BTN_DANGER}>
+                        Xóa tuyến
+                      </button>
+                    )}
                   </div>
                 </li>
               );
