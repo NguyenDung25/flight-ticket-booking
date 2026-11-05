@@ -7,7 +7,7 @@ const VNPAY_HOST = "https://sandbox.vnpayment.vn/**";
 // Next.js luôn có 1 phần tử role="alert" rỗng (thông báo chuyển trang) — chỉ lấy alert có nội dung.
 const errorAlert = (page) => page.getByRole("alert").filter({ hasText: /\S/ });
 
-/** Ngày mai theo giờ Việt Nam, dạng YYYY-MM-DD (seed tạo chuyến HAN→SGN 9G200 ngày mai). */
+/** Ngày mai theo giờ Việt Nam, dạng YYYY-MM-DD (seed tạo chuyến HAN→SGN 9G841 ngày mai). */
 function tomorrowVN() {
   const d = new Date(Date.now() + 7 * 3600 * 1000 + 24 * 3600 * 1000);
   return d.toISOString().slice(0, 10);
@@ -16,7 +16,7 @@ function tomorrowVN() {
 let g200Id;
 test.beforeAll(async () => {
   const conn = await mongoose.createConnection(E2E_MONGO_URI).asPromise();
-  g200Id = String((await conn.collection("flights").findOne({ flight_number: "9G200" }))._id);
+  g200Id = String((await conn.collection("flights").findOne({ flight_number: "9G841" }))._id);
   await conn.close();
 });
 
@@ -55,8 +55,8 @@ test("đặt vé 1 chiều có hành lý + suất ăn -> sang VNPay đúng số 
   // Tìm chuyến -> chi tiết -> tóm tắt -> nhập hành khách
   const q = new URLSearchParams({ origin: "HAN", destination: "SGN", departureDate: tomorrowVN(), tripType: "one_way", passengerCount: "1" });
   await page.goto(`/search?${q}`);
-  // Chọn đúng 9G200 (giá 1.500.000đ) — tùy giờ chạy, chuyến 9G910 của test check-in cũng có thể rơi vào ngày mai.
-  const g200 = page.locator("article", { hasText: "9G200" });
+  // Chọn đúng 9G841 (giá 1.500.000đ) — tùy giờ chạy, chuyến 9G1233 của test check-in cũng có thể rơi vào ngày mai.
+  const g200 = page.locator("article", { hasText: "9G841" });
   await g200.getByRole("button", { name: "Chọn chuyến" }).click();
   await g200.getByRole("link", { name: "Chọn", exact: true }).first().click(); // thẻ giá Phổ thông
   await page.getByRole("link", { name: "Tiếp tục nhập thông tin hành khách" }).click();
@@ -123,7 +123,7 @@ test("trang cần đăng nhập chuyển về trang đăng nhập", async ({ pag
 });
 
 test("check-in online trọn luồng: mã + họ tên -> chọn khách -> đồng ý ICI -> thẻ lên máy bay có hành lý + QR", async ({ page }) => {
-  // Booking CKE2EA (đã thanh toán, ký gửi 20kg + suất ăn) trên chuyến 9G910 cách ~10 giờ — e2e/seed-checkin.cjs.
+  // Booking CKE2EA (đã thanh toán, ký gửi 20kg + suất ăn) trên chuyến 9G1233 cách ~10 giờ — e2e/seed-checkin.cjs.
   await page.goto("/check-in");
   await page.getByLabel("Mã đặt chỗ (mã vé điện tử)").fill("cke2ea");
   await page.getByLabel("Họ tên hành khách").fill("trần thị checkin");

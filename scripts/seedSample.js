@@ -119,41 +119,41 @@ async function seedAircraft() {
 
 /** Mốc giờ demo luôn tính từ "ngày mai" lúc chạy script — không hardcode 1 ngày cụ thể trong code. */
 /** Lỗi thật tìm được khi soát lại (rất có thể chính là nguyên nhân "No matching flights found" khi test). */
-function tomorrowAt(hour) {
-  return dayjs().tz(VN_TZ).add(1, "day").hour(hour).minute(0).second(0).millisecond(0).toDate();
+function tomorrowAt(hour, minute = 0) {
+  return dayjs().tz(VN_TZ).add(1, "day").hour(hour).minute(minute).second(0).millisecond(0).toDate();
 }
 
 async function seedFlights({ airlines, aircraft }) {
   const toSeed = [
     {
-      flight_number: `${OWN_AIRLINE_CODE}200`,
+      flight_number: `${OWN_AIRLINE_CODE}841`,
       airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "HAN",
       dest_code: "SGN",
-      departure_time: tomorrowAt(8),
-      arrival_time: tomorrowAt(10),
+      departure_time: tomorrowAt(12, 50),
+      arrival_time: tomorrowAt(15, 0),
       base_price: { economy: 1500000, business: 4000000 },
     },
     {
-      flight_number: `${OWN_AIRLINE_CODE}300`,
+      flight_number: `${OWN_AIRLINE_CODE}854`,
       airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "SGN",
       dest_code: "HAN",
-      departure_time: tomorrowAt(14),
-      arrival_time: tomorrowAt(16),
+      departure_time: tomorrowAt(16, 0),
+      arrival_time: tomorrowAt(18, 10),
       base_price: { economy: 1200000, business: 3500000 },
     },
     {
-      // Chặng về của chuyến 200 (SGN->HAN, cách giờ đến ít nhất 2 giờ) — để test khứ hồi: chọn chuyến 200 làm chặng đi.
-      flight_number: `${OWN_AIRLINE_CODE}201`,
+      // Chặng về của 9G841 (SGN->HAN, cách giờ đến ít nhất 2 giờ) — để test khứ hồi: chọn 9G841 làm chặng đi.
+      flight_number: `${OWN_AIRLINE_CODE}884`,
       airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "SGN",
       dest_code: "HAN",
-      departure_time: tomorrowAt(15),
-      arrival_time: tomorrowAt(17),
+      departure_time: tomorrowAt(22, 0),
+      arrival_time: new Date(tomorrowAt(22, 0).getTime() + 130 * 60 * 1000),
       base_price: { economy: 1500000, business: 4000000 },
     },
   ];

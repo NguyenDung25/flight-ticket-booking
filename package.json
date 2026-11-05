@@ -9,6 +9,7 @@
     "lint": "eslint",
     "cron": "node cron/releaseExpiredHolds.js",
     "seed": "node scripts/seedSample.js",
+    "seed:demo": "node scripts/seedDemo.js",
     "seed:airports": "node --env-file=.env.local scripts/seedAirlabs.js",
     "seed:aircraft": "node scripts/seedAircraft.js",
     "seed:test":"node scripts/seedTestFlights.js",

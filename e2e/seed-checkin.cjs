@@ -25,7 +25,7 @@ async function main() {
     checked_in: false,
   }));
   const flight = await Flight.create({
-    flight_number: "9G910", airline_id: airline._id, aircraft_id: aircraft._id,
+    flight_number: "9G1233", airline_id: airline._id, aircraft_id: aircraft._id,
     origin_code: "HAN", dest_code: "SGN", departure_time: dep, arrival_time: new Date(dep.getTime() + 2 * 3600 * 1000),
     base_price: { economy: 1_000_000, business: 3_000_000 }, seats,
   });
