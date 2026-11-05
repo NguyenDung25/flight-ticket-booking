@@ -102,6 +102,36 @@ const SCHEDULE = [
   ["1985", "SGN", "PQC", "17:50", 60, "Airbus A321neo", 1190000, 3100000],
   ["1987", "SGN", "PQC", "19:50", 60, "Airbus A321neo", 1190000, 3100000],
 ];
+// Các sân bay còn lại trong hệ thống mà 9G KHÔNG khai thác thật (theo AirLabs): thêm chuyến DEMO nối với Hà Nội hoặc TP.HCM để trang tìm kiếm
+// và các tuyến phổ biến có dữ liệu ở mọi sân bay. Số hiệu dùng dải 31xx (không trùng số thật nào của hãng) — không phải lịch bay thật.
+// Mỗi dòng: sân bay, trung tâm, thời gian bay (phút), tàu bay, giá phổ thông, giá thương gia, giờ đi từ trung tâm, giờ về.
+const DEMO_ROUTES = [
+  ["DIN", "HAN", 65, "ATR 72", 890_000, null, "07:00", "09:30"],
+  ["VII", "HAN", 70, "ATR 72", 790_000, null, "09:00", "11:30"],
+  ["THD", "HAN", 60, "ATR 72", 760_000, null, "10:30", "13:00"],
+  ["VDO", "HAN", 60, "ATR 72", 790_000, null, "11:15", "13:45"],
+  ["VDH", "HAN", 80, "ATR 72", 850_000, null, "12:00", "14:30"],
+  ["HUI", "HAN", 80, "Airbus A320", 990_000, 2_600_000, "06:45", "09:15"],
+  ["HUI", "SGN", 95, "Airbus A320", 1_190_000, 3_100_000, "15:00", "17:30"],
+  ["VCL", "HAN", 85, "ATR 72", 890_000, null, "14:20", "16:50"],
+  ["UIH", "SGN", 75, "ATR 72", 890_000, null, "08:30", "11:00"],
+  ["UIH", "HAN", 110, "Airbus A320", 1_190_000, 3_000_000, "17:00", "19:45"],
+  ["TBB", "SGN", 70, "ATR 72", 790_000, null, "09:45", "12:15"],
+  ["PXU", "SGN", 70, "ATR 72", 790_000, null, "13:30", "16:00"],
+  ["PXU", "HAN", 100, "Airbus A320", 1_090_000, 2_800_000, "18:20", "21:00"],
+  ["BMV", "SGN", 60, "ATR 72", 750_000, null, "07:30", "10:00"],
+  ["DLI", "SGN", 55, "ATR 72", 690_000, null, "12:30", "15:00"],
+  ["VCA", "SGN", 50, "ATR 72", 650_000, null, "06:50", "09:15"],
+  ["CAH", "SGN", 60, "ATR 72", 700_000, null, "16:10", "18:40"],
+  ["VCS", "SGN", 50, "ATR 72", 780_000, null, "08:10", "10:35"],
+  ["VKG", "SGN", 60, "ATR 72", 720_000, null, "14:40", "17:10"],
+];
+DEMO_ROUTES.forEach(([ap, hub, mins, ac, eco, biz, out, back], i) => {
+  const no = (n) => `31${String(n).padStart(2, "0")}`;
+  SCHEDULE.push([no(i * 2 + 1), hub, ap, out, mins, ac, eco, biz]);
+  SCHEDULE.push([no(i * 2 + 2), ap, hub, back, mins, ac, eco, biz]);
+});
+
 const DAYS = 5;
 
 async function seedFlights() {
