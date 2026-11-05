@@ -72,6 +72,7 @@ export default async function AdminHomePage({ searchParams }) {
   const admin = await guardAdminPage();
   // Vai trò không có quyền xem Tổng quan (doanh thu) thì chuyển tới trang đầu tiên được phép.
   if (!can(admin.role, "dashboard")) redirect(firstAllowedHref(admin.role) ?? "/");
+  const canBookings = can(admin.role, "bookings"); // ADMIN KD xem số liệu nhưng không vào được mục Booking
   await dbConnect();
 
   const params = (await searchParams) ?? {};
@@ -148,9 +149,9 @@ export default async function AdminHomePage({ searchParams }) {
         <StatCard
           label="Cần hoàn tiền tay"
           value={VND.format(counts.manual_refund_pending)}
-          hint={needManualRefund ? "Hiện tại · bấm để xử lý ở mục Booking" : "Hiện tại · không có đơn nào đang chờ"}
+          hint={needManualRefund ? (canBookings ? "Hiện tại · bấm để xử lý ở mục Booking" : "Hiện tại · ADMIN CS xử lý ở mục Booking") : "Hiện tại · không có đơn nào đang chờ"}
           tone={needManualRefund ? "bg-amber-100 text-warning" : "bg-green-100 text-success"}
-          href="/admin/bookings"
+          href={canBookings ? "/admin/bookings" : undefined}
         >
           <svg {...iconProps}>
             <path d="M3 12a9 9 0 109-9 9.8 9.8 0 00-6.7 2.8L3 8" />

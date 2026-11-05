@@ -81,7 +81,7 @@ export async function PATCH(request, { params }) {
 
     // Đọc bản ghi hiện có 1 lần để validate chéo và so sánh giá trị thật.
     const current = await Flight.findById(id).select(
-      "departure_time arrival_time origin_code dest_code base_price seats"
+      "departure_time arrival_time origin_code dest_code base_price seats status"
     );
     if (!current) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
@@ -93,6 +93,9 @@ export async function PATCH(request, { params }) {
         Number(updates.base_price?.economy) === Number(current.base_price?.economy) &&
         Number(updates.base_price?.business ?? null) === Number(current.base_price?.business ?? null);
       if (same) delete updates.base_price;
+    }
+    if (updates.base_price !== undefined && current.status === "cancelled") {
+      throw new ActiveUserError("Chuyến bay đã hủy, không sửa được giá vé.", 400);
     }
     if (updates.base_price !== undefined && !can(admin.role, "flight_prices")) {
       throw new ActiveUserError("Chỉ ADMIN KD hoặc ADMIN IT mới được đổi giá vé.", 403);

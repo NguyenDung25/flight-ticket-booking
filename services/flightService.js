@@ -4,7 +4,7 @@ const Booking = require("../models/Booking");
 require("../models/Airline");
 require("../models/Aircraft");
 const { dayRangeVN, todayStringVN, isValidYmd } = require("../lib/timezone");
-const { ownAirlineStages } = require("../lib/ownAirline");
+const { ownAirlineStages, isOwnAirlineId } = require("../lib/ownAirline");
 const { MAX_PASSENGERS_PER_BOOKING, OWN_AIRLINE_CODE } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
@@ -152,7 +152,7 @@ async function getFlightDetail(flightId) {
     .populate("aircraft_id", "name");
   // Cố ý trả đủ field (kể cả seats[].held_by).
 
-  if (!flight) {
+  if (!flight || !(await isOwnAirlineId(flight.airline_id))) {
     throw new FlightError("Không tìm thấy chuyến bay.", 404);
   }
 

@@ -6,6 +6,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const Booking = require("../models/Booking");
 const Flight = require("../models/Flight");
+const Airline = require("../models/Airline");
 const vnpayClient = require("../lib/vnpayClient");
 const seatService = require("../services/seatService");
 const ticketService = require("../services/ticketService");
@@ -251,12 +252,14 @@ test("holdSeat: ghế mình đang giữ còn hạn KHÔNG bị gia hạn (idempo
     aggregate: async () => [],
     findOneAndUpdate: async () => { sets += 1; return null; },
     findOne: async () => mine,
+    exists: async () => ({ _id: "f1" }), // chuyến thuộc hãng của website
   });
+  const restoreAirline = patch(Airline, { findOne: () => ({ select: () => ({ lean: async () => ({ _id: "own" }) }) }) });
   try {
     const res = await seatService.holdSeat({ flightId: "f1", seatNumber: "1A", userId: OID(7) });
     assert.equal(res, mine);
     assert.equal(sets, 1); // chỉ thử chiếm ghế trống/hết hạn, không có nhánh gia hạn
-  } finally { restore(); }
+  } finally { restore(); restoreAirline(); }
 });
 
 test("assertSeatIsHeldByUser: cần còn > 5 phút giữ ghế; held_until thiếu bị từ chối", () => {

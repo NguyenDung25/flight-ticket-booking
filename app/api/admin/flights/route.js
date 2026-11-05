@@ -64,6 +64,13 @@ export async function POST(request) {
       );
     }
 
+    if (String(origin_code).toUpperCase() === String(dest_code).toUpperCase()) {
+      return NextResponse.json({ message: "Điểm đi và điểm đến không được trùng nhau." }, { status: 400 });
+    }
+    if (!(new Date(arrival_time) > new Date(departure_time))) {
+      return NextResponse.json({ message: "Giờ đến phải sau giờ khởi hành." }, { status: 400 });
+    }
+
     const aircraft = await Aircraft.findById(aircraft_id);
     if (!aircraft) {
       return NextResponse.json({ message: "Không tìm thấy aircraft_id tương ứng." }, { status: 404 });

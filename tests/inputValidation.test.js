@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const Flight = require("../models/Flight");
+const Airline = require("../models/Airline");
 const { searchFlights, FlightError } = require("../services/flightService");
 const {
   validatePassengerDateOfBirth,
@@ -218,7 +219,11 @@ test("holdSeat: chỉ giữ ghế chuyến scheduled và chưa khởi hành; bá
   const origFind = Flight.findById;
   const origFindOne = Flight.findOne;
   const origAggregate = Flight.aggregate;
+  const origExists = Flight.exists;
+  const origAirlineFindOne = Airline.findOne;
   try {
+    Airline.findOne = () => ({ select: () => ({ lean: async () => ({ _id: "own" }) }) }); // hãng của website
+    Flight.exists = async () => ({ _id: "f1" }); // chuyến thuộc hãng đó
     Flight.findOne = async () => null; // không có ghế mình đang giữ
     Flight.aggregate = async () => []; // hạn mức ghế đang giữ (vòng 5) — không cần DB thật
     let filterSeen;
@@ -248,5 +253,7 @@ test("holdSeat: chỉ giữ ghế chuyến scheduled và chưa khởi hành; bá
     Flight.findById = origFind;
     Flight.findOne = origFindOne;
     Flight.aggregate = origAggregate;
+    Flight.exists = origExists;
+    Airline.findOne = origAirlineFindOne;
   }
 });

@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const Flight = require("../models/Flight");
 const { isCheckInWindowOpen } = require("../lib/timezone");
+const { getOwnAirlineId } = require("../lib/ownAirline");
 const mongoose = require("mongoose");
 const {
   SEAT_HOLD_DURATION_MS,
@@ -88,6 +89,11 @@ async function holdSeat({ flightId, seatNumber, userId }) {
   }
 
   const bookable = { status: "scheduled", departure_time: { $gt: now } }; // chưa hủy, chưa khởi hành
+  // Website chỉ bán chuyến của một hãng: chuyến hãng khác (còn trong DB) không được giữ ghế dù gọi thẳng bằng id.
+  const ownAirlineId = await getOwnAirlineId();
+  if (!ownAirlineId || !(await Flight.exists({ _id: flightId, airline_id: ownAirlineId }))) {
+    throw new SeatConflictError("Chuyến bay không thuộc hãng khai thác của website.");
+  }
 
   // Chỉ chiếm ghế trống hoặc ghế `held` đã quá hạn (coi như trống ngay, không phụ thuộc cron).
   const updated = await Flight.findOneAndUpdate(

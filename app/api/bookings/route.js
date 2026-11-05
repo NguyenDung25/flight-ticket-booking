@@ -19,6 +19,7 @@ import Promotion from "@/models/Promotion";
 import { normalizeContact } from "@/lib/bookingContact";
 import Airline from "@/models/Airline";
 import { getPricingByAirline } from "@/services/ancillaryPricingService";
+import { isOwnAirlineId } from "@/lib/ownAirline";
 
 /** payment.payment_expires_at (ghi chú y) = held_until của ghế giữ sớm nhất trong toàn booking, trừ đi buffer. */
 function earliestHeldUntil(flightDocs, passengers) {
@@ -111,6 +112,13 @@ export async function POST(request) {
         { message: `Không tìm thấy chuyến bay flights[${missingIndex}].flight_id.` },
         { status: 404 }
       );
+    }
+
+    // Website chỉ bán chuyến của một hãng: từ chối chuyến hãng khác (còn trong DB) nếu gọi thẳng bằng id.
+    for (const f of flightDocs) {
+      if (!(await isOwnAirlineId(f.airline_id))) {
+        return NextResponse.json({ message: "Chuyến bay không thuộc hãng khai thác của website." }, { status: 400 });
+      }
     }
 
     const legs = flights.map((f, i) => ({

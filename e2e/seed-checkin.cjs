@@ -11,7 +11,7 @@ const E2E_SEAT = "5A";
 async function main() {
   if (!/e2e/.test(process.env.MONGO_URI || "")) throw new Error("Chỉ chạy trên database E2E.");
   await mongoose.connect(process.env.MONGO_URI);
-  const airline = await Airline.findOne({ code: "VN" });
+  const airline = await Airline.findOne({ code: "9G" });
   const aircraft = await Aircraft.findOne();
   const customer = await User.findOne({ email: "customer@example.com" });
 
@@ -25,7 +25,7 @@ async function main() {
     checked_in: false,
   }));
   const flight = await Flight.create({
-    flight_number: "VN910", airline_id: airline._id, aircraft_id: aircraft._id,
+    flight_number: "9G910", airline_id: airline._id, aircraft_id: aircraft._id,
     origin_code: "HAN", dest_code: "SGN", departure_time: dep, arrival_time: new Date(dep.getTime() + 2 * 3600 * 1000),
     base_price: { economy: 1_000_000, business: 3_000_000 }, seats,
   });
