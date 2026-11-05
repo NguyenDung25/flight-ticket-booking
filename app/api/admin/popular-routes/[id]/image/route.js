@@ -9,7 +9,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function PUT(request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const { id } = await params;
 
     const form = await request.formData().catch(() => null);
@@ -37,7 +37,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const { id } = await params;
     const result = await removeImage(id);
     await logAdminAction(admin, {

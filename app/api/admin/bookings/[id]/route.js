@@ -10,7 +10,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("bookings");
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) {
       throw new ActiveUserError("ID booking không hợp lệ.", 400);

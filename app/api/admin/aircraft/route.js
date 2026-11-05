@@ -9,7 +9,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function GET() {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("aircraft");
 
     const aircraft = await Aircraft.find().sort({ name: 1 });
     return NextResponse.json(aircraft);
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("aircraft");
 
     const body = await request.json();
     const { name, total_seats, seat_map_template } = body ?? {};

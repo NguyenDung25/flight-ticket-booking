@@ -7,7 +7,7 @@ import { getRevenueByMonth, getRevenueByRoute } from "@/services/statsService";
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("dashboard");
 
     // ?month=YYYY-MM (giờ VN): by_route chỉ tính tháng đó (sai định dạng -> 400); bỏ trống = toàn thời gian.
     const month = new URL(request.url).searchParams.get("month") ?? undefined;

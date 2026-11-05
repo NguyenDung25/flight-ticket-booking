@@ -3,6 +3,7 @@ import { requireAdminUser } from "@/lib/requireAdminUser";
 import { handleApiError } from "@/lib/apiError";
 import dbConnect from "@/lib/mongodb";
 import Airport from "@/models/Airport";
+import { OWN_AIRLINE_CODE } from "@/config/constants";
 import { normalizeSchedules, getCachedSchedules, setCachedSchedules } from "@/lib/airlabsSchedules";
 
 const AIRLABS_SCHEDULES_URL = "https://airlabs.co/api/v9/schedules";
@@ -19,7 +20,7 @@ async function fetchPage(params, apiKey, offset) {
 
 export async function GET(request) {
   try {
-    await requireAdminUser();
+    await requireAdminUser("flights");
 
     const apiKey = process.env.AIRLABS_API_KEY;
     if (!apiKey) {
@@ -46,7 +47,8 @@ export async function GET(request) {
       return NextResponse.json({ schedules: cached, cached: true });
     }
 
-    const params = [dep && `dep_iata=${dep}`, arr && `arr_iata=${arr}`].filter(Boolean).join("&");
+    // Website là kênh bán vé của một hãng: chỉ tra lịch bay của hãng đó.
+    const params = [dep && `dep_iata=${dep}`, arr && `arr_iata=${arr}`, `airline_iata=${OWN_AIRLINE_CODE}`].filter(Boolean).join("&");
     const oneSided = !dep || !arr;
     const rows = [];
     let payload;

@@ -9,7 +9,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function GET() {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("promotions");
 
     const promotions = await Promotion.find().sort({ created_at: -1 });
     return NextResponse.json(promotions);
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("promotions");
 
     const body = await request.json().catch(() => null);
     const { code, discount_percent, valid_from, valid_until, usage_limit } = body ?? {};

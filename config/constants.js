@@ -53,7 +53,12 @@ const BOOKING_CODE_MAX_GENERATION_ATTEMPTS = 5;
 // ---- C10 (check-in online) — độ dài mã boarding_pass_code ---- Dài hơn booking_code (6) vì đây là mã quét/in.
 const BOARDING_PASS_CODE_LENGTH = 8;
 
+// ---- Website là kênh bán vé của MỘT hãng hàng không: chỉ chuyến bay của hãng này được bán và tạo mới. ----
+// Đổi hãng bằng biến môi trường OWN_AIRLINE_CODE (mã IATA, mặc định 9G = Sun PhuQuoc Airways).
+const OWN_AIRLINE_CODE = (process.env.OWN_AIRLINE_CODE || "9G").trim().toUpperCase();
+
 module.exports = {
+  OWN_AIRLINE_CODE,
   PAYMENT_MIN_AMOUNT,
   PAYMENT_MAX_AMOUNT,
   MAX_HELD_SEATS_PER_USER,

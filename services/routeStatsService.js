@@ -1,5 +1,6 @@
 const Flight = require("../models/Flight");
 const { routeKey } = require("../lib/popularRoutes");
+const { ownAirlineStages } = require("../lib/ownAirline");
 
 /** Bộ lọc chuyến tính vào thống kê: đúng các tuyến, chưa bị hủy, chưa khởi hành. */
 function buildRouteMatch(routes, now) {
@@ -14,6 +15,7 @@ async function getRouteStats(routes, now = new Date()) {
   if (!routes.length) return new Map();
   const rows = await Flight.aggregate([
     { $match: buildRouteMatch(routes, now) },
+    ...ownAirlineStages(),
     {
       $group: {
         _id: { origin: "$origin_code", dest: "$dest_code" },

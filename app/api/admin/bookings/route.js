@@ -17,7 +17,7 @@ const VALID_STATUSES = [
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("bookings");
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");

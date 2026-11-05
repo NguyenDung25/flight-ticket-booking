@@ -3,13 +3,17 @@ import { guardAdminPage } from "@/lib/adminPageGuard";
 import User from "@/models/User";
 import BlockToggleButton from "./BlockToggleButton";
 import DeleteUserButton from "./DeleteUserButton";
+import RoleSelect from "./RoleSelect";
+import { ROLE_LABELS, isAdminRole, can } from "@/config/adminRoles";
 
 export const metadata = {
   title: "Người dùng — Quản trị",
 };
 
 export default async function AdminUsersPage() {
-  await guardAdminPage();
+  const admin = await guardAdminPage("users_view");
+  // ADMIN CS chỉ xem danh sách; khóa, xóa và phân quyền là của ADMIN IT.
+  const canManage = can(admin.role, "users_manage");
   await dbConnect();
   const usersDocs = await User.find({}, "-password_hash")
     .sort({ created_at: -1 })
@@ -52,11 +56,11 @@ export default async function AdminUsersPage() {
                 <td className="px-4 py-3 text-ink/70">{u.email}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      u.role === "admin" ? "bg-sea-900 text-white" : "bg-sand-100 text-ink/70"
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                      isAdminRole(u.role) ? "bg-sea-900 text-white" : "bg-sand-100 text-ink/70"
                     }`}
                   >
-                    {u.role}
+                    {ROLE_LABELS[u.role] || u.role}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-ink/60">
@@ -79,10 +83,13 @@ export default async function AdminUsersPage() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-start justify-end gap-2">
-                    <BlockToggleButton userId={u.id} isBlocked={u.is_blocked} />
-                    <DeleteUserButton userId={u.id} role={u.role} />
-                  </div>
+                  {canManage ? (
+                    <div className="flex items-start justify-end gap-2">
+                      <RoleSelect userId={u.id} role={u.role} isSelf={u.id === String(admin._id)} />
+                      <BlockToggleButton userId={u.id} isBlocked={u.is_blocked} />
+                      <DeleteUserButton userId={u.id} role={u.role} />
+                    </div>
+                  ) : null}
                 </td>
               </tr>
             ))}

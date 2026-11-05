@@ -17,7 +17,7 @@ function badRequest(message) {
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("promotions");
 
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) return badRequest("ID khuyến mãi không hợp lệ.");
@@ -72,7 +72,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("promotions");
 
     const { id } = await params;
     if (!mongoose.isValidObjectId(id)) return badRequest("ID khuyến mãi không hợp lệ.");

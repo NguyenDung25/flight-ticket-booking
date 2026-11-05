@@ -35,7 +35,7 @@ function formToEditState(flight) {
   };
 }
 
-function EditFlightRow({ flight, airports, colSpan, onClose }) {
+function EditFlightRow({ flight, airports, colSpan, onClose, canEditPrice }) {
   const router = useRouter();
   const [form, setForm] = useState(() => formToEditState(flight));
   const [pending, setPending] = useState(false);
@@ -69,10 +69,14 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
           dest_code: form.dest_code,
           departure_time: new Date(form.departure_time + "+07:00").toISOString(),
           arrival_time: new Date(form.arrival_time + "+07:00").toISOString(),
-          base_price: {
-            economy: Number(form.price_economy),
-            ...(form.price_business ? { business: Number(form.price_business) } : {}),
-          },
+          ...(canEditPrice
+            ? {
+                base_price: {
+                  economy: Number(form.price_economy),
+                  ...(form.price_business ? { business: Number(form.price_business) } : {}),
+                },
+              }
+            : {}),
         }),
       });
       const data = await res.json().catch(() => null);
@@ -163,6 +167,7 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
                 value={form.price_economy}
                 onChange={(e) => update("price_economy", e.target.value)}
                 required
+                disabled={!canEditPrice}
                 className="w-36 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
               />
             </div>
@@ -175,15 +180,15 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
                 min={0}
                 value={form.price_business}
                 onChange={(e) => update("price_business", e.target.value)}
-                required={flight.has_business_seats}
-                disabled={!flight.has_business_seats}
+                required={flight.has_business_seats && canEditPrice}
+                disabled={!flight.has_business_seats || !canEditPrice}
                 className="w-36 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500 disabled:bg-sand-100 disabled:text-ink/30"
               />
             </div>
           </div>
 
           <p className="text-[11px] text-ink/40">
-            Không đổi được hãng bay / tàu bay ở đây — tạo chuyến mới nếu nhập sai.
+            Không đổi được tàu bay ở đây — tạo chuyến mới nếu nhập sai.{canEditPrice ? "" : " Giá vé do ADMIN KD điều chỉnh ở mục Giá vé."}
           </p>
 
           {error && <p className="text-xs text-danger">{error}</p>}
@@ -215,7 +220,7 @@ function EditFlightRow({ flight, airports, colSpan, onClose }) {
 
 const COLUMN_COUNT = 9;
 
-export default function FlightsTable({ flights, airports }) {
+export default function FlightsTable({ flights, airports, canEditPrice = true }) {
   // Chỉ 1 dòng được sửa cùng lúc — mở dòng khác tự đóng dòng đang mở.
   const [editingId, setEditingId] = useState(null);
 
@@ -294,6 +299,7 @@ export default function FlightsTable({ flights, airports }) {
                   flight={f}
                   airports={airports}
                   colSpan={COLUMN_COUNT}
+                  canEditPrice={canEditPrice}
                   onClose={() => setEditingId(null)}
                 />
               )}

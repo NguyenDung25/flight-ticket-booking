@@ -7,7 +7,6 @@ import { Link } from "@/i18n/navigation";
 import { todayStringVN } from "@/lib/timezone";
 import SearchForm from "./SearchForm";
 import PopularRoutesGrid from "@/components/home/PopularRoutesGrid";
-import Airline from "@/models/Airline";
 import { getAncillaryPricing } from "@/services/ancillaryPricingService";
 import { getRouteStats } from "@/services/routeStatsService";
 import { listForHome } from "@/services/popularRouteService";
@@ -16,15 +15,6 @@ import { CANCELLATION_FEES } from "@/config/constants";
 import { listActivePromotions } from "@/services/promotionService";
 import { toVN } from "@/lib/timezone";
 import CopyCodeButton from "./promotions/CopyCodeButton";
-
-// Ô mã hãng: màu nền theo hãng (cùng bảng màu với thẻ chuyến bay ở trang kết quả).
-const AIRLINE_TONES = {
-  VN: "bg-[#e3ecf5] text-[#1e3a5f]",
-  VJ: "bg-[#fbe4e1] text-[#8a1c12]",
-  QH: "bg-[#e3f1e8] text-[#1f5135]",
-  VU: "bg-[#efe6f5] text-[#4a2a6a]",
-  "9G": "bg-[#fff1d6] text-[#6b4a00]",
-};
 
 export default async function HomePage({ params }) {
   const { locale } = await params;
@@ -98,34 +88,6 @@ export default async function HomePage({ params }) {
       }),
     },
   ];
-
-  // Mục "Đối tác": các hãng có trong hệ thống; logo lấy từ public/airlines/<mã hãng>.svg|png, thiếu file thì hiện ô mã hãng.
-  const airlineLogo = (code) => {
-    const rel = ["svg", "png"]
-      .map((ext) => `/airlines/${code}.${ext}`)
-      .find((r) => fs.existsSync(path.join(process.cwd(), "public", r)));
-    if (!rel) return null;
-    // Tỉ lệ khung (rộng / cao): SVG đọc viewBox, PNG đọc kích thước trong phần header của file.
-    const buf = fs.readFileSync(path.join(process.cwd(), "public", rel));
-    let aspect = 4;
-    if (rel.endsWith(".png")) {
-      aspect = buf.readUInt32BE(16) / buf.readUInt32BE(20);
-    } else {
-      const vb = /viewBox="\s*[\d.-]+[\s,]+[\d.-]+[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(buf.toString("utf8"));
-      if (vb) aspect = Number(vb[1]) / Number(vb[2]);
-    }
-    return { src: rel, aspect };
-  };
-  const airlines = (await Airline.find({}, "code name").sort({ code: 1 }).lean()).map((a) => ({
-    code: a.code,
-    name: a.name[locale] ?? a.name.vi,
-    logo: airlineLogo(a.code),
-  }));
-  // Cân logo theo diện tích: chiều rộng tỉ lệ với căn bậc hai tỉ lệ khung, logo dài nhất chiếm hết bề ngang ô.
-  const maxAspect = Math.max(1, ...airlines.filter((a) => a.logo).map((a) => a.logo.aspect));
-  for (const a of airlines) {
-    if (a.logo) a.logo.widthPct = Math.round(100 * Math.sqrt(a.logo.aspect / maxAspect));
-  }
 
   // Icon nét (stroke) cho phần "điểm nổi bật" — vẽ SVG, không dùng emoji.
   const featureIcons = {
@@ -260,39 +222,6 @@ export default async function HomePage({ params }) {
           ))}
         </div>
       </section>
-
-      {/* === Đối tác === */}
-      {airlines.length > 0 && (
-        <section aria-labelledby="home-airlines" className="border-t border-sand-100 bg-white py-12">
-          <div className="mx-auto max-w-6xl px-6">
-            <h2 id="home-airlines" className="text-center text-2xl font-bold tracking-tight text-ink">{t("airlinesTitle")}</h2>
-            <ul className="mx-auto mt-8 grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-4">
-              {airlines.map((a) => (
-                <li
-                  key={a.code}
-                  title={a.name}
-                  className="flex h-24 items-center justify-center rounded-2xl border border-sand-100 bg-white px-5 sm:px-8"
-                >
-                  {a.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- logo tĩnh nhỏ trong public/, không cần tối ưu ảnh
-                    <img src={a.logo.src} alt={a.name} style={{ width: `${a.logo.widthPct}%` }} className="h-auto" />
-                  ) : (
-                    <span className="flex items-center gap-3">
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${AIRLINE_TONES[a.code] ?? "bg-sand-100 text-ink"}`}
-                      >
-                        {a.code}
-                      </span>
-                      <span className="text-sm font-semibold text-ink sm:text-base">{a.name}</span>
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
     </div>
   );
 }

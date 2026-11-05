@@ -4,7 +4,8 @@ const Booking = require("../models/Booking");
 require("../models/Airline");
 require("../models/Aircraft");
 const { dayRangeVN, todayStringVN, isValidYmd } = require("../lib/timezone");
-const { MAX_PASSENGERS_PER_BOOKING } = require("../config/constants");
+const { ownAirlineStages } = require("../lib/ownAirline");
+const { MAX_PASSENGERS_PER_BOOKING, OWN_AIRLINE_CODE } = require("../config/constants");
 
 /** Lỗi nghiệp vụ có statusCode để API route trả về đúng mã lỗi HTTP. */
 class FlightError extends Error {
@@ -70,6 +71,8 @@ async function queryFlightsByLeg({ origin, destination, date }) {
       },
     },
     { $unwind: "$airline" },
+    // Website chỉ bán chuyến của hãng sở hữu website.
+    { $match: { "airline.code": OWN_AIRLINE_CODE } },
     { $lookup: { from: "aircrafts", localField: "aircraft_id", foreignField: "_id", as: "aircraft" } },
     {
       $project: {
@@ -187,6 +190,7 @@ async function getDailyMinPrices({ origin, destination, dates }) {
         status: "scheduled",
       },
     },
+    ...ownAirlineStages(),
     {
       $group: {
         _id: { $dateToString: { format: "%Y-%m-%d", date: "$departure_time", timezone: "Asia/Ho_Chi_Minh" } },

@@ -8,7 +8,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function GET() {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("flights");
     return NextResponse.json(await listForAdmin());
   } catch (err) {
     return handleApiError(err, "GET /api/admin/popular-routes");
@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const body = (await request.json().catch(() => null)) ?? {};
     const created = await createRoute(body);
     await logAdminAction(admin, {

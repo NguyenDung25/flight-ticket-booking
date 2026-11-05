@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOutAction } from "@/components/layout/authActions";
 import { getPageTitle } from "./adminNav";
 
-export default function AdminTopbar({ email }) {
+export default function AdminTopbar({ email, roleLabel }) {
   const pathname = usePathname();
 
   return (
@@ -18,7 +18,12 @@ export default function AdminTopbar({ email }) {
         >
           ← Về giao diện khách
         </Link>
-        <span className="text-[13px] text-ink/60">{email}</span>
+        <span className="text-[13px] text-ink/60">
+          {roleLabel ? (
+            <b className="mr-2 rounded-full bg-sea-900 px-2 py-0.5 text-[11px] font-semibold text-white">{roleLabel}</b>
+          ) : null}
+          {email}
+        </span>
         <form action={signOutAction}>
           <button
             type="submit"

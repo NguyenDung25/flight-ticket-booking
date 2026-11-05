@@ -8,7 +8,7 @@ import "@/models/User";
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("refunds");
 
     const { searchParams } = new URL(request.url);
     const includeErrors = searchParams.get("include_errors") === "1";

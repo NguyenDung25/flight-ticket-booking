@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, isActive } from "./adminNav";
+import { visibleNavItems, isActive } from "./adminNav";
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ role }) {
   const pathname = usePathname();
 
   return (
@@ -22,7 +22,7 @@ export default function AdminSidebar() {
         aria-label="Menu quản trị"
         className="flex gap-1 overflow-x-auto px-3 py-3 md:flex-col md:overflow-visible md:py-4"
       >
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems(role).map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link

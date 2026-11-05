@@ -3,6 +3,7 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminTopbar from "@/components/admin/AdminTopbar";
 import { requireAdminUser } from "@/lib/requireAdminUser";
 import { ActiveUserError } from "@/lib/requireActiveUser";
+import { ROLE_LABELS } from "@/config/adminRoles";
 import "@fontsource/be-vietnam-pro/400.css";
 import "@fontsource/be-vietnam-pro/500.css";
 import "@fontsource/be-vietnam-pro/600.css";
@@ -33,9 +34,9 @@ export default async function AdminLayout({ children }) {
       <body className="min-h-full bg-sand-50 text-ink">
         {/* Menu trái (md trở lên) / hàng ngang trên cùng (màn hình hẹp) + thanh trên có tên trang, đăng xuất. */}
         <div className="flex min-h-screen flex-col md:flex-row">
-          <AdminSidebar />
+          <AdminSidebar role={admin.role} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <AdminTopbar email={admin.email} />
+            <AdminTopbar email={admin.email} roleLabel={ROLE_LABELS[admin.role]} />
             <main className="w-full flex-1 px-6 py-8 md:px-8">{children}</main>
           </div>
         </div>

@@ -2,8 +2,10 @@ import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Flight from "@/models/Flight";
 import Airline from "@/models/Airline";
+import { OWN_AIRLINE_CODE } from "@/config/constants";
 import Aircraft from "@/models/Aircraft";
 import Airport from "@/models/Airport";
+import { can } from "@/config/adminRoles";
 import FlightForm from "./FlightForm";
 import FlightsTable from "./FlightsTable";
 import FlightsTabs from "./FlightsTabs";
@@ -38,18 +40,18 @@ async function RoutesTab() {
 }
 
 export default async function AdminFlightsPage({ searchParams }) {
-  await guardAdminPage();
+  const admin = await guardAdminPage("flights");
   await dbConnect();
   const { tab } = await searchParams;
   if (tab === "routes") return <RoutesTab />;
-  const [flightDocs, airlineDocs, aircraftDocs, airportDocs] = await Promise.all([
-    Flight.find()
+  const [flightDocs, aircraftDocs, airportDocs] = await Promise.all([
+    // Website chỉ bán vé của một hãng nên danh sách chỉ gồm chuyến bay của hãng đó.
+    Flight.find({ airline_id: (await Airline.findOne({ code: OWN_AIRLINE_CODE }).select("_id").lean())?._id ?? null })
       .sort({ departure_time: -1 })
       .limit(200)
       .populate("airline_id", "code name")
       .populate("aircraft_id", "name")
       .lean(),
-    Airline.find().sort({ code: 1 }).lean(),
     Aircraft.find().sort({ name: 1 }).lean(),
     Airport.find({}, "code name city").sort({ code: 1 }).lean(),
   ]);
@@ -71,11 +73,6 @@ export default async function AdminFlightsPage({ searchParams }) {
   }));
 
   // Chỉ cần các field selects/preview cần dùng — không truyền nguyên seat_map_template.
-  const airlines = airlineDocs.map((a) => ({
-    id: String(a._id),
-    code: a.code,
-    name_vi: a.name?.vi ?? a.code,
-  }));
   const aircraft = aircraftDocs.map((a) => ({
     id: String(a._id),
     name: a.name,
@@ -96,9 +93,9 @@ export default async function AdminFlightsPage({ searchParams }) {
 
       <FlightsTabs active="flights" />
 
-      <FlightForm airlines={airlines} aircraft={aircraft} airports={airports} />
+      <FlightForm aircraft={aircraft} airports={airports} />
 
-      <FlightsTable flights={flights} airports={airports} />
+      <FlightsTable flights={flights} airports={airports} canEditPrice={can(admin.role, "flight_prices")} />
     </div>
   );
 }

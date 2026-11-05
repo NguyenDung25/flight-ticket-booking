@@ -6,7 +6,7 @@ const UserSchema = new Schema(
     email: { type: String, required: true, lowercase: true, trim: true },
     password_hash: { type: String, required: true }, // bcrypt — không bao giờ lưu plain text
     full_name: { type: String, required: true },
-    role: { type: String, enum: ["customer", "admin"], default: "customer" },
+    role: { type: String, enum: ["customer", "admin", "admin_foc", "admin_kd", "admin_cs"], default: "customer" }, // admin = ADMIN IT (toàn quyền); xem config/adminRoles.js
     is_blocked: { type: Boolean, default: false },
     preferred_language: { type: String, enum: ["vi", "en"], default: "vi" }, // C11
 

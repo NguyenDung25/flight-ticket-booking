@@ -17,7 +17,6 @@ const GROUPS = [
   { key: "user", label: "Người dùng" },
   { key: "promotion", label: "Khuyến mãi" },
   { key: "aircraft", label: "Máy bay" },
-  { key: "airline", label: "Hãng bay" },
   { key: "popular_route", label: "Tuyến phổ biến" },
   { key: "ancillary", label: "Dịch vụ bổ sung" },
 ];
@@ -31,6 +30,7 @@ const ACTION_LABELS = {
   "booking.manual_refund": "Hoàn tiền tay",
   "user.block": "Khóa tài khoản",
   "user.unblock": "Mở khóa tài khoản",
+  "user.role": "Phân quyền quản trị",
   "user.delete": "Xóa tài khoản",
   "promotion.create": "Tạo mã khuyến mãi",
   "promotion.update": "Sửa mã khuyến mãi",
@@ -63,7 +63,7 @@ function formatDetails(details) {
 }
 
 export default async function AdminLogsPage({ searchParams }) {
-  await guardAdminPage();
+  await guardAdminPage("logs");
   await dbConnect();
 
   const { group = "" } = await searchParams;

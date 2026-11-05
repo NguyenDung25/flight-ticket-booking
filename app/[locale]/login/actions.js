@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { isAdminRole } from "@/config/adminRoles";
 import { verifyCredentials, AuthError as ServiceAuthError } from "@/services/authService";
 
 const DEFAULT_CUSTOMER_LANDING = "/";
@@ -36,7 +37,7 @@ export async function loginAction(_prevState, formData) {
   const hasExplicitDestination = callbackUrl && callbackUrl !== DEFAULT_CUSTOMER_LANDING;
   const destination = hasExplicitDestination
     ? callbackUrl
-    : user.role === "admin"
+    : isAdminRole(user.role)
       ? ADMIN_LANDING
       : DEFAULT_CUSTOMER_LANDING;
 

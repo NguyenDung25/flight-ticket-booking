@@ -7,6 +7,7 @@ import { ActiveUserError } from "@/lib/requireActiveUser";
 import Booking from "@/models/Booking";
 import { cancelBooking } from "@/services/cancellationService";
 import { logAdminAction } from "@/lib/adminLog";
+import { can } from "@/config/adminRoles";
 
 const DEFAULT_CANCEL_REASON = "Khách tự hủy vé.";
 
@@ -24,7 +25,7 @@ export async function PATCH(request, { params }) {
     }
 
     const isOwner = String(existing.user_id) === String(user._id);
-    const isAdmin = user.role === "admin";
+    const isAdmin = can(user.role, "bookings"); // hủy thay khách: ADMIN CS và ADMIN IT
     if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { message: "Bạn không có quyền hủy booking này." },

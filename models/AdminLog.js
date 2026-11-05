@@ -10,6 +10,7 @@ const ADMIN_LOG_ACTIONS = [
   "booking.manual_refund",
   "user.block",
   "user.unblock",
+  "user.role",
   "user.delete",
   "promotion.create",
   "promotion.update",

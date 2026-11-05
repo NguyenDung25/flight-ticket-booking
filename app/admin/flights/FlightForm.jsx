@@ -7,7 +7,6 @@ import { matchAircraft, aircraftLabel } from "@/lib/airlabsSchedules";
 
 const emptyForm = {
   flight_number: "",
-  airline_id: "",
   aircraft_id: "",
   origin_code: "",
   dest_code: "",
@@ -17,7 +16,7 @@ const emptyForm = {
   price_business: "",
 };
 
-export default function FlightForm({ airlines, aircraft, airports }) {
+export default function FlightForm({ aircraft, airports }) {
   const router = useRouter();
   const [form, setForm] = useState(emptyForm);
   const [pending, setPending] = useState(false);
@@ -63,7 +62,7 @@ export default function FlightForm({ airlines, aircraft, airports }) {
     }
   }
 
-  // Chọn 1 lịch bay -> tự điền số hiệu, hãng (nếu hệ thống đã có hãng đó) và giờ.
+  // Chọn 1 lịch bay -> tự điền số hiệu và giờ (hãng luôn là hãng của website).
   function applySchedule(s) {
     const durationMs = new Date(`${s.arr_vn}:00Z`) - new Date(`${s.dep_vn}:00Z`);
     const datePart = form.departure_time
@@ -71,22 +70,16 @@ export default function FlightForm({ airlines, aircraft, airports }) {
       : nowVN().add(1, "day").format("YYYY-MM-DD");
     const dep = new Date(`${datePart}T${s.dep_vn.slice(11)}:00Z`);
     const arr = new Date(dep.getTime() + durationMs);
-    const matchedAirline = airlines.find(
-      (a) => s.airline_iata && a.code.toUpperCase() === s.airline_iata.toUpperCase()
-    );
     setForm((prev) => ({
       ...prev,
       // Tra theo 1 sân bay: chuyến được chọn quyết định luôn tuyến bay.
       origin_code: s.dep_iata || prev.origin_code,
       dest_code: s.arr_iata || prev.dest_code,
       flight_number: s.flight_iata,
-      airline_id: matchedAirline ? matchedAirline.id : prev.airline_id,
       departure_time: dep.toISOString().slice(0, 16),
       arrival_time: arr.toISOString().slice(0, 16),
     }));
-    const baseNote = matchedAirline
-      ? "Đã điền số hiệu và giờ bay — kiểm tra lại ngày, tàu bay và giá trước khi tạo."
-      : `Đã điền số hiệu và giờ bay. Hãng ${s.airline_iata ?? "?"} chưa có trong hệ thống — hãy chọn hãng thủ công.`;
+    const baseNote = "Đã điền số hiệu và giờ bay — kiểm tra lại ngày, tàu bay và giá trước khi thêm.";
     setLookup((prev) => ({ ...prev, note: `${baseNote} Đang lấy loại máy bay từ AirLabs...` }));
     fillAircraft(s.flight_iata, baseNote);
   }
@@ -135,7 +128,6 @@ export default function FlightForm({ airlines, aircraft, airports }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           flight_number: form.flight_number.trim(),
-          airline_id: form.airline_id,
           aircraft_id: form.aircraft_id,
           origin_code: form.origin_code,
           dest_code: form.dest_code,
@@ -154,12 +146,11 @@ export default function FlightForm({ airlines, aircraft, airports }) {
       }
       const createdNumber = form.flight_number.trim();
       const createdKey = `${createdNumber}|${form.origin_code}|${form.departure_time.slice(11)}`;
-      // Giữ tuyến, ngày bay, hãng và giá để tạo tiếp chuyến khác trong danh sách AirLabs.
+      // Giữ tuyến, ngày bay và giá để tạo tiếp chuyến khác trong danh sách AirLabs.
       setForm((prev) => ({
         ...emptyForm,
         origin_code: prev.origin_code,
         dest_code: prev.dest_code,
-        airline_id: prev.airline_id,
         price_economy: prev.price_economy,
         price_business: prev.price_business,
         departure_time: prev.departure_time ? prev.departure_time.slice(0, 10) + "T00:00" : "",
@@ -204,22 +195,6 @@ export default function FlightForm({ airlines, aircraft, airports }) {
             placeholder="VD: 9G123"
             className="w-32 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-ink/60">Hãng bay</label>
-          <select
-            value={form.airline_id}
-            onChange={(e) => update("airline_id", e.target.value)}
-            required
-            className="w-44 rounded-lg border border-sand-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sea-500"
-          >
-            <option value="">— Chọn hãng bay —</option>
-            {airlines.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.code} — {a.name_vi}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-ink/60">Tàu bay</label>

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { can } from "@/config/adminRoles";
+import { firstAllowedHref } from "@/components/admin/adminNav";
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import { currentMonthVN } from "@/lib/timezone";
@@ -66,7 +69,9 @@ const iconProps = {
 };
 
 export default async function AdminHomePage({ searchParams }) {
-  await guardAdminPage();
+  const admin = await guardAdminPage();
+  // Vai trò không có quyền xem Tổng quan (doanh thu) thì chuyển tới trang đầu tiên được phép.
+  if (!can(admin.role, "dashboard")) redirect(firstAllowedHref(admin.role) ?? "/");
   await dbConnect();
 
   const params = (await searchParams) ?? {};

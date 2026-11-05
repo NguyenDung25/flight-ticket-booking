@@ -21,7 +21,7 @@ async function resolveAirline(value) {
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("ancillaries");
     const airline = await resolveAirline(new URL(request.url).searchParams.get("airline"));
     if (airline.error) return airline.error;
     return NextResponse.json(await getAncillaryPricingInfo(airline.code));
@@ -33,7 +33,7 @@ export async function GET(request) {
 export async function PUT(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("ancillaries");
     const body = await request.json().catch(() => null);
     const airline = await resolveAirline(body?.airline);
     if (airline.error) return airline.error;
@@ -67,7 +67,7 @@ export async function PUT(request) {
 export async function DELETE(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("ancillaries");
     const airline = await resolveAirline(new URL(request.url).searchParams.get("airline"));
     if (airline.error) return airline.error;
     if (!airline.code) {

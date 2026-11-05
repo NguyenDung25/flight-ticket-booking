@@ -10,7 +10,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function POST(request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
 
     const { id } = await params;
     const body = await request.json().catch(() => ({}));

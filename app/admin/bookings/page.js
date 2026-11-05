@@ -26,7 +26,7 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("vi-VN");
 const LIST_LIMIT = 200;
 
 export default async function AdminBookingsPage({ searchParams }) {
-  await guardAdminPage();
+  await guardAdminPage("bookings");
   await dbConnect();
   const sp = await searchParams;
   const clean = (v) => (typeof v === "string" ? v : "").trim().slice(0, 100);

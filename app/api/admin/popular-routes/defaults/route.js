@@ -8,7 +8,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function POST() {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const result = await seedDefaults();
     await logAdminAction(admin, {
       action: "popular_route.seed_defaults", targetType: "popular_route",

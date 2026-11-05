@@ -21,7 +21,7 @@ function assertValidId(id) {
 async function update(request, { params }, context) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("aircraft");
     const { id } = await params;
     assertValidId(id);
 
@@ -93,7 +93,7 @@ export async function PATCH(request, ctx) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("aircraft");
     const { id } = await params;
     assertValidId(id);
 

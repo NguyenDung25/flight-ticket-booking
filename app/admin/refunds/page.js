@@ -23,7 +23,7 @@ const STATUS_LABELS = {
 };
 
 export default async function AdminRefundsPage() {
-  await guardAdminPage();
+  await guardAdminPage("refunds");
   await dbConnect();
   const bookingDocs = await Booking.find(
     { status: { $in: ["refunded", "payment_error_manual_refund"] } },

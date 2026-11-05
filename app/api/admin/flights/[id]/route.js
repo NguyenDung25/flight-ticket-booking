@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { requireAdminUser } from "@/lib/requireAdminUser";
+import { ActiveUserError } from "@/lib/requireActiveUser";
+import { can } from "@/config/adminRoles";
 import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Booking from "@/models/Booking";
@@ -24,7 +26,7 @@ const EDITABLE_FIELDS = [
 export async function GET(_request, { params }) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser(["flights", "flight_prices"]);
 
     const { id } = await params;
     const flight = await Flight.findById(id)
@@ -85,6 +87,23 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ message: "Không tìm thấy chuyến bay." }, { status: 404 });
     }
 
+    // Phân quyền theo nhóm field: giá vé do ADMIN KD đổi, các field còn lại do ADMIN FOC. Giá gửi lên nhưng không đổi thì bỏ qua.
+    if (updates.base_price !== undefined) {
+      const same =
+        Number(updates.base_price?.economy) === Number(current.base_price?.economy) &&
+        Number(updates.base_price?.business ?? null) === Number(current.base_price?.business ?? null);
+      if (same) delete updates.base_price;
+    }
+    if (updates.base_price !== undefined && !can(admin.role, "flight_prices")) {
+      throw new ActiveUserError("Chỉ ADMIN KD hoặc ADMIN IT mới được đổi giá vé.", 403);
+    }
+    if (Object.keys(updates).some((k) => k !== "base_price") && !can(admin.role, "flights")) {
+      throw new ActiveUserError("Chỉ ADMIN FOC hoặc ADMIN IT mới được sửa thông tin chuyến bay.", 403);
+    }
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ message: "Không có thay đổi nào để lưu." }, { status: 400 });
+    }
+
     // L2/L3: findByIdAndUpdate không chạy pre("validate") nên kiểm tra tay; đồng thời từ chối status "cancelled".
     validatePatch(updates, {
       departure_time: current.departure_time,
@@ -131,7 +150,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
 
     const { id } = await params;
 

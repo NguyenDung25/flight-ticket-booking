@@ -12,6 +12,7 @@ const svgProps = {
 export const NAV_ITEMS = [
   {
     href: "/admin",
+    perm: "dashboard",
     label: "Tổng quan",
     icon: (
       <svg {...svgProps}>
@@ -24,6 +25,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/users",
+    perm: "users_view",
     label: "Người dùng",
     icon: (
       <svg {...svgProps}>
@@ -35,6 +37,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/bookings",
+    perm: "bookings",
     label: "Booking",
     icon: (
       <svg {...svgProps}>
@@ -45,6 +48,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/flights",
+    perm: "flights",
     label: "Chuyến bay",
     icon: (
       <svg {...svgProps}>
@@ -54,16 +58,18 @@ export const NAV_ITEMS = [
     ),
   },
   {
-    href: "/admin/airlines",
-    label: "Hãng bay",
+    href: "/admin/prices",
+    perm: "flight_prices",
+    label: "Giá vé",
     icon: (
       <svg {...svgProps}>
-        <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+        <path d="M12 3v18M16.5 7.5c-.8-1.2-2.4-2-4.5-2-2.6 0-4.2 1.2-4.2 3 0 4.2 9 2 9 6.4 0 1.8-1.8 3.1-4.8 3.1-2.2 0-4-.8-5-2.2" />
       </svg>
     ),
   },
   {
     href: "/admin/aircraft",
+    perm: "aircraft",
     label: "Máy bay",
     icon: (
       <svg {...svgProps}>
@@ -74,6 +80,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/promotions",
+    perm: "promotions",
     label: "Khuyến mãi",
     icon: (
       <svg {...svgProps}>
@@ -84,6 +91,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/ancillaries",
+    perm: "ancillaries",
     label: "Dịch vụ bổ sung",
     icon: (
       <svg {...svgProps}>
@@ -94,6 +102,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/refunds",
+    perm: "refunds",
     label: "Hoàn tiền",
     icon: (
       <svg {...svgProps}>
@@ -104,6 +113,7 @@ export const NAV_ITEMS = [
   },
   {
     href: "/admin/logs",
+    perm: "logs",
     label: "Nhật ký thao tác",
     icon: (
       <svg {...svgProps}>
@@ -113,6 +123,18 @@ export const NAV_ITEMS = [
     ),
   },
 ];
+
+import { can } from "../../config/adminRoles";
+
+/** Các mục menu mà vai trò được phép dùng. */
+export function visibleNavItems(role) {
+  return NAV_ITEMS.filter((i) => can(role, i.perm));
+}
+
+/** Trang quản trị đầu tiên vai trò được phép vào (dùng khi vào /admin mà không có quyền xem Tổng quan). */
+export function firstAllowedHref(role) {
+  return visibleNavItems(role)[0]?.href ?? null;
+}
 
 export function isActive(pathname, href) {
   if (href === "/admin") return pathname === "/admin";

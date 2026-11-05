@@ -6,6 +6,7 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import MobileMenu from "./MobileMenu";
 import DesktopNav from "./DesktopNav";
 import { signOutAction } from "./authActions";
+import { isAdminRole } from "@/config/adminRoles";
 
 export default async function Header() {
   const [t, tBrand, session] = await Promise.all([
@@ -23,7 +24,7 @@ export default async function Header() {
   ];
 
   // Nút "Đăng ký" trên thanh header bị ẩn dưới breakpoint sm (chật chỗ).
-  const isAdmin = session?.user?.role === "admin";
+  const isAdmin = isAdminRole(session?.user?.role);
   const adminLink = isAdmin ? { href: "/admin", label: t("adminPanel"), plain: true } : null;
 
   const accountLink = { href: "/account", label: t("account") };

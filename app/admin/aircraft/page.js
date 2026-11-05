@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default async function AdminAircraftPage() {
-  await guardAdminPage();
+  await guardAdminPage("aircraft");
   await dbConnect();
   const aircraftDocs = await Aircraft.find().sort({ name: 1 }).lean();
 

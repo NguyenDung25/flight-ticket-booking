@@ -33,7 +33,7 @@ const User = require("../models/User");
 const Airline = require("../models/Airline");
 const Aircraft = require("../models/Aircraft");
 const Flight = require("../models/Flight");
-const { BCRYPT_SALT_ROUNDS } = require("../config/constants");
+const { BCRYPT_SALT_ROUNDS, OWN_AIRLINE_CODE } = require("../config/constants");
 
 const ADMIN_EMAIL = "admin@example.com";
 // Tài khoản demo mật khẩu mặc định công khai — chỉ để chạy thử/bảo vệ đồ án.
@@ -42,6 +42,12 @@ if (process.env.NODE_ENV === "production") {
   process.exit(1);
 }
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
+// Tài khoản quản trị theo bộ phận (admin@example.com là ADMIN IT, toàn quyền). Mật khẩu demo công khai, chỉ để chạy thử.
+const DEPARTMENT_ADMINS = [
+  { email: "foc@example.com", password: "Foc@123", full_name: "ADMIN FOC Demo", role: "admin_foc" },
+  { email: "kd@example.com", password: "Kd@12345", full_name: "ADMIN KD Demo", role: "admin_kd" },
+  { email: "cs@example.com", password: "Cs@12345", full_name: "ADMIN CS Demo", role: "admin_cs" },
+];
 const CUSTOMER_EMAIL = "customer@example.com";
 const CUSTOMER_PASSWORD = process.env.SEED_CUSTOMER_PASSWORD || "Customer@123";
 
@@ -53,6 +59,16 @@ async function seedUsers() {
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
+  for (const a of DEPARTMENT_ADMINS) {
+    const hash = await bcrypt.hash(a.password, BCRYPT_SALT_ROUNDS);
+    await User.findOneAndUpdate(
+      { email: a.email },
+      { email: a.email, password_hash: hash, full_name: a.full_name, role: a.role },
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+    );
+    console.log(`✅ ${a.role}: ${a.email} / ${a.password}`);
+  }
+
   const customerHash = await bcrypt.hash(CUSTOMER_PASSWORD, BCRYPT_SALT_ROUNDS);
   await User.findOneAndUpdate(
     { email: CUSTOMER_EMAIL },
@@ -60,23 +76,21 @@ async function seedUsers() {
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
-  console.log(`✅ Admin:    ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  console.log(`✅ Admin IT: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
   console.log(`✅ Customer: ${CUSTOMER_EMAIL} / ${CUSTOMER_PASSWORD}`);
 }
 
+// Website là kênh bán vé của một hãng: chỉ tạo hãng này (mặc định 9G — Sun PhuQuoc Airways; đổi bằng OWN_AIRLINE_CODE).
 async function seedAirlines() {
-  const vietnamAirlines = await Airline.findOneAndUpdate(
-    { code: "VN" },
-    { code: "VN", name: { vi: "Vietnam Airlines", en: "Vietnam Airlines" } },
+  const code = OWN_AIRLINE_CODE;
+  const names = { "9G": { vi: "Sun PhuQuoc Airways", en: "Sun PhuQuoc Airways" } };
+  const airline = await Airline.findOneAndUpdate(
+    { code },
+    { code, name: names[code] ?? { vi: code, en: code } },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
-  const vietjet = await Airline.findOneAndUpdate(
-    { code: "VJ" },
-    { code: "VJ", name: { vi: "Vietjet Air", en: "Vietjet Air" } },
-    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
-  );
-  console.log("✅ Airline: VN, VJ");
-  return { vietnamAirlines, vietjet };
+  console.log(`✅ Airline: ${code}`);
+  return { airline };
 }
 
 async function seedAircraft() {
@@ -112,8 +126,8 @@ function tomorrowAt(hour) {
 async function seedFlights({ airlines, aircraft }) {
   const toSeed = [
     {
-      flight_number: "VN200",
-      airline_id: airlines.vietnamAirlines._id,
+      flight_number: `${OWN_AIRLINE_CODE}200`,
+      airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "HAN",
       dest_code: "SGN",
@@ -122,8 +136,8 @@ async function seedFlights({ airlines, aircraft }) {
       base_price: { economy: 1500000, business: 4000000 },
     },
     {
-      flight_number: "VJ300",
-      airline_id: airlines.vietjet._id,
+      flight_number: `${OWN_AIRLINE_CODE}300`,
+      airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "SGN",
       dest_code: "HAN",
@@ -132,9 +146,9 @@ async function seedFlights({ airlines, aircraft }) {
       base_price: { economy: 1200000, business: 3500000 },
     },
     {
-      // Cùng hãng VN với VN200 (khác VJ300) — để test khứ hồi thành công: chọn VN200 (HAN->SGN) làm chặng đi.
-      flight_number: "VN201",
-      airline_id: airlines.vietnamAirlines._id,
+      // Chặng về của chuyến 200 (SGN->HAN, cách giờ đến ít nhất 2 giờ) — để test khứ hồi: chọn chuyến 200 làm chặng đi.
+      flight_number: `${OWN_AIRLINE_CODE}201`,
+      airline_id: airlines.airline._id,
       aircraft_id: aircraft._id,
       origin_code: "SGN",
       dest_code: "HAN",

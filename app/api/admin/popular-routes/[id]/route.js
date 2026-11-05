@@ -8,7 +8,7 @@ import { logAdminAction } from "@/lib/adminLog";
 export async function PATCH(request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const { id } = await params;
     const body = (await request.json().catch(() => null)) ?? {};
     const updated = await updateRoute(id, body);
@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
     const { id } = await params;
     const result = await deleteRoute(id);
     await logAdminAction(admin, {

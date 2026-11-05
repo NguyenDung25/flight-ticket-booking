@@ -5,18 +5,20 @@ import { handleApiError } from "@/lib/apiError";
 import Flight from "@/models/Flight";
 import Aircraft from "@/models/Aircraft";
 // Side-effect import — GET bên dưới populate("airline_id") nhưng model "Airline" chưa từng được require ở file…
-import "@/models/Airline";
+import Airline from "@/models/Airline";
+import { OWN_AIRLINE_CODE } from "@/config/constants";
 import { logAdminAction } from "@/lib/adminLog";
 
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser(["flights", "flight_prices"]);
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
 
-    const flights = await Flight.find()
+    const own = await Airline.findOne({ code: OWN_AIRLINE_CODE }).select("_id").lean();
+    const flights = await Flight.find(own ? { airline_id: own._id } : { _id: null })
       .sort({ departure_time: -1 })
       .limit(limit)
       .populate("airline_id", "code name")
@@ -31,12 +33,11 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await dbConnect();
-    const admin = await requireAdminUser();
+    const admin = await requireAdminUser("flights");
 
     const body = await request.json();
     const {
       flight_number,
-      airline_id,
       aircraft_id,
       origin_code,
       dest_code,
@@ -47,7 +48,6 @@ export async function POST(request) {
 
     if (
       !flight_number ||
-      !airline_id ||
       !aircraft_id ||
       !origin_code ||
       !dest_code ||
@@ -58,7 +58,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           message:
-            "Thiếu trường bắt buộc: flight_number, airline_id, aircraft_id, origin_code, dest_code, departure_time, arrival_time, base_price.economy.",
+            "Thiếu trường bắt buộc: flight_number, aircraft_id, origin_code, dest_code, departure_time, arrival_time, base_price.economy.",
         },
         { status: 400 }
       );
@@ -69,12 +69,18 @@ export async function POST(request) {
       return NextResponse.json({ message: "Không tìm thấy aircraft_id tương ứng." }, { status: 404 });
     }
 
+    // Website là kênh bán vé của một hãng: chuyến mới luôn thuộc hãng này, không nhận airline_id từ body.
+    const airline = await Airline.findOne({ code: OWN_AIRLINE_CODE });
+    if (!airline) {
+      return NextResponse.json({ message: `Chưa có hãng ${OWN_AIRLINE_CODE} trong hệ thống.` }, { status: 409 });
+    }
+
     // Ghế chỉ sinh từ sơ đồ của máy bay, không nhận seats[] từ body.
     const seats = aircraft.cloneSeatMapForFlight();
 
     const flight = await Flight.create({
       flight_number,
-      airline_id,
+      airline_id: airline._id,
       aircraft_id,
       origin_code: origin_code.toUpperCase(),
       dest_code: dest_code.toUpperCase(),

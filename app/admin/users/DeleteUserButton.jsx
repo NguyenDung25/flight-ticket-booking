@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isAdminRole } from "@/config/adminRoles";
 
 export default function DeleteUserButton({ userId, role }) {
   const router = useRouter();
@@ -9,7 +10,7 @@ export default function DeleteUserButton({ userId, role }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
 
-  if (role === "admin") return null;
+  if (isAdminRole(role)) return null;
 
   function reset() {
     setExpanded(false);

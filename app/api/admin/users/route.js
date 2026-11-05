@@ -7,7 +7,7 @@ import User from "@/models/User";
 export async function GET(request) {
   try {
     await dbConnect();
-    await requireAdminUser();
+    await requireAdminUser("users_view");
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(Number(searchParams.get("limit")) || 200, 500);

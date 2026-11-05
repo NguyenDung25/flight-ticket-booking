@@ -9,7 +9,7 @@ const FLIGHT_IATA = /^[A-Z0-9]{2}\d{1,4}$/;
 
 export async function GET(request) {
   try {
-    await requireAdminUser();
+    await requireAdminUser("flights");
 
     const apiKey = process.env.AIRLABS_API_KEY;
     if (!apiKey) {
