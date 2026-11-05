@@ -1,5 +1,5 @@
 /**
- * Dữ liệu demo cho buổi bảo vệ (chạy sau `npm run seed`): thêm chuyến bay của hãng 9G (số hiệu thật, nhiều sân bay) cho 5 ngày tới
+ * Dữ liệu demo cho buổi bảo vệ (chạy sau `npm run seed`): thêm chuyến bay của hãng 9G (số hiệu thật, nhiều sân bay) cho 14 ngày tới
  * và nhật ký thao tác của các tài khoản admin theo bộ phận (FOC, KD, CS, IT). Chạy lại nhiều lần không tạo trùng.
  *   npm run seed:demo
  */
@@ -38,93 +38,101 @@ const Airport = require("../models/Airport");
 const Flight = require("../models/Flight");
 const User = require("../models/User");
 const AdminLog = require("../models/AdminLog");
+const Booking = require("../models/Booking");
 const { OWN_AIRLINE_CODE } = require("../config/constants");
+const { FLEET, buildFleetSeatMap } = require("../lib/fleet9G");
 
 // Lịch bay nội địa THẬT của Sun PhuQuoc Airways (9G), lấy từ AirLabs (/schedules?airline_iata=9G) ngày 05/11/2026, đổi giờ UTC sang giờ Việt Nam.
 // Chỉ lấy chuyến giữa các sân bay đã có trong hệ thống (bỏ chuyến quốc tế). Giá vé và loại tàu bay là dữ liệu demo.
 // Mỗi dòng: số hiệu (sau mã 9G), đi, đến, giờ đi (VN), thời gian bay (phút), tàu bay, giá phổ thông, giá thương gia.
 const SCHEDULE = [
-  ["1144", "CXR", "HAN", "14:10", 110, "Airbus A320", 1290000, 3300000],
-  ["1154", "CXR", "HAN", "18:00", 110, "Airbus A320", 1290000, 3300000],
-  ["1158", "CXR", "HAN", "20:35", 110, "Airbus A320", 1290000, 3300000],
-  ["2957", "CXR", "PQC", "13:50", 80, "Airbus A320", 1190000, 3100000],
-  ["924", "DAD", "HAN", "13:35", 80, "Airbus A320", 990000, 2600000],
-  ["928", "DAD", "HAN", "15:55", 80, "Airbus A320", 990000, 2600000],
-  ["934", "DAD", "HAN", "17:55", 80, "Airbus A320", 990000, 2600000],
-  ["946", "DAD", "HAN", "22:35", 80, "Airbus A320", 990000, 2600000],
-  ["2965", "DAD", "PQC", "13:15", 105, "Airbus A320", 1390000, 3600000],
-  ["983", "DAD", "SGN", "17:50", 90, "Airbus A320", 1090000, 2900000],
-  ["985", "DAD", "SGN", "18:25", 90, "Airbus A320", 1090000, 2900000],
-  ["993", "DAD", "SGN", "20:55", 90, "Airbus A320", 1090000, 2900000],
-  ["997", "DAD", "SGN", "22:45", 90, "Airbus A320", 1090000, 2900000],
-  ["1159", "HAN", "CXR", "18:00", 115, "Airbus A320", 1290000, 3300000],
-  ["925", "HAN", "DAD", "13:55", 80, "Airbus A320", 990000, 2600000],
-  ["929", "HAN", "DAD", "15:55", 80, "Airbus A320", 990000, 2600000],
-  ["941", "HAN", "DAD", "20:35", 80, "Airbus A320", 990000, 2600000],
-  ["1227", "HAN", "PQC", "13:00", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1233", "HAN", "PQC", "15:25", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1239", "HAN", "PQC", "17:00", 125, "Airbus A321neo", 1890000, 4800000],
-  ["841", "HAN", "SGN", "12:50", 130, "Airbus A321neo", 1650000, 4200000],
-  ["845", "HAN", "SGN", "14:30", 130, "Airbus A321neo", 1650000, 4200000],
-  ["855", "HAN", "SGN", "15:40", 130, "Airbus A321neo", 1650000, 4200000],
-  ["869", "HAN", "SGN", "18:35", 130, "Airbus A321neo", 1650000, 4200000],
-  ["873", "HAN", "SGN", "19:15", 130, "Airbus A321neo", 1650000, 4200000],
-  ["881", "HAN", "SGN", "21:00", 130, "Airbus A321neo", 1650000, 4200000],
-  ["883", "HAN", "SGN", "21:30", 130, "Airbus A321neo", 1650000, 4200000],
-  ["893", "HAN", "SGN", "23:40", 130, "Airbus A321neo", 1650000, 4200000],
-  ["1511", "HPH", "SGN", "14:40", 130, "Airbus A320", 1490000, 3800000],
-  ["1523", "HPH", "SGN", "20:45", 130, "Airbus A320", 1490000, 3800000],
-  ["2956", "PQC", "CXR", "15:55", 80, "Airbus A320", 1190000, 3100000],
-  ["2966", "PQC", "DAD", "16:00", 105, "Airbus A320", 1390000, 3600000],
-  ["1218", "PQC", "HAN", "14:40", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1226", "PQC", "HAN", "16:00", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1232", "PQC", "HAN", "17:10", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1234", "PQC", "HAN", "18:10", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1244", "PQC", "HAN", "21:35", 125, "Airbus A321neo", 1890000, 4800000],
-  ["1968", "PQC", "SGN", "13:55", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1972", "PQC", "SGN", "16:00", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1974", "PQC", "SGN", "17:00", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1976", "PQC", "SGN", "18:00", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1978", "PQC", "SGN", "18:50", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1984", "PQC", "SGN", "19:45", 65, "Airbus A321neo", 1190000, 3100000],
-  ["978", "SGN", "DAD", "15:45", 85, "Airbus A320", 1090000, 2900000],
-  ["986", "SGN", "DAD", "18:50", 85, "Airbus A320", 1090000, 2900000],
-  ["990", "SGN", "DAD", "20:40", 85, "Airbus A320", 1090000, 2900000],
-  ["854", "SGN", "HAN", "16:00", 130, "Airbus A321neo", 1650000, 4200000],
-  ["860", "SGN", "HAN", "18:00", 130, "Airbus A321neo", 1650000, 4200000],
-  ["868", "SGN", "HAN", "18:45", 130, "Airbus A321neo", 1650000, 4200000],
-  ["880", "SGN", "HAN", "20:45", 130, "Airbus A321neo", 1650000, 4200000],
-  ["882", "SGN", "HAN", "21:45", 130, "Airbus A321neo", 1650000, 4200000],
-  ["884", "SGN", "HAN", "22:00", 130, "Airbus A321neo", 1650000, 4200000],
-  ["890", "SGN", "HAN", "22:35", 130, "Airbus A321neo", 1650000, 4200000],
-  ["1522", "SGN", "HPH", "18:00", 120, "Airbus A320", 1490000, 3800000],
-  ["1975", "SGN", "PQC", "14:25", 65, "Airbus A321neo", 1190000, 3100000],
-  ["1985", "SGN", "PQC", "17:50", 60, "Airbus A321neo", 1190000, 3100000],
-  ["1987", "SGN", "PQC", "19:50", 60, "Airbus A321neo", 1190000, 3100000],
+  ["1144", "CXR", "HAN", "14:10", 110, "Airbus A321neo", 1290000, 3300000],
+  ["1154", "CXR", "HAN", "18:00", 110, "Airbus A321neo", 1290000, 3300000],
+  ["1158", "CXR", "HAN", "20:35", 110, "Airbus A321neo", 1290000, 3300000],
+  ["2957", "CXR", "PQC", "13:50", 80, "Airbus A321neo", 1190000, 3100000],
+  ["924", "DAD", "HAN", "13:35", 80, "Airbus A321neo", 990000, 2600000],
+  ["928", "DAD", "HAN", "15:55", 80, "Airbus A321neo", 990000, 2600000],
+  ["934", "DAD", "HAN", "17:55", 80, "Airbus A321neo", 990000, 2600000],
+  ["946", "DAD", "HAN", "22:35", 80, "Airbus A321neo", 990000, 2600000],
+  ["2965", "DAD", "PQC", "13:15", 105, "Airbus A321neo", 1390000, 3600000],
+  ["983", "DAD", "SGN", "17:50", 90, "Airbus A321neo", 1090000, 2900000],
+  ["985", "DAD", "SGN", "18:25", 90, "Airbus A321neo", 1090000, 2900000],
+  ["993", "DAD", "SGN", "20:55", 90, "Airbus A321neo", 1090000, 2900000],
+  ["997", "DAD", "SGN", "22:45", 90, "Airbus A321neo", 1090000, 2900000],
+  ["1159", "HAN", "CXR", "18:00", 115, "Airbus A321neo", 1290000, 3300000],
+  ["925", "HAN", "DAD", "13:55", 80, "Airbus A321neo", 990000, 2600000],
+  ["929", "HAN", "DAD", "15:55", 80, "Airbus A321neo", 990000, 2600000],
+  ["941", "HAN", "DAD", "20:35", 80, "Airbus A321neo", 990000, 2600000],
+  ["1227", "HAN", "PQC", "13:00", 125, "Airbus A321", 1890000, 4800000],
+  ["1233", "HAN", "PQC", "15:25", 125, "Airbus A321", 1890000, 4800000],
+  ["1239", "HAN", "PQC", "17:00", 125, "Airbus A321", 1890000, 4800000],
+  ["841", "HAN", "SGN", "12:50", 130, "Airbus A321", 1650000, 4200000],
+  ["845", "HAN", "SGN", "14:30", 130, "Airbus A321", 1650000, 4200000],
+  ["855", "HAN", "SGN", "15:40", 130, "Airbus A321", 1650000, 4200000],
+  ["869", "HAN", "SGN", "18:35", 130, "Airbus A321", 1650000, 4200000],
+  ["873", "HAN", "SGN", "19:15", 130, "Airbus A321", 1650000, 4200000],
+  ["881", "HAN", "SGN", "21:00", 130, "Airbus A321", 1650000, 4200000],
+  ["883", "HAN", "SGN", "21:30", 130, "Airbus A321", 1650000, 4200000],
+  ["893", "HAN", "SGN", "23:40", 130, "Airbus A321", 1650000, 4200000],
+  ["1511", "HPH", "SGN", "14:40", 130, "Airbus A321neo", 1490000, 3800000],
+  ["1523", "HPH", "SGN", "20:45", 130, "Airbus A321neo", 1490000, 3800000],
+  ["2956", "PQC", "CXR", "15:55", 80, "Airbus A321neo", 1190000, 3100000],
+  ["2966", "PQC", "DAD", "16:00", 105, "Airbus A321neo", 1390000, 3600000],
+  ["1218", "PQC", "HAN", "14:40", 125, "Airbus A321", 1890000, 4800000],
+  ["1226", "PQC", "HAN", "16:00", 125, "Airbus A321", 1890000, 4800000],
+  ["1232", "PQC", "HAN", "17:10", 125, "Airbus A321", 1890000, 4800000],
+  ["1234", "PQC", "HAN", "18:10", 125, "Airbus A321", 1890000, 4800000],
+  ["1244", "PQC", "HAN", "21:35", 125, "Airbus A321", 1890000, 4800000],
+  ["1968", "PQC", "SGN", "13:55", 65, "Airbus A321", 1190000, 3100000],
+  ["1972", "PQC", "SGN", "16:00", 65, "Airbus A321", 1190000, 3100000],
+  ["1974", "PQC", "SGN", "17:00", 65, "Airbus A321", 1190000, 3100000],
+  ["1976", "PQC", "SGN", "18:00", 65, "Airbus A321", 1190000, 3100000],
+  ["1978", "PQC", "SGN", "18:50", 65, "Airbus A321", 1190000, 3100000],
+  ["1984", "PQC", "SGN", "19:45", 65, "Airbus A321", 1190000, 3100000],
+  ["978", "SGN", "DAD", "15:45", 85, "Airbus A321neo", 1090000, 2900000],
+  ["986", "SGN", "DAD", "18:50", 85, "Airbus A321neo", 1090000, 2900000],
+  ["990", "SGN", "DAD", "20:40", 85, "Airbus A321neo", 1090000, 2900000],
+  ["854", "SGN", "HAN", "16:00", 130, "Airbus A321", 1650000, 4200000],
+  ["860", "SGN", "HAN", "18:00", 130, "Airbus A321", 1650000, 4200000],
+  ["868", "SGN", "HAN", "18:45", 130, "Airbus A321", 1650000, 4200000],
+  ["880", "SGN", "HAN", "20:45", 130, "Airbus A321", 1650000, 4200000],
+  ["882", "SGN", "HAN", "21:45", 130, "Airbus A321", 1650000, 4200000],
+  ["884", "SGN", "HAN", "22:00", 130, "Airbus A321", 1650000, 4200000],
+  ["890", "SGN", "HAN", "22:35", 130, "Airbus A321", 1650000, 4200000],
+  ["1522", "SGN", "HPH", "18:00", 120, "Airbus A321neo", 1490000, 3800000],
+  ["1975", "SGN", "PQC", "14:25", 65, "Airbus A321", 1190000, 3100000],
+  ["1985", "SGN", "PQC", "17:50", 60, "Airbus A321", 1190000, 3100000],
+  ["1987", "SGN", "PQC", "19:50", 60, "Airbus A321", 1190000, 3100000],
 ];
 // Các sân bay còn lại trong hệ thống mà 9G KHÔNG khai thác thật (theo AirLabs): thêm chuyến DEMO nối với Hà Nội hoặc TP.HCM để trang tìm kiếm
 // và các tuyến phổ biến có dữ liệu ở mọi sân bay. Số hiệu dùng dải 31xx (không trùng số thật nào của hãng) — không phải lịch bay thật.
 // Mỗi dòng: sân bay, trung tâm, thời gian bay (phút), tàu bay, giá phổ thông, giá thương gia, giờ đi từ trung tâm, giờ về.
 const DEMO_ROUTES = [
-  ["DIN", "HAN", 65, "ATR 72", 890_000, null, "07:00", "09:30"],
-  ["VII", "HAN", 70, "ATR 72", 790_000, null, "09:00", "11:30"],
-  ["THD", "HAN", 60, "ATR 72", 760_000, null, "10:30", "13:00"],
-  ["VDO", "HAN", 60, "ATR 72", 790_000, null, "11:15", "13:45"],
-  ["VDH", "HAN", 80, "ATR 72", 850_000, null, "12:00", "14:30"],
-  ["HUI", "HAN", 80, "Airbus A320", 990_000, 2_600_000, "06:45", "09:15"],
-  ["HUI", "SGN", 95, "Airbus A320", 1_190_000, 3_100_000, "15:00", "17:30"],
-  ["VCL", "HAN", 85, "ATR 72", 890_000, null, "14:20", "16:50"],
-  ["UIH", "SGN", 75, "ATR 72", 890_000, null, "08:30", "11:00"],
-  ["UIH", "HAN", 110, "Airbus A320", 1_190_000, 3_000_000, "17:00", "19:45"],
-  ["TBB", "SGN", 70, "ATR 72", 790_000, null, "09:45", "12:15"],
-  ["PXU", "SGN", 70, "ATR 72", 790_000, null, "13:30", "16:00"],
-  ["PXU", "HAN", 100, "Airbus A320", 1_090_000, 2_800_000, "18:20", "21:00"],
-  ["BMV", "SGN", 60, "ATR 72", 750_000, null, "07:30", "10:00"],
-  ["DLI", "SGN", 55, "ATR 72", 690_000, null, "12:30", "15:00"],
-  ["VCA", "SGN", 50, "ATR 72", 650_000, null, "06:50", "09:15"],
-  ["CAH", "SGN", 60, "ATR 72", 700_000, null, "16:10", "18:40"],
-  ["VCS", "SGN", 50, "ATR 72", 780_000, null, "08:10", "10:35"],
-  ["VKG", "SGN", 60, "ATR 72", 720_000, null, "14:40", "17:10"],
+  ["DIN", "HAN", 65, "Airbus A321neo", 890_000, null, "07:00", "09:30"],
+  ["VII", "HAN", 70, "Airbus A321neo", 790_000, null, "09:00", "11:30"],
+  ["THD", "HAN", 60, "Airbus A321neo", 760_000, null, "10:30", "13:00"],
+  ["VDO", "HAN", 60, "Airbus A321neo", 790_000, null, "11:15", "13:45"],
+  ["VDH", "HAN", 80, "Airbus A321neo", 850_000, null, "12:00", "14:30"],
+  ["HUI", "HAN", 80, "Airbus A321neo", 990_000, 2_600_000, "06:45", "09:15"],
+  ["HUI", "SGN", 95, "Airbus A321neo", 1_190_000, 3_100_000, "15:00", "17:30"],
+  ["VCL", "HAN", 85, "Airbus A321neo", 890_000, null, "14:20", "16:50"],
+  ["UIH", "SGN", 75, "Airbus A321neo", 890_000, null, "08:30", "11:00"],
+  ["UIH", "HAN", 110, "Airbus A321neo", 1_190_000, 3_000_000, "17:00", "19:45"],
+  ["TBB", "SGN", 70, "Airbus A321neo", 790_000, null, "09:45", "12:15"],
+  ["PXU", "SGN", 70, "Airbus A321neo", 790_000, null, "13:30", "16:00"],
+  ["PXU", "HAN", 100, "Airbus A321neo", 1_090_000, 2_800_000, "18:20", "21:00"],
+  ["BMV", "SGN", 60, "Airbus A321neo", 750_000, null, "07:30", "10:00"],
+  ["DLI", "SGN", 55, "Airbus A321neo", 690_000, null, "12:30", "15:00"],
+  ["VCA", "SGN", 50, "Airbus A321neo", 650_000, null, "06:50", "09:15"],
+  ["CAH", "SGN", 60, "Airbus A321neo", 700_000, null, "16:10", "18:40"],
+  ["VCS", "SGN", 50, "Airbus A321neo", 780_000, null, "08:10", "10:35"],
+  ["VKG", "SGN", 60, "Airbus A321neo", 720_000, null, "14:40", "17:10"],
+  // Thêm đường nối thứ hai cho các sân bay chỉ có một tuyến, để tìm kiếm từ nhiều nơi đều ra chuyến (nhất là Đà Lạt).
+  ["DLI", "HAN", 105, "Airbus A321neo", 1_290_000, 3_300_000, "10:00", "12:50"],
+  ["DLI", "DAD", 80, "Airbus A321neo", 890_000, null, "08:00", "10:30"],
+  ["DLI", "CXR", 45, "Airbus A321neo", 590_000, null, "16:30", "18:30"],
+  ["VCA", "HAN", 125, "Airbus A321neo", 1_390_000, 3_500_000, "11:30", "14:30"],
+  ["BMV", "HAN", 100, "Airbus A321neo", 1_190_000, 3_000_000, "13:00", "15:50"],
 ];
 DEMO_ROUTES.forEach(([ap, hub, mins, ac, eco, biz, out, back], i) => {
   const no = (n) => `31${String(n).padStart(2, "0")}`;
@@ -132,11 +140,45 @@ DEMO_ROUTES.forEach(([ap, hub, mins, ac, eco, biz, out, back], i) => {
   SCHEDULE.push([no(i * 2 + 2), ap, hub, back, mins, ac, eco, biz]);
 });
 
-const DAYS = 5;
+const DAYS = 14;
+
+/** Đảm bảo đội tàu bay thật của 9G, dọn chuyến demo cũ dùng tàu bay không thuộc đội bay, xóa tàu bay không còn dùng. */
+async function normalizeFleet(airline) {
+  for (const f of FLEET) {
+    const seatMap = buildFleetSeatMap(f);
+    await Aircraft.findOneAndUpdate({ name: f.name }, { name: f.name, total_seats: seatMap.length, seat_map_template: seatMap }, { upsert: true, returnDocument: "after", setDefaultsOnInsert: true });
+  }
+  const fleetDocs = await Aircraft.find({ name: { $in: FLEET.map((f) => f.name) } }).lean();
+  const byName = Object.fromEntries(fleetDocs.map((a) => [a.name, a]));
+  const now = new Date();
+  const futures = await Flight.find({ airline_id: airline._id, departure_time: { $gt: now } }).select("_id aircraft_id seats").lean();
+  const booked = new Set((await Booking.distinct("flights.flight_id", { "flights.flight_id": { $in: futures.map((f) => f._id) } })).map(String));
+  const fleetIds = new Set(fleetDocs.map((a) => String(a._id)));
+  const wrong = futures.filter((f) => !fleetIds.has(String(f.aircraft_id)) || f.seats.length !== fleetDocs.find((a) => String(a._id) === String(f.aircraft_id))?.total_seats);
+  const del = wrong.filter((f) => !booked.has(String(f._id)));
+  if (del.length) await Flight.deleteMany({ _id: { $in: del.map((f) => f._id) } });
+  // Chuyến còn booking: chỉ đổi sang tàu bay thật nếu mọi booking đã hủy / hoàn tiền (dữ liệu thử).
+  let converted = 0;
+  for (const f of wrong.filter((x) => booked.has(String(x._id)))) {
+    const live = await Booking.exists({ "flights.flight_id": f._id, status: { $in: ["pending_payment", "confirmed"] } });
+    if (live) continue;
+    const target = byName["Airbus A321"];
+    await Flight.updateOne({ _id: f._id }, { $set: { aircraft_id: target._id, seats: target.seat_map_template.map((t) => ({ seat_number: t.seat_number, seat_class: t.seat_class, status: "available", held_by: null, held_until: null, checked_in: false })) } });
+    converted++;
+  }
+  // Xóa tàu bay không thuộc đội bay và không còn chuyến nào dùng.
+  const stale = await Aircraft.find({ name: { $nin: FLEET.map((f) => f.name) } }).select("_id name").lean();
+  let removed = 0;
+  for (const a of stale) {
+    if (!(await Flight.exists({ aircraft_id: a._id }))) { await Aircraft.deleteOne({ _id: a._id }); removed++; }
+  }
+  console.log(`✅ Đội tàu bay 9G: ${FLEET.map((f) => f.name).join(", ")} | xóa ${del.length} chuyến demo dùng tàu bay sai, đổi ${converted} chuyến thử, xóa ${removed} loại tàu bay không dùng.`);
+}
 
 async function seedFlights() {
   const airline = await Airline.findOne({ code: OWN_AIRLINE_CODE });
   if (!airline) throw new Error(`Chưa có hãng ${OWN_AIRLINE_CODE} — chạy \`npm run seed\` trước.`);
+  await normalizeFleet(airline);
   const codes = new Set((await Airport.find({}, "code").lean()).map((a) => a.code));
   const aircraftByName = Object.fromEntries((await Aircraft.find().lean().then((l) => l)).map((a) => [a.name, a._id]));
   let created = 0, skipped = 0, missing = 0;
@@ -151,7 +193,7 @@ async function seedFlights() {
       await Flight.create({
         flight_number, airline_id: airline._id, aircraft_id: aircraft._id,
         origin_code: from, dest_code: to, departure_time: dep, arrival_time: new Date(dep.getTime() + mins * 60_000),
-        base_price: biz ? { economy: eco, business: biz } : { economy: eco },
+        base_price: { economy: eco, business: biz ?? Math.round((eco * 2.6) / 1000) * 1000 },
         seats: aircraft.cloneSeatMapForFlight(),
       });
       created++;

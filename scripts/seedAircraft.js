@@ -17,37 +17,23 @@ loadEnvLocal();
 
 const mongoose = require("mongoose");
 const Aircraft = require("../models/Aircraft");
-const { buildSeatMap, validateLayout } = require("../lib/seatLayout");
+const { FLEET, buildFleetSeatMap } = require("../lib/fleet9G");
 
-// Cấu hình ghế gần với đội bay đang khai thác tại Việt Nam (số liệu làm tròn theo hàng x ghế/hàng).
-// Tên có mã dòng máy bay (A321neo, 787-9...) để khớp với matchAircraft() khi tra cứu từ AirLabs.
-const FLEET = [
-  { name: "Airbus A320", businessRows: 0, businessPerRow: 0, economyRows: 30, economyPerRow: 6 }, // 180 ghế, kiểu Vietjet
-  { name: "Airbus A320neo", businessRows: 2, businessPerRow: 4, economyRows: 28, economyPerRow: 6 }, // 176 ghế
-  { name: "Airbus A321neo", businessRows: 2, businessPerRow: 4, economyRows: 29, economyPerRow: 6 }, // 182 ghế, kiểu Vietnam Airlines
-  { name: "Airbus A321neo (một hạng)", businessRows: 0, businessPerRow: 0, economyRows: 40, economyPerRow: 6 }, // 240 ghế, kiểu Vietjet
-  { name: "Airbus A330-300", businessRows: 7, businessPerRow: 4, economyRows: 29, economyPerRow: 9 }, // 289 ghế
-  { name: "Airbus A350-900", businessRows: 7, businessPerRow: 4, economyRows: 30, economyPerRow: 9 }, // 298 ghế
-  { name: "Boeing 787-9", businessRows: 7, businessPerRow: 4, economyRows: 27, economyPerRow: 9 }, // 271 ghế
-  { name: "ATR 72", businessRows: 0, businessPerRow: 0, economyRows: 18, economyPerRow: 4 }, // 72 ghế, tuyến ngắn
-];
-
+// Đội tàu bay của Sun PhuQuoc Airways (xem lib/fleet9G.js). Tên có mã dòng máy bay (A321, A321neo) để khớp matchAircraft() khi tra cứu từ AirLabs.
 async function main() {
   if (!process.env.MONGO_URI) throw new Error("Thiếu MONGO_URI trong .env.local.");
   await mongoose.connect(process.env.MONGO_URI);
 
-  for (const { name, ...layout } of FLEET) {
-    const err = validateLayout(layout);
-    if (err) throw new Error(`${name}: ${err}`);
-    const seatMap = buildSeatMap(layout);
+  for (const fleet of FLEET) {
+    const seatMap = buildFleetSeatMap(fleet);
     // Upsert theo tên: chạy lại không tạo trùng; chuyến đã tạo giữ nguyên sơ đồ ghế cũ (đã sao chép vào chuyến).
     await Aircraft.findOneAndUpdate(
-      { name },
-      { name, total_seats: seatMap.length, seat_map_template: seatMap },
+      { name: fleet.name },
+      { name: fleet.name, total_seats: seatMap.length, seat_map_template: seatMap },
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
-    const biz = layout.businessRows * layout.businessPerRow;
-    console.log(`✅ ${name}: ${seatMap.length} ghế (${biz} business, ${seatMap.length - biz} economy)`);
+    const biz = fleet.businessRows * fleet.businessPerRow;
+    console.log(`✅ ${fleet.name}: ${seatMap.length} ghế (${biz} business, ${seatMap.length - biz} economy)`);
   }
   await mongoose.disconnect();
 }
