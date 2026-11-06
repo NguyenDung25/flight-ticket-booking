@@ -1,8 +1,10 @@
+import Link from "next/link";
 import dbConnect from "@/lib/mongodb";
 import { guardAdminPage } from "@/lib/adminPageGuard";
 import Flight from "@/models/Flight";
 import Airline from "@/models/Airline";
 import { OWN_AIRLINE_CODE } from "@/config/constants";
+import { buildAdminFlightFilter } from "@/lib/adminFlightFilter";
 import Aircraft from "@/models/Aircraft";
 import Airport from "@/models/Airport";
 import { can } from "@/config/adminRoles";
@@ -42,12 +44,15 @@ async function RoutesTab() {
 export default async function AdminFlightsPage({ searchParams }) {
   const admin = await guardAdminPage("flights");
   await dbConnect();
-  const { tab } = await searchParams;
+  const { tab, q, date } = await searchParams;
   if (tab === "routes") return <RoutesTab />;
+  // Lọc: số hiệu bắt đầu bằng `q`, hoặc đúng ngày bay (giờ VN). Không lọc thì hiện 200 chuyến sắp khởi hành (từ 24 giờ trước), sớm nhất trước —
+  // dữ liệu nhiều ngày nên sắp giảm dần sẽ che mất các chuyến vừa tạo ở ngày gần.
+  const { filter, qText, dateText, filtered } = buildAdminFlightFilter({ airlineId: (await Airline.findOne({ code: OWN_AIRLINE_CODE }).select("_id").lean())?._id, q, date });
   const [flightDocs, aircraftDocs, airportDocs] = await Promise.all([
     // Website chỉ bán vé của một hãng nên danh sách chỉ gồm chuyến bay của hãng đó.
-    Flight.find({ airline_id: (await Airline.findOne({ code: OWN_AIRLINE_CODE }).select("_id").lean())?._id ?? null })
-      .sort({ departure_time: -1 })
+    Flight.find(filter)
+      .sort({ departure_time: 1 })
       .limit(200)
       .populate("airline_id", "code name")
       .populate("aircraft_id", "name")
@@ -88,12 +93,25 @@ export default async function AdminFlightsPage({ searchParams }) {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-2xl font-semibold text-sea-900">Chuyến bay</h1>
-        <p className="text-sm text-ink/60">{flights.length} chuyến gần nhất.</p>
+        <p className="text-sm text-ink/60">{flights.length} chuyến {filtered ? "phù hợp bộ lọc" : "sắp khởi hành"}.</p>
       </div>
 
       <FlightsTabs active="flights" />
 
       <FlightForm aircraft={aircraft} airports={airports} />
+
+      <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-sand-100 bg-white p-3">
+        <label className="flex flex-col gap-1 text-xs font-medium text-ink/60">
+          Số hiệu
+          <input name="q" defaultValue={qText} placeholder="VD: 9G84" className="w-32 rounded-lg border border-sand-100 px-2 py-1.5 text-sm" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-ink/60">
+          Ngày bay (giờ VN)
+          <input type="date" name="date" defaultValue={dateText} className="rounded-lg border border-sand-100 px-2 py-1.5 text-sm" />
+        </label>
+        <button type="submit" className="rounded-lg bg-sea-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-sea-700">Lọc</button>
+        {filtered && <Link href="/admin/flights" className="py-1.5 text-sm font-medium text-ink/60 hover:underline">Bỏ lọc</Link>}
+      </form>
 
       <FlightsTable flights={flights} airports={airports} canEditPrice={can(admin.role, "flight_prices")} />
     </div>
